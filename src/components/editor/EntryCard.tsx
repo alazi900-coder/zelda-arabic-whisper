@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCcw, Sparkles, Loader2, Tag, BookOpen, Wrench, Copy, Eye, Check, X } from "lucide-react";
 import DebouncedInput from "./DebouncedInput";
 import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTechnicalTags, previewTagRestore } from "./types";
-import { utf16leByteLength } from "@/lib/byte-utils";
+import { utf8ByteLength } from "@/lib/byte-utils";
 import { toast } from "@/hooks/use-toast";
 
 interface EntryCardProps {
@@ -203,7 +203,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
           )}
           {/* Byte usage progress bar */}
           {entry.maxBytes > 0 && translation && (() => {
-            const byteUsed = utf16leByteLength(translation);
+            const byteUsed = utf8ByteLength(translation);
             const ratio = byteUsed / entry.maxBytes;
             const percent = Math.min(ratio * 100, 100);
             const colorClass = ratio > 1 ? 'bg-destructive' : ratio > 0.85 ? 'bg-amber-500' : 'bg-primary';
@@ -211,7 +211,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
             return (
               <div className="mt-1.5">
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-0.5">
-                  <span>{byteUsed}/{entry.maxBytes} بايت</span>
+                  <span>{byteUsed}/{entry.maxBytes} بايت (UTF-8)</span>
                   <div className="flex items-center gap-1.5">
                     {warningLabel && <span className={`font-bold ${ratio > 1 ? 'text-destructive' : 'text-amber-600'}`}>{warningLabel}</span>}
                     <span className={ratio > 1 ? 'text-destructive font-bold' : ''}>{Math.round(ratio * 100)}%</span>
