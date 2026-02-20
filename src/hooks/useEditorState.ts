@@ -4,7 +4,7 @@ import { idbSet, idbGet } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { utf16leByteLength } from "@/lib/byte-utils";
+import { utf8ByteLength } from "@/lib/byte-utils";
 import { useEditorGlossary } from "@/hooks/useEditorGlossary";
 import { useEditorFileIO } from "@/hooks/useEditorFileIO";
 import { useEditorQuality } from "@/hooks/useEditorQuality";
