@@ -628,6 +628,8 @@ export function useEditorState() {
   // === File IO (extracted to useEditorFileIO) ===
   const filterLabel = filterCategory !== "all" ? filterCategory
     : filterFile !== "all" ? filterFile
+    : filterStatus !== "all" ? filterStatus
+    : filterTechnical !== "all" ? filterTechnical
     : "";
   const fileIO = useEditorFileIO({ state, setState, setLastSaved, filteredEntries, filterLabel });
   const { normalizeArabicPresentationForms } = fileIO;
@@ -746,7 +748,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, isFilterActive,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,

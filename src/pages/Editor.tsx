@@ -46,6 +46,7 @@ const Editor = () => {
   const isMobile = useIsMobile();
   const [showDiffView, setShowDiffView] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
+  const [showFilterTranslateConfirm, setShowFilterTranslateConfirm] = React.useState(false);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -167,7 +168,13 @@ const Editor = () => {
                 <Loader2 className="w-4 h-4 animate-spin" /> إيقاف ⏹️
               </Button>
             ) : (
-              <Button size={isMobile ? "default" : "lg"} variant="default" onClick={editor.handleAutoTranslate} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <Button size={isMobile ? "default" : "lg"} variant="default" onClick={() => {
+                if (editor.isFilterActive) {
+                  setShowFilterTranslateConfirm(true);
+                } else {
+                  editor.handleAutoTranslate();
+                }
+              }} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
                 <Sparkles className="w-4 h-4" /> {editor.isFilterActive ? `ترجمة المحدد (${untranslatedCount}) 🎯` : 'ترجمة تلقائية 🤖'}
               </Button>
             )}
@@ -699,7 +706,25 @@ const Editor = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        <BuildStatsDialog stats={editor.buildStats} onClose={() => editor.setBuildStats(null)} />
+        {/* Filter Translate Confirmation */}
+        <AlertDialog open={showFilterTranslateConfirm} onOpenChange={setShowFilterTranslateConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>🎯 ترجمة النصوص المحددة بالفلتر</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2 text-right">
+                <p>الفلتر نشط — سيتم ترجمة <strong>{untranslatedCount}</strong> نص غير مترجم فقط من أصل <strong>{editor.filteredEntries.length}</strong> نص ظاهر.</p>
+                <p className="text-xs text-muted-foreground">النصوص خارج الفلتر لن تتأثر. يمكنك إزالة الفلتر لترجمة الكل.</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setShowFilterTranslateConfirm(false); editor.handleAutoTranslate(); }}>
+                ترجمة {untranslatedCount} نص 🚀
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <BuildConfirmDialog
           open={editor.showBuildConfirm}
           onOpenChange={editor.setShowBuildConfirm}
