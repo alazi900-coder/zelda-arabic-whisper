@@ -79,7 +79,10 @@ export function useEditorTranslation({
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries: [{ key, original: entry.original }], glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
       });
-      if (!response.ok) throw new Error(`خطأ ${response.status}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || `خطأ ${response.status}`);
+      }
       const data = await response.json();
       if (data.translations && data.translations[key]) {
         let translated = data.translations[key];
@@ -207,7 +210,10 @@ export function useEditorTranslation({
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
         });
-        if (!response.ok) throw new Error(`خطأ ${response.status}`);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          throw new Error(errData?.error || `خطأ ${response.status}`);
+        }
         const data = await response.json();
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
@@ -303,7 +309,10 @@ export function useEditorTranslation({
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
         });
-        if (!response.ok) throw new Error(`خطأ ${response.status}`);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          throw new Error(errData?.error || `خطأ ${response.status}`);
+        }
         const data = await response.json();
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
@@ -354,7 +363,10 @@ export function useEditorTranslation({
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
         });
-        if (!response.ok) throw new Error(`خطأ ${response.status}`);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          throw new Error(errData?.error || `خطأ ${response.status}`);
+        }
         const data = await response.json();
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
