@@ -214,8 +214,35 @@ const Editor = () => {
                 </div>
               </div>
               {editor.translationEngine === 'mymemory' && (
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <p className="text-xs text-amber-600 font-body">⚠️ MyMemory مجاني لكن جودته أقل من الذكاء الاصطناعي. مفيد كترجمة أولية.</p>
+                  {/* Quota Counter */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-xs font-body">
+                      <span className="text-muted-foreground">📊 الحصة اليومية المستهلكة:</span>
+                      <span className={`font-display font-bold ${
+                        editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit ? 'text-destructive' :
+                        editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit * 0.85 ? 'text-amber-600' :
+                        'text-secondary'
+                      }`}>
+                        {editor.myMemoryCharsUsed.toLocaleString('ar-SA')} / {editor.myMemoryDailyLimit.toLocaleString('ar-SA')} حرف
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.min((editor.myMemoryCharsUsed / editor.myMemoryDailyLimit) * 100, 100)}
+                      className={`h-2 ${
+                        editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit ? '[&>div]:bg-destructive' :
+                        editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit * 0.85 ? '[&>div]:bg-amber-500' :
+                        '[&>div]:bg-secondary'
+                      }`}
+                    />
+                    {editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit && (
+                      <p className="text-xs text-destructive font-body">⛔ تم تجاوز الحد اليومي! جرّب غداً أو أضف بريداً إلكترونياً لرفع الحد.</p>
+                    )}
+                    {editor.myMemoryCharsUsed >= editor.myMemoryDailyLimit * 0.85 && editor.myMemoryCharsUsed < editor.myMemoryDailyLimit && (
+                      <p className="text-xs text-amber-600 font-body">⚠️ اقتربت من الحد اليومي!</p>
+                    )}
+                  </div>
                   <div className="flex flex-col md:flex-row md:items-center gap-2">
                     <span className="text-xs font-body text-muted-foreground shrink-0">📧 بريد إلكتروني (اختياري — يرفع الحد من 5,000 إلى 50,000 حرف/يوم):</span>
                     <input

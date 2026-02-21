@@ -69,6 +69,26 @@ export function useEditorState() {
     try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch {}
   }, []);
 
+  // MyMemory daily quota tracker with auto-reset
+  const [myMemoryCharsUsed, _setMyMemoryCharsUsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem('myMemoryQuota');
+      if (stored) {
+        const { chars, date } = JSON.parse(stored);
+        if (date === new Date().toDateString()) return chars as number;
+      }
+    } catch {}
+    return 0;
+  });
+  const addMyMemoryChars = useCallback((chars: number) => {
+    _setMyMemoryCharsUsed(prev => {
+      const newVal = prev + chars;
+      try { localStorage.setItem('myMemoryQuota', JSON.stringify({ chars: newVal, date: new Date().toDateString() })); } catch {}
+      return newVal;
+    });
+  }, []);
+  const myMemoryDailyLimit = myMemoryEmail ? 50000 : 5000;
+
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const stateRef = useRef<EditorState | null>(null);
@@ -428,7 +448,7 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail, addMyMemoryChars,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
 
@@ -749,8 +769,7 @@ export function useEditorState() {
 
 
   return {
-    // State
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, myMemoryEmail,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
