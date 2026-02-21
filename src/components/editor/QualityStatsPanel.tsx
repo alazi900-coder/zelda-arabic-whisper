@@ -7,7 +7,7 @@ import { BarChart3, Filter } from "lucide-react";
 interface QualityStatsPanelProps {
   qualityStats: { tooLong: number; nearLimit: number; missingTags: number; placeholderMismatch: number; total: number; problemKeys: Set<string> };
   translatedCount: number;
-  setFilterStatus: (status: any) => void;
+  setFilterStatus: (status: Set<string>) => void;
   setShowQualityStats: (show: boolean) => void;
 }
 
@@ -47,7 +47,7 @@ const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, tra
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setFilterStatus("problems"); setShowQualityStats(false); }}
+            onClick={() => { setFilterStatus(new Set(["problems"])); setShowQualityStats(false); }}
             className="mt-3 text-xs"
           >
             <Filter className="w-3 h-3" /> عرض النصوص بها مشاكل فقط
