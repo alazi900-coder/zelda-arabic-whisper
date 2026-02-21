@@ -61,6 +61,13 @@ export function useEditorState() {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch {}
   }, []);
+  const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
+    try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
+  });
+  const setMyMemoryEmail = useCallback((email: string) => {
+    _setMyMemoryEmail(email);
+    try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch {}
+  }, []);
 
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -421,7 +428,7 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
 
@@ -743,7 +750,7 @@ export function useEditorState() {
 
   return {
     // State
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, myMemoryEmail,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -764,7 +771,7 @@ export function useEditorState() {
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, setFilterTechnical,
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
-    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine,
+    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, setMyMemoryEmail,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
 
     // Handlers

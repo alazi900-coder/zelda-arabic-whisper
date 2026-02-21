@@ -214,7 +214,26 @@ const Editor = () => {
                 </div>
               </div>
               {editor.translationEngine === 'mymemory' && (
-                <p className="text-xs text-amber-600 font-body">⚠️ MyMemory مجاني لكن جودته أقل من الذكاء الاصطناعي. مفيد كترجمة أولية. حد يومي ~5000 حرف.</p>
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-600 font-body">⚠️ MyMemory مجاني لكن جودته أقل من الذكاء الاصطناعي. مفيد كترجمة أولية.</p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">📧 بريد إلكتروني (اختياري — يرفع الحد من 5,000 إلى 50,000 حرف/يوم):</span>
+                    <input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={editor.myMemoryEmail}
+                      onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
+                      className="flex-1 max-w-xs px-3 py-1.5 rounded bg-background border border-border font-body text-sm"
+                      dir="ltr"
+                    />
+                  </div>
+                  {editor.myMemoryEmail && (
+                    <p className="text-xs text-secondary font-body">✅ حد يومي مرفوع: ~50,000 حرف</p>
+                  )}
+                  {!editor.myMemoryEmail && (
+                    <p className="text-xs text-muted-foreground font-body">حد يومي بدون بريد: ~5,000 حرف</p>
+                  )}
+                </div>
               )}
               {/* Gemini API Key */}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
