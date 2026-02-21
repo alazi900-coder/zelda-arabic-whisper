@@ -168,7 +168,7 @@ const Editor = () => {
               </Button>
             ) : (
               <Button size={isMobile ? "default" : "lg"} variant="default" onClick={editor.handleAutoTranslate} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
-                <Sparkles className="w-4 h-4" /> ترجمة تلقائية 🤖
+                <Sparkles className="w-4 h-4" /> {editor.isFilterActive ? `ترجمة المحدد (${untranslatedCount}) 🎯` : 'ترجمة تلقائية 🤖'}
               </Button>
             )}
             <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.setShowRetranslateConfirm(true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6 border-accent/30 text-accent hover:text-accent">
@@ -346,6 +346,7 @@ const Editor = () => {
                     <option value="stuck-chars">🔤 ملتصق ({editor.needsImproveCount.stuck})</option>
                     <option value="mixed-lang">🌐 مختلط ({editor.needsImproveCount.mixed})</option>
                     <option value="has-tags">🔧 يحتوي رموز تقنية ({editor.tagsCount})</option>
+                    <option value="no-tags">✨ بدون رموز تقنية</option>
                   </select>
                   <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm max-w-[200px]">
                     <option value="all">كل الملفات</option>
@@ -379,6 +380,7 @@ const Editor = () => {
                   <option value="stuck-chars">🔤 ملتصق</option>
                     <option value="mixed-lang">🌐 مختلط</option>
                     <option value="has-tags">🔧 رموز تقنية</option>
+                    <option value="no-tags">✨ بدون رموز</option>
                 </select>
                 <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="w-full px-3 py-2 rounded bg-background border border-border font-body text-sm">
                   <option value="all">كل الملفات</option>
