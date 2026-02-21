@@ -1,84 +1,60 @@
 
-# تقسيم الفئات بشكل أدق بناءً على ملف PDF
 
-## المشكلة الجذرية
-دالة `categorizeFile` تستقبل فقط اسم الملف (مثل "PouchContent") لكن جميع الأسلحة والطعام والدروع وغيرها موجودة **داخل** ملف PouchContent.msbt واسم كل عنصر (label) هو الذي يحدد نوعه (مثل `Weapon_Sword_001`, `Item_Cook_002`). لذلك السيوف والأقواس لا تظهر أبداً.
+# دمج خدمة ترجمة مجانية (MyMemory API)
 
-## الحل
-تعديل `categorizeFile` لتستقبل أيضاً `label` العنصر وتصنّف بناءً عليه.
+## ما هي MyMemory؟
+MyMemory هي خدمة ترجمة مجانية بالكامل لا تتطلب مفتاح API. تدعم الترجمة من الإنجليزية إلى العربية عبر طلب HTTP بسيط. الحد المجاني هو ~5000 حرف يومياً (بدون تسجيل) أو 50,000 حرف مع بريد إلكتروني.
 
-## الفئات الجديدة (بناءً على PDF)
+## كيف سيعمل؟
+سيتم إضافة خيار ثالث للترجمة بجانب Lovable AI ومفتاح Gemini الشخصي:
 
-| الفئة | الرمز | نمط Label | المحتوى |
-|---|---|---|---|
-| السيوف | سيوف | `Weapon_Sword_`, `Weapon_Lsword_` | سيوف صغيرة وكبيرة (245 عنصر) |
-| الرماح | رماح | `Weapon_Spear_` | الرماح (102 عنصر) |
-| الأقواس | أقواس | `Weapon_Bow_` | الأقواس (60 عنصر) |
-| الدروع/التروس | دروع | `Weapon_Shield_` | التروس (99 عنصر) |
-| الملابس | ملابس | `Obj_SubstituteCloth_`, `Armor` | الملابس والدروع (105 عنصر) |
-| الطعام والطبخ | طعام | `Item_Cook_`, `Item_Fruit_`, `Item_Mushroom_`, `Item_Fish`, `Item_Meat_`, `Item_PlantGet_`, `Item_Vegetable`, `Item_Boiled_` | جميع المأكولات (417 عنصر) |
-| الحشرات والمخلوقات | حشرات | `Animal_Insect_` | الحشرات (27 عنصر) |
-| أجزاء الوحوش | أجزاء وحوش | `Item_Enemy_` | قرون وأنياب ومخالب (186 عنصر) |
-| المعادن والأحجار | معادن | `Item_Ore_` | أحجار كريمة ومعادن (30 عنصر) |
-| المواد والموارد | مواد | `Item_Material_`, `Item_LumberjackTree_` | مواد خام وأخشاب |
-| أدوات زوناي | زوناي | `SpObj_` | أدوات البناء (48 عنصر) |
-| أسهم وأدوات خاصة | أدوات | `NormalArrow_`, `Obj_UltraHand`, `PutRupee_`, `Obj_TreasureMap_` | أسهم وقدرات وعملات |
-| الوحوش والأعداء | وحوش | `Enemy_` (في PictureBook/Boss) | الوحوش والزعماء (~400 عنصر) |
-| الشخصيات (NPC) | شخصيات | ملف `Npc.msbt` | أسماء الشخصيات (737 عنصر) |
-| المرفقات (Fuse) | دمج | ملف `Attachment.msbt` | مواد الدمج (481 عنصر) |
-| المواقع والخرائط | خرائط | `LocationMsg/` | المواقع الجغرافية (1709 عنصر) |
-| حوارات القصة | قصة | `EventFlowMsg/` | الحوارات (~32,704 نص) |
-| المهام والتحديات | تحديات | `ChallengeMsg/` | المهام (1097 نص) |
-| واجهة المستخدم | واجهة | `LayoutMsg/` | القوائم والأزرار |
-| النصائح | نصائح | `StaticMsg/` | تأثيرات ونصائح |
+```text
+ترتيب الأولوية:
+1. ذاكرة الترجمة + القاموس (مجاني بالكامل، بدون إنترنت)
+2. مفتاح Gemini الشخصي (إن وُجد) -- أفضل جودة
+3. MyMemory المجاني (بدون مفتاح) -- جودة أقل لكن مجاني
+4. Lovable AI Gateway (الافتراضي) -- يستهلك نقاط
+```
+
+## ملاحظة مهمة
+جودة MyMemory في ترجمة نصوص الألعاب ستكون **أقل بكثير** من Gemini لأنها ترجمة آلية تقليدية وليست ذكاء اصطناعي. لكنها مفيدة كترجمة أولية مجانية يمكن تحسينها لاحقاً.
 
 ## التفاصيل التقنية
 
 ### الملفات المتأثرة:
 
-**1. `src/components/editor/types.tsx`**
-- تعديل `categorizeFile(filePath, label?)` لتقبل معامل ثاني اختياري هو `label`
-- تحديث `FILE_CATEGORIES` بالفئات الجديدة (~20 فئة بدل 17)
-- منطق التصنيف الجديد: فحص `label` أولاً (للتمييز داخل PouchContent)، ثم `filePath` (للملفات المستقلة)
+**1. `supabase/functions/translate-entries/index.ts`**
+- إضافة مسار ثالث: إذا تم إرسال `translationEngine: "mymemory"` يتم استخدام MyMemory API
+- لكل نص: طلب GET إلى `https://api.mymemory.translated.net/get?q=${text}&langpair=en|ar`
+- MyMemory لا تدعم الدفعات، لذا سيتم إرسال كل نص على حدة مع تأخير 100ms بين الطلبات لتجنب الحظر
+- حماية الرموز التقنية (TAG_N) تبقى كما هي
 
-**2. `src/hooks/useEditorState.ts`**
-- تعديل جميع استدعاءات `categorizeFile(e.msbtFile)` لتصبح `categorizeFile(e.msbtFile, e.label)`
+**2. `src/hooks/useEditorTranslation.ts`**
+- إضافة معامل `translationEngine` للتحكم في المحرك المستخدم
+- تمرير `translationEngine: "mymemory"` عند اختيار المحرك المجاني
 
-**3. `src/hooks/useEditorQuality.ts`**
-- نفس التعديل: تمرير `entry.label` كمعامل ثاني
+**3. `src/pages/Editor.tsx`**
+- إضافة قائمة منسدلة أو أزرار راديو لاختيار محرك الترجمة:
+  - "Gemini AI (شخصي)" -- يظهر فقط عند إدخال مفتاح
+  - "MyMemory (مجاني)" -- متاح دائماً
+  - "Lovable AI (افتراضي)" -- الخيار الحالي
 
-**4. `src/hooks/useEditorTranslation.ts`**
-- نفس التعديل: تمرير `e.label` كمعامل ثاني
-
-**5. `src/components/editor/CategoryProgress.tsx`**
-- تعديل تخطيط الشبكة لاستيعاب العدد الأكبر من البطاقات
-
-### ترتيب أولوية التصنيف في الكود:
+### مثال على طلب MyMemory:
 ```text
-1. فحص label أولاً (لمحتويات PouchContent):
-   Weapon_Sword_ / Weapon_Lsword_ --> سيوف
-   Weapon_Spear_ --> رماح
-   Weapon_Bow_ --> أقواس  
-   Weapon_Shield_ --> تروس
-   Obj_SubstituteCloth_ / Armor --> ملابس
-   Item_Cook_ / Item_Fruit_ / ... --> طعام
-   Animal_Insect_ --> حشرات
-   Item_Enemy_ --> أجزاء وحوش
-   Item_Ore_ --> معادن
-   Item_Material_ / LumberjackTree --> مواد
-   SpObj_ --> زوناي
-   NormalArrow_ / PutRupee_ / Obj_ --> أدوات خاصة
+GET https://api.mymemory.translated.net/get?q=Master%20Sword&langpair=en|ar
 
-2. فحص اسم الملف (msbtFile):
-   PictureBook / Boss --> وحوش
-   Npc --> شخصيات
-   Attachment --> مواد دمج
-   Horse / Nickname / ... --> فئات فرعية
-   LayoutMsg/ --> واجهة
-   EventFlowMsg/ --> قصة
-   ChallengeMsg/ --> تحديات
-   LocationMsg/ --> خرائط
-   StaticMsg/ --> نصائح
-   
-3. "أخرى" لكل ما لا يتطابق
+Response:
+{
+  "responseData": {
+    "translatedText": "سيف الماستر",
+    "match": 0.95
+  }
+}
 ```
+
+### القيود:
+- 5,000 حرف/يوم بدون تسجيل، 50,000 مع بريد إلكتروني
+- لا تدعم السياق أو القاموس المخصص (يتم تطبيق القاموس محلياً بعد الترجمة)
+- جودة أقل لنصوص الألعاب المتخصصة
+- أبطأ من Gemini لأن كل نص يُرسل منفرداً
+
