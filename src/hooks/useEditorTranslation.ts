@@ -18,11 +18,14 @@ interface UseEditorTranslationProps {
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
   translationEngine: 'gemini' | 'lovable';
+  filteredEntries: ExtractedEntry[];
+  isFilterActive: boolean;
 }
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
   filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+  filteredEntries, isFilterActive,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -88,11 +91,13 @@ export function useEditorTranslation({
   const handleAutoTranslate = async () => {
     if (!state) return;
     const arabicRegex = /[\u0600-\u06FF]/;
-    let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0, skipCategory = 0;
-    const untranslated = state.entries.filter(e => {
+    let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0, skipCategory = 0, skipFiltered = 0;
+    
+    // Use filtered entries when a filter is active, otherwise use all entries
+    const sourceEntries = isFilterActive ? filteredEntries : state.entries;
+    
+    const untranslated = sourceEntries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
-      const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile, e.label) === filterCategory;
-      if (!matchCategory) { skipCategory++; return false; }
       if (!e.original.trim()) { skipEmpty++; return false; }
       if (arabicRegex.test(e.original)) { skipArabic++; return false; }
       if (isTechnicalText(e.original) && !state.technicalBypass?.has(key)) { skipTechnical++; return false; }
@@ -102,10 +107,10 @@ export function useEditorTranslation({
 
     if (untranslated.length === 0) {
       const reasons: string[] = [];
+      if (isFilterActive) reasons.push(`🔍 الفلتر نشط — ${sourceEntries.length} نص محدد`);
       if (skipArabic > 0) reasons.push(`${skipArabic} نص عربي أصلاً`);
       if (skipTechnical > 0) reasons.push(`${skipTechnical} نص تقني`);
       if (skipTranslated > 0) reasons.push(`${skipTranslated} مترجم بالفعل`);
-      if (skipCategory > 0) reasons.push(`${skipCategory} خارج الفئة`);
       setTranslateProgress(`✅ لا توجد نصوص تحتاج ترجمة${reasons.length > 0 ? ` (${reasons.join('، ')})` : ''}`);
       setTimeout(() => setTranslateProgress(""), 5000);
       return;
