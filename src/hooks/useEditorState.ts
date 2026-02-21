@@ -402,19 +402,30 @@ export function useEditorState() {
         translation.includes(search);
       const matchFile = filterFile === "all" || e.msbtFile === filterFile;
       const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile, e.label) === filterCategory;
-      const matchStatus = filterStatus.size === 0 || Array.from(filterStatus).some(fs =>
-        (fs === "translated" && isTranslated) ||
-        (fs === "untranslated" && !isTranslated) ||
-        (fs === "problems" && qualityStats.problemKeys.has(key)) ||
-        (fs === "needs-improve" && isTranslated && needsImprovement(e, translation)) ||
-        (fs === "too-short" && isTranslated && isTranslationTooShort(e, translation)) ||
-        (fs === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
-        (fs === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
-        (fs === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
-        (fs === "has-tags" && hasTechnicalTags(e.original)) ||
-        (fs === "no-tags" && !hasTechnicalTags(e.original)) ||
-        (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key))
-      );
+      // Separate tag-type filters (AND logic) from status filters (OR logic)
+      const tagFilters = new Set<string>();
+      const statusFilters = new Set<string>();
+      for (const fs of filterStatus) {
+        if (fs === "has-tags" || fs === "no-tags") tagFilters.add(fs);
+        else statusFilters.add(fs);
+      }
+      const matchTagFilter = tagFilters.size === 0 || 
+        (tagFilters.has("has-tags") && hasTechnicalTags(e.original)) ||
+        (tagFilters.has("no-tags") && !hasTechnicalTags(e.original));
+      const matchStatus = (statusFilters.size === 0 && tagFilters.size === 0) || 
+        (statusFilters.size === 0 ? matchTagFilter : (
+          matchTagFilter && Array.from(statusFilters).some(fs =>
+            (fs === "translated" && isTranslated) ||
+            (fs === "untranslated" && !isTranslated) ||
+            (fs === "problems" && qualityStats.problemKeys.has(key)) ||
+            (fs === "needs-improve" && isTranslated && needsImprovement(e, translation)) ||
+            (fs === "too-short" && isTranslated && isTranslationTooShort(e, translation)) ||
+            (fs === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
+            (fs === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
+            (fs === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
+            (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key))
+          )
+        ));
       const matchTechnical = 
         filterTechnical === "all" ||
         (filterTechnical === "only" && isTechnical) ||
