@@ -54,13 +54,33 @@ export function useEditorState() {
     _setUserGeminiKey(key);
     try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch {}
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable'>(() => {
-    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable') || 'lovable'; } catch { return 'lovable'; }
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory'>(() => {
+    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory') || 'lovable'; } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch {}
   }, []);
+  const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
+    try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
+  });
+  const setMyMemoryEmail = useCallback((email: string) => {
+    _setMyMemoryEmail(email);
+    try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch {}
+  }, []);
+  const [myMemoryCharsUsed, setMyMemoryCharsUsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem('myMemoryCharsUsed');
+      const resetTime = localStorage.getItem('myMemoryResetTime');
+      if (resetTime && Date.now() > Number(resetTime)) {
+        localStorage.removeItem('myMemoryCharsUsed');
+        localStorage.removeItem('myMemoryResetTime');
+        return 0;
+      }
+      return stored ? Number(stored) : 0;
+    } catch { return 0; }
+  });
+  const myMemoryDailyLimit = myMemoryEmail ? 50000 : 5000;
 
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -425,7 +445,7 @@ export function useEditorState() {
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
     filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
-    filteredEntries, isFilterActive,
+    filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
 
@@ -748,7 +768,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, isFilterActive,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -771,6 +791,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
+    setMyMemoryEmail, setMyMemoryCharsUsed,
 
     // Handlers
     toggleProtection, toggleTechnicalBypass,

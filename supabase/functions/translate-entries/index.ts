@@ -32,12 +32,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail } = await req.json() as {
       entries: { key: string; original: string }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'lovable';
+      translationEngine?: 'gemini' | 'lovable' | 'mymemory';
+      myMemoryEmail?: string;
     };
 
     if (!entries || entries.length === 0) {
@@ -98,6 +99,34 @@ Texts:
 ${textsBlock}`;
 
     let data: any;
+
+    // === MyMemory translation engine ===
+    if (translationEngine === 'mymemory') {
+      const result: Record<string, string> = {};
+      let totalChars = 0;
+      for (let i = 0; i < protectedEntries.length; i++) {
+        const entry = protectedEntries[i];
+        const text = encodeURIComponent(entry.cleaned);
+        let url = `https://api.mymemory.translated.net/get?q=${text}&langpair=en|ar`;
+        if (myMemoryEmail) url += `&de=${encodeURIComponent(myMemoryEmail)}`;
+        try {
+          const mmResponse = await fetch(url);
+          if (!mmResponse.ok) continue;
+          const mmData = await mmResponse.json();
+          const translated = mmData?.responseData?.translatedText;
+          if (translated && translated.trim()) {
+            result[entry.key] = restoreTags(translated, entry.tags);
+            totalChars += entry.cleaned.length;
+          }
+        } catch { /* skip failed entries */ }
+        if (i < protectedEntries.length - 1) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (userApiKey && userApiKey.trim()) {
       // Use user's own Gemini API key directly
