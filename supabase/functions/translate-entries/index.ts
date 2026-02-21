@@ -104,23 +104,28 @@ ${textsBlock}`;
     if (translationEngine === 'mymemory') {
       const result: Record<string, string> = {};
       let totalChars = 0;
-      for (let i = 0; i < protectedEntries.length; i++) {
-        const entry = protectedEntries[i];
-        const text = encodeURIComponent(entry.cleaned);
-        let url = `https://api.mymemory.translated.net/get?q=${text}&langpair=en|ar`;
-        if (myMemoryEmail) url += `&de=${encodeURIComponent(myMemoryEmail)}`;
-        try {
-          const mmResponse = await fetch(url);
-          if (!mmResponse.ok) continue;
-          const mmData = await mmResponse.json();
-          const translated = mmData?.responseData?.translatedText;
-          if (translated && translated.trim()) {
-            result[entry.key] = restoreTags(translated, entry.tags);
-            totalChars += entry.cleaned.length;
-          }
-        } catch { /* skip failed entries */ }
-        if (i < protectedEntries.length - 1) {
-          await new Promise(r => setTimeout(r, 100));
+      const CONCURRENT = 5; // send 5 requests in parallel
+      for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
+        const batch = protectedEntries.slice(i, i + CONCURRENT);
+        const promises = batch.map(async (entry) => {
+          const text = encodeURIComponent(entry.cleaned);
+          let url = `https://api.mymemory.translated.net/get?q=${text}&langpair=en|ar`;
+          if (myMemoryEmail) url += `&de=${encodeURIComponent(myMemoryEmail)}`;
+          try {
+            const mmResponse = await fetch(url);
+            if (!mmResponse.ok) { await mmResponse.text(); return; }
+            const mmData = await mmResponse.json();
+            const translated = mmData?.responseData?.translatedText;
+            if (translated && translated.trim()) {
+              result[entry.key] = restoreTags(translated, entry.tags);
+              totalChars += entry.cleaned.length;
+            }
+          } catch { /* skip */ }
+        });
+        await Promise.all(promises);
+        // small delay between batches to avoid rate limiting
+        if (i + CONCURRENT < protectedEntries.length) {
+          await new Promise(r => setTimeout(r, 150));
         }
       }
       return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
