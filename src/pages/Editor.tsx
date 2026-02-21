@@ -193,7 +193,7 @@ const Editor = () => {
                   <span className="text-sm font-display font-bold">محرك الترجمة</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button
+                   <Button
                     variant={editor.translationEngine === 'lovable' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => editor.setTranslationEngine('lovable')}
@@ -209,6 +209,14 @@ const Editor = () => {
                     disabled={!editor.userGeminiKey}
                   >
                     ✨ Gemini (شخصي)
+                  </Button>
+                  <Button
+                    variant={editor.translationEngine === 'mymemory' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => editor.setTranslationEngine('mymemory')}
+                    className="text-xs font-body"
+                  >
+                    🌐 MyMemory (مجاني)
                   </Button>
                 </div>
               </div>
@@ -245,6 +253,32 @@ const Editor = () => {
               </div>
               {editor.userGeminiKey && (
                 <p className="text-xs text-secondary font-body">✅ مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>
+              )}
+              {/* MyMemory Email & Quota */}
+              {editor.translationEngine === 'mymemory' && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">📧 بريد إلكتروني (اختياري — يرفع الحد لـ 50,000 حرف/يوم):</span>
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={editor.myMemoryEmail}
+                      onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-body text-muted-foreground">
+                      <span>الاستهلاك اليومي</span>
+                      <span>{editor.myMemoryCharsUsed.toLocaleString()} / {editor.myMemoryDailyLimit.toLocaleString()} حرف</span>
+                    </div>
+                    <Progress
+                      value={editor.myMemoryDailyLimit > 0 ? (editor.myMemoryCharsUsed / editor.myMemoryDailyLimit) * 100 : 0}
+                      className={`h-2 ${editor.myMemoryCharsUsed / editor.myMemoryDailyLimit > 0.9 ? '[&>div]:bg-destructive' : editor.myMemoryCharsUsed / editor.myMemoryDailyLimit > 0.7 ? '[&>div]:bg-accent' : ''}`}
+                    />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
