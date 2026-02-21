@@ -17,14 +17,12 @@ interface UseEditorTranslationProps {
   parseGlossaryMap: (glossary: string) => Map<string, string>;
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
-  translationEngine: 'gemini' | 'mymemory' | 'lovable';
-  myMemoryEmail: string;
-  addMyMemoryChars: (chars: number) => void;
+  translationEngine: 'gemini' | 'lovable';
 }
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail, addMyMemoryChars,
+  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -72,11 +70,10 @@ export function useEditorTranslation({
       const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries: [{ key, original: entry.original }], glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+        body: JSON.stringify({ entries: [{ key, original: entry.original }], glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries : undefined, userApiKey: userGeminiKey || undefined, translationEngine }),
       });
       if (!response.ok) throw new Error(`خطأ ${response.status}`);
       const data = await response.json();
-      if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
       if (data.translations && data.translations[key]) {
         let translated = data.translations[key];
         if (hasTechnicalTags(entry.original)) {
@@ -199,11 +196,10 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine }),
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
-        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           allTranslations = { ...allTranslations, ...fixedTranslations };
@@ -212,8 +208,7 @@ export function useEditorTranslation({
       }
       if (!abortControllerRef.current?.signal.aborted) {
         const total = Object.keys(allTranslations).length;
-        const engineLabel = translationEngine === 'mymemory' ? ' (MyMemory مجاني)' : '';
-        setTranslateProgress(`✅ تم ترجمة ${total} نص بنجاح${engineLabel}${tmCount > 0 ? ` + ${tmCount} من الذاكرة` : ''}`);
+        setTranslateProgress(`✅ تم ترجمة ${total} نص بنجاح${tmCount > 0 ? ` + ${tmCount} من الذاكرة` : ''}`);
         setTimeout(() => setTranslateProgress(""), 5000);
       }
     } catch (err) {
@@ -285,11 +280,10 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine }),
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
-        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...fixedTranslations } } : null);
@@ -337,11 +331,10 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine }),
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
-        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           fixedCount += Object.keys(fixedTranslations).length;

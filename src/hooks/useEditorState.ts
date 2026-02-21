@@ -54,40 +54,13 @@ export function useEditorState() {
     _setUserGeminiKey(key);
     try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch {}
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'mymemory' | 'lovable'>(() => {
-    try { return (localStorage.getItem('translationEngine') as any) || 'lovable'; } catch { return 'lovable'; }
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable'>(() => {
+    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable') || 'lovable'; } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'mymemory' | 'lovable') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch {}
   }, []);
-  const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
-    try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
-  });
-  const setMyMemoryEmail = useCallback((email: string) => {
-    _setMyMemoryEmail(email);
-    try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch {}
-  }, []);
-
-  // MyMemory daily quota tracker with auto-reset
-  const [myMemoryCharsUsed, _setMyMemoryCharsUsed] = useState(() => {
-    try {
-      const stored = localStorage.getItem('myMemoryQuota');
-      if (stored) {
-        const { chars, date } = JSON.parse(stored);
-        if (date === new Date().toDateString()) return chars as number;
-      }
-    } catch {}
-    return 0;
-  });
-  const addMyMemoryChars = useCallback((chars: number) => {
-    _setMyMemoryCharsUsed(prev => {
-      const newVal = prev + chars;
-      try { localStorage.setItem('myMemoryQuota', JSON.stringify({ chars: newVal, date: new Date().toDateString() })); } catch {}
-      return newVal;
-    });
-  }, []);
-  const myMemoryDailyLimit = myMemoryEmail ? 50000 : 5000;
 
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -448,7 +421,7 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail, addMyMemoryChars,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
 
@@ -769,7 +742,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -790,7 +763,7 @@ export function useEditorState() {
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, setFilterTechnical,
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
-    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, setMyMemoryEmail,
+    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
 
     // Handlers
