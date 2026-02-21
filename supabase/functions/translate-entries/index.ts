@@ -32,12 +32,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail } = await req.json() as {
       entries: { key: string; original: string }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
       translationEngine?: 'gemini' | 'mymemory' | 'lovable';
+      myMemoryEmail?: string;
     };
 
     if (!entries || entries.length === 0) {
@@ -106,8 +107,9 @@ ${textsBlock}`;
         const entry = protectedEntries[i];
         try {
           const encoded = encodeURIComponent(entry.cleaned);
+          const emailParam = myMemoryEmail ? `&de=${encodeURIComponent(myMemoryEmail)}` : '';
           const mmResponse = await fetch(
-            `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|ar`
+            `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|ar${emailParam}`
           );
           if (mmResponse.ok) {
             const mmData = await mmResponse.json();
