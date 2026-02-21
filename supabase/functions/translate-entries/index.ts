@@ -152,12 +152,23 @@ ${textsBlock}`;
         const errText = await geminiResponse.text();
         console.error('Gemini API error:', errText);
         if (geminiResponse.status === 400 || geminiResponse.status === 403) {
-          throw new Error('مفتاح API غير صالح أو منتهي الصلاحية');
+          return new Response(JSON.stringify({ error: 'مفتاح API غير صالح أو منتهي الصلاحية. تأكد من المفتاح في Google AI Studio.' }), {
+            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
         if (geminiResponse.status === 429) {
-          throw new Error('تم تجاوز حد الطلبات، حاول لاحقاً');
+          // Check if quota is truly zero (free tier exhausted permanently)
+          const isQuotaZero = errText.includes('limit: 0');
+          const msg = isQuotaZero
+            ? 'حصة مفتاح Gemini المجاني نفدت بالكامل. أنشئ مفتاحاً جديداً من مشروع Google Cloud جديد، أو فعّل الفوترة على ai.google.dev'
+            : 'تم تجاوز حد الطلبات المؤقت، حاول مرة أخرى بعد دقيقة';
+          return new Response(JSON.stringify({ error: msg }), {
+            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
-        throw new Error(`خطأ Gemini: ${geminiResponse.status}`);
+        return new Response(JSON.stringify({ error: `خطأ Gemini: ${geminiResponse.status}` }), {
+          status: geminiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       const geminiData = await geminiResponse.json();
