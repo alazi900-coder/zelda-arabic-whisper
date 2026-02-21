@@ -11,7 +11,7 @@ interface ReviewPanelProps {
   suggestingShort: boolean;
   filterCategory: string;
   filterFile: string;
-  filterStatus: string;
+  filterStatus: Set<string>;
   search: string;
   handleSuggestShorterTranslations: () => void;
   handleApplyShorterTranslation: (key: string, suggested: string) => void;
@@ -49,13 +49,14 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({
                     if (category) filters.push(`${category.emoji} ${category.label}`);
                   } else { filters.push("📚 جميع الفئات"); }
                   if (filterFile !== "all") filters.push(`📄 ملف محدد`);
-                  if (filterStatus !== "all") {
+                  if (filterStatus.size > 0) {
                     const statusLabels: Record<string, string> = {
                       "translated": "✅ مترجمة", "untranslated": "⬜ غير مترجمة", "problems": "🚨 بها مشاكل",
                       "needs-improve": "⚠️ تحتاج تحسين", "too-short": "📏 قصيرة جداً", "too-long": "📐 طويلة جداً",
                       "stuck-chars": "🔤 أحرف ملتصقة", "mixed-lang": "🌐 عربي + إنجليزي"
                     };
-                    if (statusLabels[filterStatus]) filters.push(statusLabels[filterStatus]);
+                    const labels = Array.from(filterStatus).map(s => statusLabels[s]).filter(Boolean);
+                    if (labels.length > 0) filters.push(labels.join(' + '));
                   }
                   if (search) filters.push(`🔍 بحث: "${search}"`);
                   return filters.join(" • ");

@@ -21,7 +21,16 @@ export function useEditorState() {
   const [search, setSearch] = useState("");
   const [filterFile, setFilterFile] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<"all" | "translated" | "untranslated" | "problems" | "needs-improve" | "too-short" | "too-long" | "stuck-chars" | "mixed-lang" | "has-tags" | "no-tags" | "damaged-tags">("all");
+  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
+  const toggleFilterStatus = useCallback((status: string) => {
+    setFilterStatus(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }, []);
+  const clearFilterStatus = useCallback(() => setFilterStatus(new Set()), []);
   const [filterTechnical, setFilterTechnical] = useState<"all" | "only" | "exclude">("all");
   const [translateProgress, setTranslateProgress] = useState("");
   const [lastSaved, setLastSaved] = useState<string>("");
@@ -393,19 +402,19 @@ export function useEditorState() {
         translation.includes(search);
       const matchFile = filterFile === "all" || e.msbtFile === filterFile;
       const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile, e.label) === filterCategory;
-      const matchStatus = 
-        filterStatus === "all" || 
-        (filterStatus === "translated" && isTranslated) ||
-        (filterStatus === "untranslated" && !isTranslated) ||
-        (filterStatus === "problems" && qualityStats.problemKeys.has(key)) ||
-        (filterStatus === "needs-improve" && isTranslated && needsImprovement(e, translation)) ||
-        (filterStatus === "too-short" && isTranslated && isTranslationTooShort(e, translation)) ||
-        (filterStatus === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
-        (filterStatus === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
-        (filterStatus === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
-        (filterStatus === "has-tags" && hasTechnicalTags(e.original)) ||
-        (filterStatus === "no-tags" && !hasTechnicalTags(e.original)) ||
-        (filterStatus === "damaged-tags" && qualityStats.damagedTagKeys.has(key));
+      const matchStatus = filterStatus.size === 0 || Array.from(filterStatus).some(fs =>
+        (fs === "translated" && isTranslated) ||
+        (fs === "untranslated" && !isTranslated) ||
+        (fs === "problems" && qualityStats.problemKeys.has(key)) ||
+        (fs === "needs-improve" && isTranslated && needsImprovement(e, translation)) ||
+        (fs === "too-short" && isTranslated && isTranslationTooShort(e, translation)) ||
+        (fs === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
+        (fs === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
+        (fs === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
+        (fs === "has-tags" && hasTechnicalTags(e.original)) ||
+        (fs === "no-tags" && !hasTechnicalTags(e.original)) ||
+        (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key))
+      );
       const matchTechnical = 
         filterTechnical === "all" ||
         (filterTechnical === "only" && isTechnical) ||
@@ -440,7 +449,7 @@ export function useEditorState() {
     }
   };
 
-  const isFilterActive = filterCategory !== "all" || filterFile !== "all" || filterStatus !== "all" || filterTechnical !== "all" || search !== "";
+  const isFilterActive = filterCategory !== "all" || filterFile !== "all" || filterStatus.size > 0 || filterTechnical !== "all" || search !== "";
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
@@ -648,7 +657,7 @@ export function useEditorState() {
   // === File IO (extracted to useEditorFileIO) ===
   const filterLabel = filterCategory !== "all" ? filterCategory
     : filterFile !== "all" ? filterFile
-    : filterStatus !== "all" ? filterStatus
+    : filterStatus.size > 0 ? Array.from(filterStatus).join('+')
     : filterTechnical !== "all" ? filterTechnical
     : "";
   const fileIO = useEditorFileIO({ state, setState, setLastSaved, filteredEntries, filterLabel });
@@ -786,7 +795,7 @@ export function useEditorState() {
     user,
 
     // Setters
-    setSearch, setFilterFile, setFilterCategory, setFilterStatus, setFilterTechnical,
+    setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine,

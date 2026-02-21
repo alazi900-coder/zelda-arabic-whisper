@@ -289,8 +289,8 @@ const Editor = () => {
             filterCategory={editor.filterCategory}
             setFilterCategory={editor.setFilterCategory}
             damagedTagsCount={editor.qualityStats.damagedTags}
-            onFilterDamagedTags={() => editor.setFilterStatus(editor.filterStatus === "damaged-tags" ? "all" : "damaged-tags")}
-            isDamagedTagsActive={editor.filterStatus === "damaged-tags"}
+            onFilterDamagedTags={() => editor.toggleFilterStatus("damaged-tags")}
+            isDamagedTagsActive={editor.filterStatus.has("damaged-tags")}
             onFixDamagedTags={() => editor.handleFixDamagedTags(editor.qualityStats.damagedTagKeys)}
             onLocalFixDamagedTags={() => editor.handleLocalFixAllDamagedTags(editor.qualityStats.damagedTagKeys)}
             isFixing={editor.translating}
@@ -374,21 +374,37 @@ const Editor = () => {
                 <Button variant={editor.filtersOpen ? "secondary" : "outline"} size="sm" onClick={() => editor.setFiltersOpen(!editor.filtersOpen)} className="font-body text-xs shrink-0">
                   <Filter className="w-3 h-3" /> فلاتر
                 </Button>
-              ) : (
+               ) : (
                 <>
-                  <select value={editor.filterStatus} onChange={e => editor.setFilterStatus(e.target.value as any)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm">
-                    <option value="all">الكل</option>
-                    <option value="translated">✅ مترجم</option>
-                    <option value="untranslated">⬜ غير مترجم</option>
-                    <option value="problems">🚨 مشاكل</option>
-                    <option value="needs-improve">⚠️ يحتاج تحسين ({editor.needsImproveCount.total})</option>
-                    <option value="too-short">📏 قصير ({editor.needsImproveCount.tooShort})</option>
-                    <option value="too-long">📐 طويل ({editor.needsImproveCount.tooLong})</option>
-                    <option value="stuck-chars">🔤 ملتصق ({editor.needsImproveCount.stuck})</option>
-                    <option value="mixed-lang">🌐 مختلط ({editor.needsImproveCount.mixed})</option>
-                    <option value="has-tags">🔧 يحتوي رموز تقنية ({editor.tagsCount})</option>
-                    <option value="no-tags">✨ بدون رموز تقنية</option>
-                  </select>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { value: "translated", label: "✅ مترجم" },
+                      { value: "untranslated", label: "⬜ غير مترجم" },
+                      { value: "problems", label: "🚨 مشاكل" },
+                      { value: "needs-improve", label: `⚠️ تحسين (${editor.needsImproveCount.total})` },
+                      { value: "too-short", label: `📏 قصير (${editor.needsImproveCount.tooShort})` },
+                      { value: "too-long", label: `📐 طويل (${editor.needsImproveCount.tooLong})` },
+                      { value: "stuck-chars", label: `🔤 ملتصق (${editor.needsImproveCount.stuck})` },
+                      { value: "mixed-lang", label: `🌐 مختلط (${editor.needsImproveCount.mixed})` },
+                      { value: "has-tags", label: `🔧 رموز تقنية (${editor.tagsCount})` },
+                      { value: "no-tags", label: "✨ بدون رموز" },
+                    ].map(f => (
+                      <Button
+                        key={f.value}
+                        variant={editor.filterStatus.has(f.value) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => editor.toggleFilterStatus(f.value)}
+                        className="text-xs h-7 px-2 font-body"
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
+                    {editor.filterStatus.size > 0 && (
+                      <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">
+                        ✕ مسح
+                      </Button>
+                    )}
+                  </div>
                   <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm max-w-[200px]">
                     <option value="all">كل الملفات</option>
                     {editor.msbtFiles.map(f => <option key={f} value={f}>{f}</option>)}
@@ -411,18 +427,34 @@ const Editor = () => {
               )}
             </div>
             {isMobile && editor.filtersOpen && (
-              <div className="mt-3 flex flex-col gap-2">
-                <select value={editor.filterStatus} onChange={e => editor.setFilterStatus(e.target.value as any)} className="w-full px-3 py-2 rounded bg-background border border-border font-body text-sm">
-                  <option value="all">الكل</option>
-                  <option value="translated">✅ مترجم</option>
-                  <option value="untranslated">⬜ غير مترجم</option>
-                  <option value="problems">🚨 مشاكل</option>
-                  <option value="needs-improve">⚠️ يحتاج تحسين</option>
-                  <option value="stuck-chars">🔤 ملتصق</option>
-                    <option value="mixed-lang">🌐 مختلط</option>
-                    <option value="has-tags">🔧 رموز تقنية</option>
-                    <option value="no-tags">✨ بدون رموز</option>
-                </select>
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: "translated", label: "✅ مترجم" },
+                    { value: "untranslated", label: "⬜ غير مترجم" },
+                    { value: "problems", label: "🚨 مشاكل" },
+                    { value: "needs-improve", label: "⚠️ تحسين" },
+                    { value: "stuck-chars", label: "🔤 ملتصق" },
+                    { value: "mixed-lang", label: "🌐 مختلط" },
+                    { value: "has-tags", label: "🔧 رموز تقنية" },
+                    { value: "no-tags", label: "✨ بدون رموز" },
+                  ].map(f => (
+                    <Button
+                      key={f.value}
+                      variant={editor.filterStatus.has(f.value) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => editor.toggleFilterStatus(f.value)}
+                      className="text-xs h-7 px-2 font-body"
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
+                  {editor.filterStatus.size > 0 && (
+                    <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">
+                      ✕ مسح
+                    </Button>
+                  )}
+                </div>
                 <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="w-full px-3 py-2 rounded bg-background border border-border font-body text-sm">
                   <option value="all">كل الملفات</option>
                   {editor.msbtFiles.map(f => <option key={f} value={f}>{f}</option>)}
@@ -436,22 +468,22 @@ const Editor = () => {
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="text-xs font-display text-muted-foreground">⚠️ تحتاج تحسين:</span>
               {editor.needsImproveCount.tooShort > 0 && (
-                <Button variant="outline" size="sm" onClick={() => editor.setFilterStatus("too-short")} className="text-xs h-6 px-2 border-amber-500/30 text-amber-600">
+                <Button variant={editor.filterStatus.has("too-short") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("too-short")} className="text-xs h-6 px-2 border-amber-500/30 text-amber-600">
                   📏 قصيرة: {editor.needsImproveCount.tooShort}
                 </Button>
               )}
               {editor.needsImproveCount.tooLong > 0 && (
-                <Button variant="outline" size="sm" onClick={() => editor.setFilterStatus("too-long")} className="text-xs h-6 px-2 border-destructive/30 text-destructive">
+                <Button variant={editor.filterStatus.has("too-long") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("too-long")} className="text-xs h-6 px-2 border-destructive/30 text-destructive">
                   📐 طويلة: {editor.needsImproveCount.tooLong}
                 </Button>
               )}
               {editor.needsImproveCount.stuck > 0 && (
-                <Button variant="outline" size="sm" onClick={() => editor.setFilterStatus("stuck-chars")} className="text-xs h-6 px-2 border-secondary/30 text-secondary">
+                <Button variant={editor.filterStatus.has("stuck-chars") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("stuck-chars")} className="text-xs h-6 px-2 border-secondary/30 text-secondary">
                   🔤 ملتصقة: {editor.needsImproveCount.stuck}
                 </Button>
               )}
               {editor.needsImproveCount.mixed > 0 && (
-                <Button variant="outline" size="sm" onClick={() => editor.setFilterStatus("mixed-lang")} className="text-xs h-6 px-2 border-primary/30 text-primary">
+                <Button variant={editor.filterStatus.has("mixed-lang") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("mixed-lang")} className="text-xs h-6 px-2 border-primary/30 text-primary">
                   🌐 مختلطة: {editor.needsImproveCount.mixed}
                 </Button>
               )}
