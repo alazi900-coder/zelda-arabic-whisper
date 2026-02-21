@@ -176,9 +176,47 @@ const Editor = () => {
             </Button>
           </div>
 
-          {/* Gemini API Key */}
+          {/* Translation Engine Selector + Gemini API Key */}
           <Card className="mb-6 border-primary/20 bg-primary/5">
-            <CardContent className="p-3 md:p-4">
+            <CardContent className="p-3 md:p-4 space-y-3">
+              {/* Engine selector */}
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-display font-bold">محرك الترجمة</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={editor.translationEngine === 'lovable' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => editor.setTranslationEngine('lovable')}
+                    className="text-xs font-body"
+                  >
+                    🤖 Lovable AI
+                  </Button>
+                  <Button
+                    variant={editor.translationEngine === 'gemini' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => editor.setTranslationEngine('gemini')}
+                    className="text-xs font-body"
+                    disabled={!editor.userGeminiKey}
+                  >
+                    ✨ Gemini (شخصي)
+                  </Button>
+                  <Button
+                    variant={editor.translationEngine === 'mymemory' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => editor.setTranslationEngine('mymemory')}
+                    className="text-xs font-body"
+                  >
+                    🆓 MyMemory (مجاني)
+                  </Button>
+                </div>
+              </div>
+              {editor.translationEngine === 'mymemory' && (
+                <p className="text-xs text-amber-600 font-body">⚠️ MyMemory مجاني لكن جودته أقل من الذكاء الاصطناعي. مفيد كترجمة أولية. حد يومي ~5000 حرف.</p>
+              )}
+              {/* Gemini API Key */}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -189,12 +227,18 @@ const Editor = () => {
                     type="password"
                     placeholder="الصق مفتاح API هنا للترجمة المجانية..."
                     value={editor.userGeminiKey}
-                    onChange={(e) => editor.setUserGeminiKey(e.target.value)}
+                    onChange={(e) => {
+                      editor.setUserGeminiKey(e.target.value);
+                      if (e.target.value) editor.setTranslationEngine('gemini');
+                    }}
                     className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm"
                     dir="ltr"
                   />
                   {editor.userGeminiKey && (
-                    <Button variant="ghost" size="sm" onClick={() => editor.setUserGeminiKey('')} className="text-xs text-destructive shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      editor.setUserGeminiKey('');
+                      if (editor.translationEngine === 'gemini') editor.setTranslationEngine('lovable');
+                    }} className="text-xs text-destructive shrink-0">
                       مسح
                     </Button>
                   )}
@@ -204,7 +248,7 @@ const Editor = () => {
                 </a>
               </div>
               {editor.userGeminiKey && (
-                <p className="text-xs text-secondary mt-1.5 font-body">✅ سيتم استخدام مفتاحك الشخصي للترجمة بدون حدود</p>
+                <p className="text-xs text-secondary font-body">✅ مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>
               )}
             </CardContent>
           </Card>
