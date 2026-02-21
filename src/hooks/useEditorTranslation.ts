@@ -204,12 +204,25 @@ export function useEditorTranslation({
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
-        });
+        let response: Response;
+        let retries = 0;
+        const maxRetries = 3;
+        while (true) {
+          response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+            signal: abortControllerRef.current.signal,
+            body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          });
+          if (response.status === 429 && retries < maxRetries) {
+            retries++;
+            const waitSec = retries * 20;
+            setTranslateProgress(`⏳ حد الطلبات — انتظار ${waitSec} ثانية ثم إعادة المحاولة (${retries}/${maxRetries})...`);
+            await new Promise(r => setTimeout(r, waitSec * 1000));
+            continue;
+          }
+          break;
+        }
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           throw new Error(errData?.error || `خطأ ${response.status}`);
@@ -231,6 +244,10 @@ export function useEditorTranslation({
             } catch {}
             return next;
           });
+        }
+        // Delay between batches to avoid rate limits (especially Gemini free tier: 15 req/min)
+        if (b < totalBatches - 1 && (translationEngine === 'gemini' || userGeminiKey)) {
+          await new Promise(r => setTimeout(r, 5000));
         }
       }
       if (!abortControllerRef.current?.signal.aborted) {
