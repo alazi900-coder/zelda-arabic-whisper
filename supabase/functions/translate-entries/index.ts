@@ -103,9 +103,11 @@ ${textsBlock}`;
     // === MyMemory Free Translation Engine ===
     if (translationEngine === 'mymemory') {
       const result: Record<string, string> = {};
+      let charsUsed = 0;
       for (let i = 0; i < protectedEntries.length; i++) {
         const entry = protectedEntries[i];
         try {
+          charsUsed += entry.cleaned.length;
           const encoded = encodeURIComponent(entry.cleaned);
           const emailParam = myMemoryEmail ? `&de=${encodeURIComponent(myMemoryEmail)}` : '';
           const mmResponse = await fetch(
@@ -126,7 +128,7 @@ ${textsBlock}`;
           console.error(`MyMemory error for ${entry.key}:`, e);
         }
       }
-      return new Response(JSON.stringify({ translations: result }), {
+      return new Response(JSON.stringify({ translations: result, myMemoryCharsUsed: charsUsed }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

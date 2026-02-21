@@ -19,11 +19,12 @@ interface UseEditorTranslationProps {
   userGeminiKey: string;
   translationEngine: 'gemini' | 'mymemory' | 'lovable';
   myMemoryEmail: string;
+  addMyMemoryChars: (chars: number) => void;
 }
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail,
+  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, myMemoryEmail, addMyMemoryChars,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -75,8 +76,8 @@ export function useEditorTranslation({
       });
       if (!response.ok) throw new Error(`خطأ ${response.status}`);
       const data = await response.json();
+      if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
       if (data.translations && data.translations[key]) {
-        // Auto-fix tags if AI dropped them
         let translated = data.translations[key];
         if (hasTechnicalTags(entry.original)) {
           translated = restoreTagsLocally(entry.original, translated);
@@ -202,6 +203,7 @@ export function useEditorTranslation({
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
+        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           allTranslations = { ...allTranslations, ...fixedTranslations };
@@ -287,6 +289,7 @@ export function useEditorTranslation({
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
+        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...fixedTranslations } } : null);
@@ -338,6 +341,7 @@ export function useEditorTranslation({
         });
         if (!response.ok) throw new Error(`خطأ ${response.status}`);
         const data = await response.json();
+        if (data.myMemoryCharsUsed) addMyMemoryChars(data.myMemoryCharsUsed);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           fixedCount += Object.keys(fixedTranslations).length;
