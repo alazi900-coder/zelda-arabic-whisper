@@ -77,27 +77,34 @@ export const TAG_TYPES: Record<string, { label: string; color: string; tooltip: 
 export const TAG_FALLBACK = { label: '…', color: 'bg-muted text-muted-foreground', tooltip: 'رمز تقني خاص بمحرك اللعبة' };
 
 export const FILE_CATEGORIES: FileCategory[] = [
-  // قوائم اللعبة
+  // قوائم اللعبة والواجهة
   { id: "main-menu", label: "القائمة الرئيسية", emoji: "🏠" },
   { id: "settings", label: "الإعدادات", emoji: "⚙️" },
-  { id: "hud", label: "واجهة اللعب (HUD)", emoji: "🖥️" },
+  { id: "hud", label: "واجهة اللعب", emoji: "🖥️" },
   { id: "pause-menu", label: "قائمة الإيقاف", emoji: "⏸️" },
   // الأسلحة والمعدات
   { id: "swords", label: "السيوف", emoji: "⚔️" },
+  { id: "spears", label: "الرماح", emoji: "🔱" },
   { id: "bows", label: "الأقواس", emoji: "🏹" },
-  { id: "shields", label: "الدروع", emoji: "🛡️" },
-  { id: "armor", label: "الملابس والدروع", emoji: "👕" },
+  { id: "shields", label: "الدروع/التروس", emoji: "🛡️" },
+  { id: "armor", label: "الملابس", emoji: "👕" },
   // العناصر والمواد
-  { id: "materials", label: "المواد والموارد", emoji: "🧪" },
   { id: "food", label: "الطعام والطبخ", emoji: "🍖" },
-  { id: "key-items", label: "الأدوات المهمة", emoji: "🔑" },
+  { id: "insects", label: "الحشرات والمخلوقات", emoji: "🦗" },
+  { id: "enemy-parts", label: "أجزاء الوحوش", emoji: "🦴" },
+  { id: "ores", label: "المعادن والأحجار", emoji: "💎" },
+  { id: "materials", label: "المواد والموارد", emoji: "🧪" },
+  { id: "zonai", label: "أدوات زوناي", emoji: "🔧" },
+  { id: "special-tools", label: "أسهم وأدوات خاصة", emoji: "🏹" },
+  { id: "fuse", label: "مواد الدمج (Fuse)", emoji: "🔗" },
+  // الكائنات
+  { id: "monsters", label: "الوحوش والأعداء", emoji: "👹" },
+  { id: "npc", label: "الشخصيات (NPC)", emoji: "🎭" },
   // المحتوى
   { id: "story", label: "حوارات القصة", emoji: "📖" },
   { id: "challenge", label: "المهام والتحديات", emoji: "📜" },
   { id: "map", label: "المواقع والخرائط", emoji: "🗺️" },
   { id: "tips", label: "النصائح والتعليمات", emoji: "💡" },
-  { id: "character", label: "الشخصيات والأعداء", emoji: "🎭" },
-  { id: "npc", label: "حوارات الشخصيات", emoji: "💬" },
 ];
 
 // Check if text contains technical tag markers
@@ -275,33 +282,57 @@ export function displayOriginal(text: string): React.ReactNode {
   return elements;
 }
 
-export function categorizeFile(filePath: string): string {
-  // === قوائم اللعبة ===
+export function categorizeFile(filePath: string, label?: string): string {
+  // === 1. فحص label أولاً (للتمييز داخل PouchContent وغيرها) ===
+  if (label) {
+    // السيوف
+    if (/^Weapon_(Sword|Lsword|SmallSword)_/i.test(label)) return "swords";
+    // الرماح
+    if (/^Weapon_Spear_/i.test(label)) return "spears";
+    // الأقواس
+    if (/^Weapon_Bow_/i.test(label)) return "bows";
+    // الدروع/التروس
+    if (/^Weapon_Shield_/i.test(label)) return "shields";
+    // الملابس
+    if (/^(Obj_SubstituteCloth_|Armor_)/i.test(label)) return "armor";
+    // الطعام والطبخ
+    if (/^Item_(Cook|Fruit|Mushroom|Fish|Meat|PlantGet|Vegetable|Boiled)_/i.test(label)) return "food";
+    // الحشرات والمخلوقات
+    if (/^Animal_Insect_/i.test(label)) return "insects";
+    // أجزاء الوحوش
+    if (/^Item_Enemy_/i.test(label)) return "enemy-parts";
+    // المعادن والأحجار
+    if (/^Item_Ore_/i.test(label)) return "ores";
+    // المواد والموارد
+    if (/^(Item_Material_|Item_LumberjackTree_)/i.test(label)) return "materials";
+    // أدوات زوناي
+    if (/^SpObj_/i.test(label)) return "zonai";
+    // أسهم وأدوات خاصة
+    if (/^(NormalArrow_|Obj_UltraHand|PutRupee_|Obj_TreasureMap_)/i.test(label)) return "special-tools";
+    // الوحوش (في PictureBook)
+    if (/^Enemy_/i.test(label)) return "monsters";
+  }
+
+  // === 2. فحص اسم الملف (msbtFile) ===
+  // قوائم اللعبة
   if (/LayoutMsg\/(Title|Boot|Save|Load|GameOver|Opening|Ending)/i.test(filePath)) return "main-menu";
   if (/LayoutMsg\/(Option|Config|Setting|System|Language|Control|Camera|Sound)/i.test(filePath)) return "settings";
   if (/LayoutMsg\/(Pause|Menu|Pouch|Inventory|Equipment|Status)/i.test(filePath)) return "pause-menu";
   if (/LayoutMsg\//i.test(filePath)) return "hud";
-  
-  // === الأسلحة والمعدات ===
-  if (/ActorMsg\/(Weapon_Sword|Weapon_Lsword|Weapon_SmallSword)/i.test(filePath)) return "swords";
-  if (/ActorMsg\/Weapon_Bow/i.test(filePath)) return "bows";
-  if (/ActorMsg\/Weapon_Shield/i.test(filePath)) return "shields";
-  if (/ActorMsg\/Armor/i.test(filePath)) return "armor";
-  
-  // === العناصر والمواد ===
-  if (/ActorMsg\/Item_Material/i.test(filePath)) return "materials";
-  if (/ActorMsg\/(Item_Cook|Item_Fruit|Item_Mushroom|Item_Fish|Item_Meat|Item_Plant)/i.test(filePath)) return "food";
-  if (/ActorMsg\/(PouchContent|Item_Key|Item_Ore|Item_Enemy|Item_Insect|Item_)/i.test(filePath)) return "key-items";
-  
-  // === المحتوى ===
-  if (/EventFlowMsg\/(Npc|Demo_Npc)/i.test(filePath)) return "npc";
+
+  // الوحوش والأعداء (ملفات PictureBook / Boss)
+  if (/PictureBook|Boss/i.test(filePath)) return "monsters";
+  // الشخصيات (NPC)
+  if (/Npc\.msbt/i.test(filePath)) return "npc";
+  // مواد الدمج (Fuse/Attachment)
+  if (/Attachment\.msbt/i.test(filePath)) return "fuse";
+
+  // المحتوى
   if (/EventFlowMsg\//i.test(filePath)) return "story";
   if (/ChallengeMsg\//i.test(filePath)) return "challenge";
   if (/LocationMsg\//i.test(filePath)) return "map";
-  if (/StaticMsg\/(Tips|GuideKeyIcon)\.msbt/i.test(filePath)) return "tips";
-  if (/ActorMsg\/Enemy/i.test(filePath)) return "character";
-  if (/ActorMsg\//i.test(filePath)) return "character";
-  
+  if (/StaticMsg\//i.test(filePath)) return "tips";
+
   return "other";
 }
 

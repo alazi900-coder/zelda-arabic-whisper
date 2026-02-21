@@ -91,7 +91,7 @@ export function useEditorTranslation({
     let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0, skipCategory = 0;
     const untranslated = state.entries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
-      const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile) === filterCategory;
+      const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile, e.label) === filterCategory;
       if (!matchCategory) { skipCategory++; return false; }
       if (!e.original.trim()) { skipEmpty++; return false; }
       if (arabicRegex.test(e.original)) { skipArabic++; return false; }
