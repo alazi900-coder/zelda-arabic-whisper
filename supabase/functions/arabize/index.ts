@@ -326,8 +326,40 @@ function parseMSBT(data: Uint8Array): { entries: MsbtEntry[]; raw: Uint8Array } 
   if (!magic.startsWith('MsgStdBn')) throw new Error('Not a valid MSBT file');
 
   const entries: MsbtEntry[] = [];
+  // First pass: read LBL1 labels (index → label name)
+  const labelMap = new Map<number, string>();
   let pos = 0x20;
+  while (pos < data.length - 16) {
+    const sectionMagic = String.fromCharCode(...data.slice(pos, pos + 4));
+    const sectionSize = view.getUint32(pos + 4, true);
+    if (sectionMagic === 'LBL1') {
+      const lbl1Start = pos + 16;
+      const numBuckets = view.getUint32(lbl1Start, true);
+      for (let b = 0; b < numBuckets; b++) {
+        const bucketLabelCount = view.getUint32(lbl1Start + 4 + b * 8, true);
+        const bucketOffset = view.getUint32(lbl1Start + 4 + b * 8 + 4, true);
+        let labelPos = lbl1Start + bucketOffset;
+        for (let l = 0; l < bucketLabelCount; l++) {
+          const labelLen = data[labelPos];
+          labelPos++;
+          let labelName = '';
+          for (let c = 0; c < labelLen; c++) {
+            labelName += String.fromCharCode(data[labelPos + c]);
+          }
+          labelPos += labelLen;
+          const itemIndex = view.getUint32(labelPos, true);
+          labelPos += 4;
+          labelMap.set(itemIndex, labelName);
+        }
+      }
+      break;
+    }
+    pos += 16 + sectionSize;
+    pos = (pos + 15) & ~15;
+  }
 
+  // Second pass: read TXT2 entries
+  pos = 0x20;
   while (pos < data.length - 16) {
     const sectionMagic = String.fromCharCode(...data.slice(pos, pos + 4));
     const sectionSize = view.getUint32(pos + 4, true);
@@ -367,10 +399,9 @@ function parseMSBT(data: Uint8Array): { entries: MsbtEntry[]; raw: Uint8Array } 
         }
         const text = textParts.join('');
 
-        // DON'T apply processArabicText here - keep raw text
-        // Processing will be applied selectively in build mode
+        // Use real label from LBL1 if available, fallback to entry_N
         entries.push({
-          label: `entry_${i}`,
+          label: labelMap.get(i) || `entry_${i}`,
           originalText: text,
           processedText: text, // same as original - no processing yet
           offset: absOffset,
