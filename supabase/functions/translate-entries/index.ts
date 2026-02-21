@@ -32,13 +32,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine } = await req.json() as {
       entries: { key: string; original: string }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'mymemory' | 'lovable';
-      myMemoryEmail?: string;
+      translationEngine?: 'gemini' | 'lovable';
     };
 
     if (!entries || entries.length === 0) {
@@ -99,39 +98,6 @@ Texts:
 ${textsBlock}`;
 
     let data: any;
-
-    // === MyMemory Free Translation Engine ===
-    if (translationEngine === 'mymemory') {
-      const result: Record<string, string> = {};
-      let charsUsed = 0;
-      for (let i = 0; i < protectedEntries.length; i++) {
-        const entry = protectedEntries[i];
-        try {
-          charsUsed += entry.cleaned.length;
-          const encoded = encodeURIComponent(entry.cleaned);
-          const emailParam = myMemoryEmail ? `&de=${encodeURIComponent(myMemoryEmail)}` : '';
-          const mmResponse = await fetch(
-            `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|ar${emailParam}`
-          );
-          if (mmResponse.ok) {
-            const mmData = await mmResponse.json();
-            const translated = mmData?.responseData?.translatedText;
-            if (translated && translated.trim()) {
-              result[entry.key] = restoreTags(translated, entry.tags);
-            }
-          }
-          // Rate limit: 100ms delay between requests
-          if (i < protectedEntries.length - 1) {
-            await new Promise(r => setTimeout(r, 100));
-          }
-        } catch (e) {
-          console.error(`MyMemory error for ${entry.key}:`, e);
-        }
-      }
-      return new Response(JSON.stringify({ translations: result, myMemoryCharsUsed: charsUsed }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     if (userApiKey && userApiKey.trim()) {
       // Use user's own Gemini API key directly
