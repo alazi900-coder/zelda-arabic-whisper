@@ -57,7 +57,11 @@ export function useEditorState() {
 
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const stateRef = useRef<EditorState | null>(null);
   const { user } = useAuth();
+
+  // Keep stateRef always in sync so we can flush on unmount
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   const glossary = useEditorGlossary({
     state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId: user?.id,
@@ -302,8 +306,28 @@ export function useEditorState() {
     if (!state) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => saveToIDB(state), AUTOSAVE_DELAY);
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        // Flush pending save immediately on unmount / dependency change
+        if (stateRef.current) saveToIDB(stateRef.current);
+      }
+    };
   }, [state?.translations, saveToIDB]);
+
+  // Save before browser/tab close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (saveTimerRef.current && stateRef.current) {
+        clearTimeout(saveTimerRef.current);
+        // Synchronous-safe: use navigator.sendBeacon as fallback isn't needed
+        // because idbSet is fire-and-forget here (IDB transactions survive page unload briefly)
+        saveToIDB(stateRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveToIDB]);
 
   // === Computed values ===
   const msbtFiles = useMemo(() => {
