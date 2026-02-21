@@ -86,7 +86,7 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         const translation = state.translations[key] || '';
         const trimmed = translation.trim();
         const isTranslated = trimmed !== '';
-        const cat = categorizeFile(entry.msbtFile);
+        const cat = categorizeFile(entry.msbtFile, entry.label);
 
         if (!progress[cat]) progress[cat] = { total: 0, translated: 0 };
         progress[cat].total++;

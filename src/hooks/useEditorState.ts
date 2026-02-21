@@ -340,7 +340,7 @@ export function useEditorState() {
     if (!state) return {};
     const counts: Record<string, number> = {};
     for (const e of state.entries) {
-      const cat = categorizeFile(e.msbtFile);
+      const cat = categorizeFile(e.msbtFile, e.label);
       counts[cat] = (counts[cat] || 0) + 1;
     }
     return counts;
@@ -365,7 +365,7 @@ export function useEditorState() {
         e.label.includes(search) ||
         translation.includes(search);
       const matchFile = filterFile === "all" || e.msbtFile === filterFile;
-      const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile) === filterCategory;
+      const matchCategory = filterCategory === "all" || categorizeFile(e.msbtFile, e.label) === filterCategory;
       const matchStatus = 
         filterStatus === "all" || 
         (filterStatus === "translated" && isTranslated) ||
