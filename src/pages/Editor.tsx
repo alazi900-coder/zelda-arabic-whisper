@@ -722,6 +722,12 @@ const Editor = () => {
             ) : (
               editor.paginatedEntries.map((entry) => {
                 const key = `${entry.msbtFile}:${entry.index}`;
+                // Build small TM from same file's existing translations
+                const tm = editor.state ? editor.state.entries
+                  .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
+                  .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
+                  .filter(t => t.translation.trim())
+                  .slice(0, 5) : [];
                 return (
                   <EntryCard
                     key={key}
@@ -745,6 +751,7 @@ const Editor = () => {
                     handleUndoTranslation={editor.handleUndoTranslation}
                     handleFixReversed={editor.handleFixReversed}
                     handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
+                    translationMemory={tm}
                   />
                 );
               })

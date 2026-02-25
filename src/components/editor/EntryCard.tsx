@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCcw, Sparkles, Loader2, Tag, BookOpen, Wrench, Copy, Eye, Check, X, Gamepad2 } from "lucide-react";
-import DebouncedInput from "./DebouncedInput";
+import AutocompleteInput from "./AutocompleteInput";
 import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTechnicalTags, previewTagRestore } from "./types";
 import { utf8ByteLength } from "@/lib/byte-utils";
 import { toast } from "@/hooks/use-toast";
@@ -29,6 +29,7 @@ interface EntryCardProps {
   handleUndoTranslation: (key: string) => void;
   handleFixReversed: (entry: ExtractedEntry) => void;
   handleLocalFixDamagedTag?: (entry: ExtractedEntry) => void;
+  translationMemory?: { key: string; translation: string }[];
 }
 
 function findGlossaryMatches(original: string, glossary?: string): { term: string; translation: string }[] {
@@ -60,6 +61,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
+  translationMemory,
 }) => {
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
@@ -138,11 +140,13 @@ const EntryCard: React.FC<EntryCardProps> = ({
             </Button>
           )}
           <div className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-2`}>
-            <DebouncedInput
+            <AutocompleteInput
               value={translation}
               onChange={(val) => updateTranslation(key, val)}
               placeholder="أدخل الترجمة..."
               className="flex-1 w-full px-3 py-2 rounded bg-background border border-border font-body text-sm"
+              glossaryMatches={glossaryMatches}
+              translationMemory={translationMemory}
             />
             <div className="flex items-center gap-1 shrink-0">
               {translation?.trim() && (
