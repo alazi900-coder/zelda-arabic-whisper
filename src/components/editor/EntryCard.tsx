@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RotateCcw, Sparkles, Loader2, Tag, BookOpen, Wrench, Copy, Eye, Check, X } from "lucide-react";
+import { AlertTriangle, RotateCcw, Sparkles, Loader2, Tag, BookOpen, Wrench, Copy, Eye, Check, X, Gamepad2 } from "lucide-react";
 import DebouncedInput from "./DebouncedInput";
 import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTechnicalTags, previewTagRestore } from "./types";
 import { utf8ByteLength } from "@/lib/byte-utils";
 import { toast } from "@/hooks/use-toast";
+import ZeldaDialoguePreview from "@/components/ZeldaDialoguePreview";
 
 interface EntryCardProps {
   entry: ExtractedEntry;
@@ -63,7 +64,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
   const [showTagPreview, setShowTagPreview] = useState(false);
-
+  const [showGamePreview, setShowGamePreview] = useState(false);
   const tagPreview = useMemo(() => {
     if (!isDamagedTag || !translation?.trim()) return null;
     return previewTagRestore(entry.original, translation);
@@ -144,6 +145,11 @@ const EntryCard: React.FC<EntryCardProps> = ({
               className="flex-1 w-full px-3 py-2 rounded bg-background border border-border font-body text-sm"
             />
             <div className="flex items-center gap-1 shrink-0">
+              {translation?.trim() && (
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowGamePreview(true)} title="معاينة كما ستظهر في اللعبة">
+                  <Gamepad2 className="w-4 h-4 text-secondary" />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => handleTranslateSingle(entry)} disabled={translatingSingle === key} title="ترجمة هذا النص">
                 {translatingSingle === key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
               </Button>
@@ -230,6 +236,14 @@ const EntryCard: React.FC<EntryCardProps> = ({
           </div>
         )}
       </div>
+      {showGamePreview && (
+        <ZeldaDialoguePreview
+          original={entry.original}
+          translation={translation || ''}
+          label={entry.label}
+          onClose={() => setShowGamePreview(false)}
+        />
+      )}
     </Card>
   );
 };
