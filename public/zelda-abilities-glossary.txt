@@ -1,0 +1,275 @@
+# قاموس القدرات والتأثيرات والحالات - Zelda: Tears of the Kingdom / Breath of the Wild
+# Abilities, Effects & Status Glossary
+
+# ═══════════════════════════════════════════
+# === قدرات لينك الأساسية (Link's Abilities - TOTK) ===
+# ═══════════════════════════════════════════
+Ultrahand = اليد الفائقة
+Fuse = الدمج
+Ascend = الصعود
+Recall = الاسترجاع
+Autobuild = البناء التلقائي
+Camera = الكاميرا
+Sensor = المستشعر
+Sensor+ = المستشعر+
+Scope = المنظار
+Travel Medallion = ميدالية السفر
+Amiibo = أميبو
+Hero's Path Mode = وضع مسار البطل
+
+# === قدرات لينك الأساسية (Link's Abilities - BotW) ===
+Magnesis = المغناطيس
+Stasis = التجميد
+Stasis+ = التجميد+
+Cryonis = التجليد
+Remote Bomb = القنبلة عن بُعد
+Round Remote Bomb = قنبلة كروية عن بُعد
+Square Remote Bomb = قنبلة مكعبة عن بُعد
+Master Cycle Zero = دراجة الماستر صفر
+
+# ═══════════════════════════════════════════
+# === قدرات الحكماء (Sage Abilities - TOTK) ===
+# ═══════════════════════════════════════════
+Vow of Sidon, Sage of Water = عهد سيدون، حكيم الماء
+Vow of Yunobo, Sage of Fire = عهد يونوبو، حكيم النار
+Vow of Tulin, Sage of Wind = عهد تولين، حكيم الريح
+Vow of Riju, Sage of Lightning = عهد ريجو، حكيم البرق
+Vow of Mineru, Sage of Spirit = عهد مينيرو، حكيم الروح
+Water Shield = درع الماء
+Fire Charge = شحنة النار
+Wind Gust = هبة الريح
+Lightning Strike = ضربة البرق
+Spirit Mech = آلة الروح
+
+# === قدرات الأبطال (Champion Abilities - BotW) ===
+Mipha's Grace = نعمة ميفا
+Daruk's Protection = حماية داروك
+Revali's Gale = هبة ريفالي
+Urbosa's Fury = غضب أوربوسا
+Mipha's Grace+ = نعمة ميفا+
+Daruk's Protection+ = حماية داروك+
+Revali's Gale+ = هبة ريفالي+
+Urbosa's Fury+ = غضب أوربوسا+
+
+# ═══════════════════════════════════════════
+# === تأثيرات الطعام والإكسيرات (Food & Elixir Effects) ===
+# ═══════════════════════════════════════════
+Hearty = منيع
+Energizing = منشّط
+Enduring = مستديم
+Hasty = سريع
+Sneaky = خفي
+Mighty = قوي
+Tough = متين
+Spicy = حار
+Chilly = بارد
+Electro = كهربائي
+Fireproof = مقاوم للنار
+Bright = مضيء
+Gloom Recovery = استعادة من الظلام
+Sunny = مشمس
+Sticky = لاصق
+Dark = مظلم
+
+# --- تأثيرات التعزيز ---
+Attack Up = زيادة الهجوم
+Defense Up = زيادة الدفاع
+Speed Up = زيادة السرعة
+Stealth Up = زيادة التخفي
+Heat Resistance = مقاومة الحرارة
+Cold Resistance = مقاومة البرد
+Shock Resistance = مقاومة الكهرباء
+Flame Guard = حماية من اللهب
+Fireproof = مقاوم للنار
+Gloom Resistance = مقاومة الظلام
+Swim Speed Up = زيادة سرعة السباحة
+Climbing Speed Up = زيادة سرعة التسلق
+Bone Attack Up = زيادة هجوم العظام
+
+# --- مدة التأثير ---
+Effect Duration = مدة التأثير
+Low-Level = مستوى منخفض
+Mid-Level = مستوى متوسط
+High-Level = مستوى عالي
+Extra Hearts = قلوب إضافية
+Temporary Hearts = قلوب مؤقتة
+Extra Stamina = تحمل إضافي
+Temporary Stamina = تحمل مؤقت
+Full Recovery = استعادة كاملة
+
+# ═══════════════════════════════════════════
+# === حالات البيئة والطقس (Environmental & Weather) ===
+# ═══════════════════════════════════════════
+Blood Moon = قمر الدم
+Rain = مطر
+Thunderstorm = عاصفة رعدية
+Snow = ثلج
+Sandstorm = عاصفة رملية
+Blizzard = عاصفة ثلجية
+Fog = ضباب
+Wind = ريح
+Clear = صافي
+Cloudy = غائم
+Hot = حار
+Cold = بارد
+Scorching = حارق
+Freezing = متجمد
+Extreme Heat = حرارة شديدة
+Extreme Cold = برودة شديدة
+
+# --- حالات خاصة ---
+Gloom = ظلام
+Malice = حقد
+Updraft = تيار صاعد
+Downdraft = تيار هابط
+Lava = حمم
+Quicksand = رمال متحركة
+Deep Water = مياه عميقة
+Shallow Water = مياه ضحلة
+Muddy = موحل
+Slippery = زلق
+Burning = محترق
+Frozen = متجمد
+Electrified = مكهرب
+
+# ═══════════════════════════════════════════
+# === حالات المعركة (Combat Status) ===
+# ═══════════════════════════════════════════
+Stun = صعق
+Stunned = مصعوق
+Knock Back = ارتداد
+Knock Down = سقوط
+Frozen = تجميد
+On Fire = مشتعل
+Electrocuted = مصدوم كهربائياً
+Flurry Rush = هجوم متوالي
+Perfect Dodge = مراوغة مثالية
+Perfect Guard = حراسة مثالية
+Parry = صد
+Counter = هجوم مضاد
+Critical Hit = ضربة حاسمة
+Headshot = إصابة في الرأس
+Weak Point = نقطة ضعف
+Weak Point Smash = ضربة نقطة الضعف
+Mounted Attack = هجوم من الأعلى
+Sneak Strike = ضربة خفية
+Spin Attack = هجوم دوراني
+Charged Attack = هجوم مشحون
+Jump Attack = هجوم قفز
+Dash Attack = هجوم اندفاعي
+Shield Surf = تزلج بالدرع
+Shield Bash = ضرب بالدرع
+Arrow Shot = رمية سهم
+Bullet Time = إبطاء الزمن
+Focus = تركيز
+
+# ═══════════════════════════════════════════
+# === تعزيزات العتاد (Equipment Bonuses) ===
+# ═══════════════════════════════════════════
+Set Bonus = مكافأة الطقم
+Armor Set = طقم دروع
+Two-Piece Bonus = مكافأة القطعتين
+Attack Up = زيادة الهجوم
+Defense Up = زيادة الدفاع
+Swim Dash = اندفاع في السباحة
+Climb Speed = سرعة التسلق
+Unfreezable = غير قابل للتجميد
+Shock Proof = مقاوم للصدمة
+Flame Proof = مقاوم للنار
+Stealth = تخفي
+Disguise = تنكر
+Night Speed Up = سرعة ليلية
+Charge Atk. Stamina Up = تحمل الهجوم المشحون
+Bone Proficiency = إتقان العظام
+Gloom Attack Resistance = مقاومة هجوم الظلام
+Rupee Padding = حماية بالروبيات
+Sand Speed Up = سرعة على الرمل
+Snow Speed Up = سرعة على الثلج
+Slip Resistance = مقاومة الانزلاق
+
+# ═══════════════════════════════════════════
+# === ترقيات المعدات (Upgrades) ===
+# ═══════════════════════════════════════════
+Upgrade = ترقية
+Level 1 = المستوى ١
+Level 2 = المستوى ٢
+Level 3 = المستوى ٣
+Level 4 = المستوى ٤
+Star = نجمة
+Base Defense = دفاع أساسي
+Enhanced = محسّن
+Max Upgrade = ترقية قصوى
+Great Fairy Upgrade = ترقية الجنية العظيمة
+
+# ═══════════════════════════════════════════
+# === أجهزة زوناي (Zonai Devices) ===
+# ═══════════════════════════════════════════
+Zonai Device = جهاز زوناي
+Fan = مروحة
+Flame Emitter = باعث لهب
+Frost Emitter = باعث جليد
+Shock Emitter = باعث صدمة
+Beam Emitter = باعث شعاع
+Hydrant = مرشة ماء
+Portable Pot = قدر متنقل
+Wing = جناح
+Rocket = صاروخ
+Hot-Air Balloon = منطاد
+Spring = نابض
+Stabilizer = موازن
+Steering Stick = عصا توجيه
+Cart = عربة
+Sled = زلاجة
+Raft = طوف
+Big Wheel = عجلة كبيرة
+Small Wheel = عجلة صغيرة
+Big Battery = بطارية كبيرة
+Battery = بطارية
+Time Bomb = قنبلة موقوتة
+Homing Cart = عربة موجهة
+Light = مصباح
+Mirror = مرآة
+Cannon = مدفع
+Stake = وتد
+Hover Stone = حجر طائر
+Construct Head = رأس آلي
+Energy Cell = خلية طاقة
+
+# ═══════════════════════════════════════════
+# === مصطلحات عامة للقدرات ===
+# ═══════════════════════════════════════════
+Ability = قدرة
+Skill = مهارة
+Power = قوة
+Buff = تعزيز
+Debuff = إضعاف
+Effect = تأثير
+Status Effect = تأثير حالة
+Passive = سلبي
+Active = نشط
+Cooldown = وقت الانتظار
+Recharge = إعادة شحن
+Duration = مدة
+Range = مدى
+Area of Effect = منطقة التأثير
+Damage = ضرر
+Healing = شفاء
+Protection = حماية
+Immunity = مناعة
+Vulnerability = ضعف
+Resistance = مقاومة
+Boost = تعزيز
+Enhancement = تحسين
+Enchantment = سحر
+Blessing = بركة
+Curse = لعنة
+Aura = هالة
+Elemental = عنصري
+Fire = نار
+Ice = جليد
+Lightning = برق
+Water = ماء
+Wind = ريح
+Light = نور
+Dark = ظلام
+Spirit = روح

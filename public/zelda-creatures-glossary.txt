@@ -1,0 +1,294 @@
+# قاموس المخلوقات والوحوش - Zelda: Tears of the Kingdom / Breath of the Wild
+# Creatures, Enemies & Monsters Glossary
+
+# ═══════════════════════════════════════════
+# === الأعداء الأساسيون (Common Enemies) ===
+# ═══════════════════════════════════════════
+
+# --- بوكوبلين (Bokoblin) ---
+Bokoblin = بوكوبلين
+Red Bokoblin = بوكوبلين أحمر
+Blue Bokoblin = بوكوبلين أزرق
+Black Bokoblin = بوكوبلين أسود
+Silver Bokoblin = بوكوبلين فضي
+Golden Bokoblin = بوكوبلين ذهبي
+Stalkoblin = ستالكوبلين
+Boss Bokoblin = بوكوبلين قائد
+Blue Boss Bokoblin = بوكوبلين قائد أزرق
+Black Boss Bokoblin = بوكوبلين قائد أسود
+Silver Boss Bokoblin = بوكوبلين قائد فضي
+
+# --- موبلين (Moblin) ---
+Moblin = موبلين
+Blue Moblin = موبلين أزرق
+Black Moblin = موبلين أسود
+Silver Moblin = موبلين فضي
+Golden Moblin = موبلين ذهبي
+Stalmoblin = ستالموبلين
+
+# --- ليزالفوس (Lizalfos) ---
+Lizalfos = ليزالفوس
+Blue Lizalfos = ليزالفوس أزرق
+Black Lizalfos = ليزالفوس أسود
+Silver Lizalfos = ليزالفوس فضي
+Golden Lizalfos = ليزالفوس ذهبي
+Stalizalfos = ستاليزالفوس
+Fire-Breath Lizalfos = ليزالفوس ناري
+Ice-Breath Lizalfos = ليزالفوس جليدي
+Electric Lizalfos = ليزالفوس كهربائي
+
+# --- هوريبلين (Horriblin) ---
+Horriblin = هوريبلين
+Blue Horriblin = هوريبلين أزرق
+Black Horriblin = هوريبلين أسود
+Silver Horriblin = هوريبلين فضي
+
+# ═══════════════════════════════════════════
+# === أعداء متوسطون (Mid-tier Enemies) ===
+# ═══════════════════════════════════════════
+
+# --- لاينل (Lynel) ---
+Lynel = لاينل
+Red-Maned Lynel = لاينل أحمر العرف
+Blue-Maned Lynel = لاينل أزرق العرف
+White-Maned Lynel = لاينل أبيض العرف
+Silver Lynel = لاينل فضي
+Golden Lynel = لاينل ذهبي
+Armored Lynel = لاينل مدرع
+
+# --- غيبدو (Gibdo) ---
+Gibdo = غيبدو
+Moth Gibdo = غيبدو العث
+Queen Gibdo = ملكة غيبدو
+
+# --- لايك لايك (Like Like) ---
+Like Like = لايك لايك
+Fire Like = لايك لايك ناري
+Ice Like = لايك لايك جليدي
+Shock Like = لايك لايك كهربائي
+
+# --- غليوك (Gleeok) ---
+Gleeok = غليوك
+Flame Gleeok = غليوك ناري
+Frost Gleeok = غليوك جليدي
+Thunder Gleeok = غليوك رعدي
+King Gleeok = ملك الغليوك
+
+# ═══════════════════════════════════════════
+# === الزعماء الكبار (Bosses & Mini-Bosses) ===
+# ═══════════════════════════════════════════
+
+# --- هاينوكس (Hinox) ---
+Hinox = هاينوكس
+Red Hinox = هاينوكس أحمر
+Blue Hinox = هاينوكس أزرق
+Black Hinox = هاينوكس أسود
+Stalnox = ستالنوكس
+
+# --- تالوس (Talus) ---
+Stone Talus = تالوس حجري
+Luminous Stone Talus = تالوس الحجر المضيء
+Rare Stone Talus = تالوس حجري نادر
+Igneo Talus = تالوس ناري
+Frost Talus = تالوس جليدي
+Battle Talus = تالوس القتال
+Obsidian Talus = تالوس السبج
+
+# --- فروكس (Frox) ---
+Frox = فروكس
+Blue-White Frox = فروكس أزرق أبيض
+Obsidian Frox = فروكس السبج
+
+# --- مولدوغا (Molduga) ---
+Molduga = مولدوغا
+Molduking = ملك المولدوغا
+
+# --- آلة التدفق (Flux Construct) ---
+Flux Construct I = آلة التدفق I
+Flux Construct II = آلة التدفق II
+Flux Construct III = آلة التدفق III
+
+# --- زعماء المعابد ---
+Colgera = كولجيرا
+Marbled Gohma = غوما المرمرية
+Mucktorok = ماكتوروك
+Queen Gibdo = ملكة غيبدو
+Seized Construct = الآلة المحتلة
+Phantom Ganon = غانون الشبح
+Demon King Ganondorf = ملك الشياطين غاننودورف
+Demon Dragon = التنين الشيطاني
+
+# ═══════════════════════════════════════════
+# === مخلوقات صغيرة (Small Creatures) ===
+# ═══════════════════════════════════════════
+
+# --- تشوتشو (Chuchu) ---
+Chuchu = تشوتشو
+Red Chuchu = تشوتشو أحمر
+Blue Chuchu = تشوتشو أزرق
+Yellow Chuchu = تشوتشو أصفر
+Fire Chuchu = تشوتشو ناري
+Ice Chuchu = تشوتشو جليدي
+Electric Chuchu = تشوتشو كهربائي
+
+# --- خفاش (Keese) ---
+Keese = خفاش ليلي
+Fire Keese = خفاش ناري
+Ice Keese = خفاش جليدي
+Electric Keese = خفاش كهربائي
+
+# --- أوكتوروك (Octorok) ---
+Octorok = أوكتوروك
+Rock Octorok = أوكتوروك صخري
+Water Octorok = أوكتوروك مائي
+Snow Octorok = أوكتوروك ثلجي
+Treasure Octorok = أوكتوروك الكنز
+Sky Octorok = أوكتوروك سماوي
+Forest Octorok = أوكتوروك الغابة
+
+# --- إيروكودا (Aerocuda) ---
+Aerocuda = إيروكودا
+
+# --- بيهات (Pebblit) ---
+Pebblit = بيبليت
+Igneo Pebblit = بيبليت ناري
+Frost Pebblit = بيبليت جليدي
+
+# --- ويزروب (Wizzrobe) ---
+Wizzrobe = ويزروب
+Fire Wizzrobe = ويزروب ناري
+Ice Wizzrobe = ويزروب جليدي
+Electric Wizzrobe = ويزروب كهربائي
+Meteo Wizzrobe = ويزروب النيازك
+Blizzrobe = ويزروب العواصف الثلجية
+Thunder Wizzrobe = ويزروب الرعد
+
+# ═══════════════════════════════════════════
+# === الآلات والبنيات (Constructs) ===
+# ═══════════════════════════════════════════
+Soldier Construct = جندي آلي
+Soldier Construct I = جندي آلي I
+Soldier Construct II = جندي آلي II
+Soldier Construct III = جندي آلي III
+Soldier Construct IV = جندي آلي IV
+Captain Construct = قائد آلي
+Captain Construct I = قائد آلي I
+Captain Construct II = قائد آلي II
+Captain Construct III = قائد آلي III
+Captain Construct IV = قائد آلي IV
+Steward Construct = مضيف آلي
+Mining Construct = عامل منجم آلي
+Cooking Construct = طباخ آلي
+
+# --- الحراس (Guardians - BotW) ---
+Guardian = حارس
+Guardian Stalker = حارس متعقب
+Guardian Skywatcher = حارس مراقب سماوي
+Guardian Turret = برج حارس
+Decayed Guardian = حارس متحلل
+Guardian Scout I = كشاف حارس I
+Guardian Scout II = كشاف حارس II
+Guardian Scout III = كشاف حارس III
+Guardian Scout IV = كشاف حارس IV
+
+# ═══════════════════════════════════════════
+# === عشيرة الييغا (Yiga Clan) ===
+# ═══════════════════════════════════════════
+Yiga Footsoldier = جندي الييغا
+Yiga Blademaster = سيّاف الييغا
+Yiga Clan = عشيرة الييغا
+Master Kohga = السيد كوغا
+
+# ═══════════════════════════════════════════
+# === مخلوقات الأعماق (Depths Creatures) ===
+# ═══════════════════════════════════════════
+Gloom Hands = أيدي الظلام
+Gloom Spawn = يرقة الظلام
+Phantom Ganon = غانون الشبح
+Poe = شبح بو
+Large Poe = شبح بو كبير
+Grand Poe = شبح بو عظيم
+
+# ═══════════════════════════════════════════
+# === الحيوانات (Animals) ===
+# ═══════════════════════════════════════════
+
+# --- خيول (Horses) ---
+Horse = حصان
+Giant Horse = حصان عملاق
+White Horse = حصان أبيض
+Stalhorse = حصان هيكلي
+Golden Horse = حصان ذهبي
+Spot = حصان مرقط
+Epona = إيبونا
+Giant White Stallion = فحل أبيض عملاق
+
+# --- حيوانات أخرى ---
+Wolf = ذئب
+Maraudo Wolf = ذئب مارادو
+Wasteland Coyote = ذئب الأراضي القاحلة
+Tabantha Moose = أيل تابانثا
+Mountain Buck = أيل الجبال
+Mountain Doe = ظبية الجبال
+Grassland Fox = ثعلب المراعي
+Snowcoat Fox = ثعلب الثلج
+Bear = دب
+Honeyvore Bear = دب العسل
+Grizzlemaw Bear = دب غريزلماو
+Water Buffalo = جاموس مائي
+Hateno Cow = بقرة هاتينو
+Highland Sheep = خروف المرتفعات
+Donkey = حمار
+Sand Seal = فقمة الرمل
+Patricia = باتريشيا
+Lord of the Mountain = سيد الجبل
+Blupee = بلوبي
+Steppe Hare = أرنب السهول
+Snowshoe Hare = أرنب الثلج
+Mountain Goat = ماعز الجبل
+Rock Pigeon = حمامة صخرية
+Rainbow Pigeon = حمامة قوس قزح
+Eldin Ostrich = نعامة إلدين
+Pink Heron = مالك الحزين الوردي
+Blue-Winged Heron = مالك الحزين أزرق الجناح
+Islander Hawk = صقر الجزر
+Woodland Boar = خنزير الغابة
+Red-Tusked Boar = خنزير الأنياب الحمراء
+Mountain Crow = غراب الجبل
+Bushy-Tailed Squirrel = سنجاب كثيف الذيل
+Rainbow Sparrow = عصفور قوس قزح
+Golden Sparrow = عصفور ذهبي
+Seagull = نورس
+Cucco = كوكو
+
+# ═══════════════════════════════════════════
+# === مصطلحات عامة للأعداء ===
+# ═══════════════════════════════════════════
+Enemy = عدو
+Enemies = أعداء
+Monster = وحش
+Monsters = وحوش
+Creature = مخلوق
+Creatures = مخلوقات
+Beast = وحش
+Boss = زعيم
+Mini Boss = زعيم صغير
+Dungeon Boss = زعيم الزنزانة
+Overworld Boss = زعيم العالم المفتوح
+Swarm = سرب
+Horde = حشد
+Camp = معسكر
+Monster Camp = معسكر الوحوش
+Skull Camp = معسكر الجمجمة
+Monster Parts = أجزاء الوحوش
+Monster Drops = غنائم الوحوش
+Fang = ناب
+Claw = مخلب
+Horn = قرن
+Guts = أحشاء
+Wing = جناح
+Tail = ذيل
+Eyeball = عين
+Hoof = حافر
+Bone = عظم
+Jelly = هلام

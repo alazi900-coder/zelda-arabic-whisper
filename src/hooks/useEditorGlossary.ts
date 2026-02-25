@@ -121,20 +121,20 @@ export function useEditorGlossary({
   const handleLoadMaterialsGlossary = useCallback(() => loadGlossary('/zelda-materials-glossary.txt', 'قاموس المواد والأسلحة'), [loadGlossary]);
   const handleLoadUIGlossary = useCallback(() => loadGlossary('/zelda-ui-glossary.txt', 'قاموس الواجهة والقوائم'), [loadGlossary]);
   const handleLoadLocationsGlossary = useCallback(() => loadGlossary('/zelda-locations-characters-glossary.txt', 'قاموس المواقع والشخصيات'), [loadGlossary]);
+  const handleLoadCreaturesGlossary = useCallback(() => loadGlossary('/zelda-creatures-glossary.txt', 'قاموس المخلوقات والوحوش'), [loadGlossary]);
+  const handleLoadAbilitiesGlossary = useCallback(() => loadGlossary('/zelda-abilities-glossary.txt', 'قاموس القدرات والتأثيرات'), [loadGlossary]);
 
   const handleLoadAllGlossaries = async () => {
     try {
-      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
-        fetch('/zelda-glossary.txt'),
-        fetch('/zelda-totk-glossary.txt'),
-        fetch('/zelda-totk-items-glossary.txt'),
-        fetch('/zelda-materials-glossary.txt'),
-        fetch('/zelda-ui-glossary.txt'),
-        fetch('/zelda-locations-characters-glossary.txt'),
-      ]);
-      if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok) throw new Error('فشل تحميل أحد القواميس');
-      const [t1, t2, t3, t4, t5, t6] = await Promise.all([r1.text(), r2.text(), r3.text(), r4.text(), r5.text(), r6.text()]);
-      const combined = t1 + '\n' + t2 + '\n' + t3 + '\n' + t4 + '\n' + t5 + '\n' + t6;
+      const urls = [
+        '/zelda-glossary.txt', '/zelda-totk-glossary.txt', '/zelda-totk-items-glossary.txt',
+        '/zelda-materials-glossary.txt', '/zelda-ui-glossary.txt', '/zelda-locations-characters-glossary.txt',
+        '/zelda-creatures-glossary.txt', '/zelda-abilities-glossary.txt',
+      ];
+      const responses = await Promise.all(urls.map(u => fetch(u)));
+      if (responses.some(r => !r.ok)) throw new Error('فشل تحميل أحد القواميس');
+      const texts = await Promise.all(responses.map(r => r.text()));
+      const combined = texts.join('\n');
       setState(prev => prev ? mergeGlossaryText(prev, combined) : null);
       const totalTerms = combined.split('\n').filter(l => l.includes('=')).length;
       setLastSaved(`📖 تم تحميل جميع القواميس (${totalTerms} مصطلح)`);
@@ -176,6 +176,7 @@ export function useEditorGlossary({
     handleImportGlossary,
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
     handleLoadMaterialsGlossary, handleLoadUIGlossary, handleLoadLocationsGlossary,
+    handleLoadCreaturesGlossary, handleLoadAbilitiesGlossary,
     handleLoadAllGlossaries,
     handleSaveGlossaryToCloud, handleLoadGlossaryFromCloud,
   };
