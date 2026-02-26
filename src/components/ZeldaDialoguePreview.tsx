@@ -1,4 +1,4 @@
-import { X, AlertTriangle, Eye } from "lucide-react";
+import { X, AlertTriangle } from "lucide-react";
 
 interface ZeldaDialoguePreviewProps {
   original: string;
@@ -14,120 +14,138 @@ const ZeldaDialoguePreview = ({ original, translation, label, onClose }: ZeldaDi
   const overPercent = originalLen > 0 ? Math.round(((translationLen - originalLen) / originalLen) * 100) : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl mx-4">
-        {/* Close button */}
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-[10vh] bg-black/80" onClick={onClose}>
+      <div className="relative w-full max-w-3xl mx-4" onClick={(e) => e.stopPropagation()}>
+        {/* Close hint */}
+        <div className="text-center mb-3">
+          <span className="text-xs text-muted-foreground/60 font-body">اضغط في أي مكان للإغلاق</span>
+        </div>
+
+        {/* Speaker name tag */}
+        {label && (
+          <div className="inline-block mr-4 mb-0">
+            <div
+              className="px-4 py-1.5 rounded-t-lg text-sm font-display font-bold tracking-wide"
+              style={{
+                background: 'linear-gradient(180deg, hsl(140 15% 16%) 0%, hsl(140 15% 12%) 100%)',
+                color: 'hsl(45 30% 90%)',
+                borderTop: '2px solid hsl(45 50% 45% / 0.5)',
+                borderLeft: '2px solid hsl(45 50% 45% / 0.5)',
+                borderRight: '2px solid hsl(45 50% 45% / 0.5)',
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        )}
+
+        {/* Main dialogue box - Zelda TOTK style */}
+        <div
+          className="relative overflow-hidden rounded-xl"
+          style={{
+            background: 'linear-gradient(180deg, hsl(140 15% 12% / 0.95) 0%, hsl(140 20% 8% / 0.97) 100%)',
+            border: '2px solid hsl(45 50% 45% / 0.4)',
+            boxShadow: '0 0 40px hsl(140 30% 10% / 0.8), inset 0 1px 0 hsl(45 50% 60% / 0.1), 0 0 80px hsl(0 0% 0% / 0.5)',
+          }}
+        >
+          {/* Subtle inner glow at top */}
+          <div
+            className="absolute top-0 left-0 right-0 h-px"
+            style={{ background: 'linear-gradient(90deg, transparent 10%, hsl(45 50% 60% / 0.3) 50%, transparent 90%)' }}
+          />
+
+          {/* Diamond decorations in corners */}
+          <div className="absolute top-2.5 right-3 text-[8px] opacity-40" style={{ color: 'hsl(45 60% 55%)' }}>◆</div>
+          <div className="absolute top-2.5 left-3 text-[8px] opacity-40" style={{ color: 'hsl(45 60% 55%)' }}>◆</div>
+          <div className="absolute bottom-2.5 right-3 text-[8px] opacity-40" style={{ color: 'hsl(45 60% 55%)' }}>◆</div>
+          <div className="absolute bottom-2.5 left-3 text-[8px] opacity-40" style={{ color: 'hsl(45 60% 55%)' }}>◆</div>
+
+          <div className="p-6 pr-8 pl-8">
+            {/* Original text - small, above */}
+            {original && (
+              <div className="mb-3 pb-3" style={{ borderBottom: '1px solid hsl(45 30% 50% / 0.15)' }}>
+                <span className="text-[10px] font-display uppercase tracking-widest" style={{ color: 'hsl(45 30% 55% / 0.5)' }}>
+                  ORIGINAL
+                </span>
+                <p className="text-xs mt-1 leading-relaxed font-body" dir="ltr" style={{ color: 'hsl(45 20% 70% / 0.5)' }}>
+                  {original}
+                </p>
+              </div>
+            )}
+
+            {/* Arabic translated text - main display */}
+            <div dir="rtl">
+              <p
+                className="text-lg font-body leading-[2] tracking-wide"
+                style={{ color: 'hsl(45 30% 92%)' }}
+              >
+                {translation || (
+                  <span className="italic" style={{ color: 'hsl(45 20% 50% / 0.4)' }}>
+                    لم يتم إدخال ترجمة بعد...
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Bouncing arrow indicator */}
+            {translation && !isOverLength && (
+              <div className="flex justify-start mt-3">
+                <span className="animate-bounce text-sm" style={{ color: 'hsl(45 60% 55% / 0.7)' }}>▼</span>
+              </div>
+            )}
+          </div>
+
+          {/* Length warning bar */}
+          {isOverLength && (
+            <div
+              className="flex items-center gap-2 px-6 py-2.5"
+              style={{
+                background: 'linear-gradient(90deg, hsl(0 60% 30% / 0.3) 0%, transparent 100%)',
+                borderTop: '1px solid hsl(0 60% 50% / 0.3)',
+              }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'hsl(0 70% 65%)' }} />
+              <span className="text-xs font-display" style={{ color: 'hsl(0 70% 70%)' }}>
+                النص أطول بنسبة {overPercent}% — قد لا يتسع ({translationLen}/{originalLen})
+              </span>
+            </div>
+          )}
+
+          {/* Length bar at bottom */}
+          {originalLen > 0 && translationLen > 0 && (
+            <div className="px-6 pb-4 pt-2">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-display" style={{ color: 'hsl(45 30% 55% / 0.4)' }}>
+                  {Math.round((translationLen / originalLen) * 100)}%
+                </span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'hsl(140 10% 20%)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min((translationLen / originalLen) * 100, 100)}%`,
+                      background: isOverLength
+                        ? 'linear-gradient(90deg, hsl(0 70% 50%), hsl(0 70% 60%))'
+                        : 'linear-gradient(90deg, hsl(145 60% 35%), hsl(45 60% 50%))',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Close button - subtle */}
         <button
           onClick={onClose}
-          className="absolute -top-3 -left-3 z-10 w-8 h-8 rounded-full bg-card border-2 border-secondary flex items-center justify-center text-foreground hover:bg-muted transition-colors"
+          className="absolute -top-2 -left-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+          style={{
+            background: 'hsl(140 15% 15%)',
+            border: '1.5px solid hsl(45 50% 45% / 0.4)',
+            color: 'hsl(45 30% 70%)',
+          }}
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
-
-        {/* Zelda-style dialogue box */}
-        <div className="rounded-xl border-2 border-secondary/60 bg-card/95 shadow-[0_0_30px_hsl(var(--secondary)/0.15),inset_0_1px_0_hsl(var(--secondary)/0.1)] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-2 px-5 py-3 bg-gradient-to-l from-secondary/20 via-primary/10 to-transparent border-b border-secondary/30">
-            <Eye className="w-4 h-4 text-secondary" />
-            <span className="font-display font-bold text-sm text-foreground">معاينة صندوق الحوار</span>
-            {label && (
-              <span className="text-xs text-muted-foreground font-body mr-auto truncate max-w-[200px]" title={label}>
-                — {label}
-              </span>
-            )}
-          </div>
-
-          {/* Dialogue simulation area */}
-          <div className="p-6 space-y-5">
-            {/* Original text section */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-display font-semibold text-muted-foreground">النص الأصلي</span>
-                <span className="text-xs text-muted-foreground font-body">{originalLen} حرف</span>
-              </div>
-              <div
-                className="px-4 py-3 rounded-lg bg-muted/50 border border-border text-sm font-body leading-relaxed min-h-[48px]"
-                dir="ltr"
-              >
-                {original || <span className="italic text-muted-foreground/50">(فارغ)</span>}
-              </div>
-            </div>
-
-            {/* Decorative separator */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-secondary/40 to-transparent" />
-              <span className="text-secondary text-xs">▼</span>
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-secondary/40 to-transparent" />
-            </div>
-
-            {/* Game-style dialogue box for translated text */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-display font-semibold text-secondary">النص المترجم (كما سيظهر في اللعبة)</span>
-                <span className={`text-xs font-body ${isOverLength ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
-                  {translationLen} حرف
-                </span>
-              </div>
-
-              {/* Zelda dialogue frame */}
-              <div className="relative">
-                <div
-                  className={`px-5 py-4 rounded-lg border-2 text-base font-body leading-loose min-h-[64px] transition-colors ${
-                    isOverLength
-                      ? 'border-destructive/60 bg-destructive/5 shadow-[0_0_15px_hsl(var(--destructive)/0.1)]'
-                      : 'border-secondary/40 bg-gradient-to-br from-card to-muted/30 shadow-[0_0_15px_hsl(var(--secondary)/0.08)]'
-                  }`}
-                  dir="rtl"
-                >
-                  {translation || <span className="italic text-muted-foreground/50">لم يتم إدخال ترجمة بعد...</span>}
-                </div>
-
-                {/* Zelda-style arrow indicator */}
-                {translation && !isOverLength && (
-                  <div className="absolute bottom-2 left-4 text-secondary animate-bounce text-sm">▾</div>
-                )}
-              </div>
-            </div>
-
-            {/* Length warning */}
-            {isOverLength && (
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-destructive/10 border border-destructive/30">
-                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
-                <span className="text-xs font-display font-bold text-destructive">
-                  ⚠️ النص أطول بنسبة {overPercent}% من الأصل ({translationLen}/{originalLen} حرف) — قد لا يتسع في صندوق الحوار
-                </span>
-              </div>
-            )}
-
-            {/* Length comparison bar */}
-            {originalLen > 0 && translationLen > 0 && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-display">مقارنة الطول</span>
-                  <span className="font-body">{Math.round((translationLen / originalLen) * 100)}%</span>
-                </div>
-                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      isOverLength
-                        ? 'bg-gradient-to-l from-destructive to-destructive/70'
-                        : 'bg-gradient-to-l from-primary to-secondary'
-                    }`}
-                    style={{ width: `${Math.min((translationLen / originalLen) * 100, 100)}%` }}
-                  />
-                </div>
-                {/* 120% threshold marker */}
-                <div className="relative w-full h-0">
-                  <div
-                    className="absolute -top-[14px] w-px h-2.5 bg-destructive/50"
-                    style={{ right: `${100 - Math.min((120 / Math.max(translationLen / originalLen * 100, 120)) * 100, 100)}%` }}
-                    title="حد 120%"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
