@@ -149,11 +149,9 @@ const EntryCard: React.FC<EntryCardProps> = ({
               translationMemory={translationMemory}
             />
             <div className="flex items-center gap-1 shrink-0">
-              {translation?.trim() && (
-                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowGamePreview(true)} title="معاينة كما ستظهر في اللعبة">
-                  <Gamepad2 className="w-4 h-4 text-secondary" />
-                </Button>
-              )}
+              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowGamePreview(true)} title="معاينة كما ستظهر في اللعبة">
+                <Gamepad2 className="w-4 h-4 text-secondary" />
+              </Button>
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => handleTranslateSingle(entry)} disabled={translatingSingle === key} title="ترجمة هذا النص">
                 {translatingSingle === key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-primary" />}
               </Button>
