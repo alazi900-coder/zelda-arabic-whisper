@@ -1,4 +1,5 @@
 import { X, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
 interface ZeldaDialoguePreviewProps {
   original: string;
@@ -8,6 +9,39 @@ interface ZeldaDialoguePreviewProps {
 }
 
 const ZeldaDialoguePreview = ({ original, translation, label, onClose }: ZeldaDialoguePreviewProps) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isTyping, setIsTyping] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const textToType = translation || "";
+
+  useEffect(() => {
+    setDisplayedText("");
+    setIsTyping(true);
+    let i = 0;
+
+    intervalRef.current = setInterval(() => {
+      if (i < textToType.length) {
+        setDisplayedText(textToType.slice(0, i + 1));
+        i++;
+      } else {
+        setIsTyping(false);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+    }, 40);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [textToType]);
+
+  const skipTyping = () => {
+    if (isTyping) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setDisplayedText(textToType);
+      setIsTyping(false);
+    }
+  };
   const originalLen = original.length;
   const translationLen = translation.length;
   const isOverLength = originalLen > 0 && translationLen > 0 && translationLen > originalLen * 1.2;
@@ -15,7 +49,7 @@ const ZeldaDialoguePreview = ({ original, translation, label, onClose }: ZeldaDi
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-[10vh] bg-black/80" onClick={onClose}>
-      <div className="relative w-full max-w-3xl mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-3xl mx-4" onClick={(e) => { e.stopPropagation(); skipTyping(); }}>
         {/* Close hint */}
         <div className="text-center mb-3">
           <span className="text-xs text-muted-foreground/60 font-body">اضغط في أي مكان للإغلاق</span>
@@ -79,7 +113,14 @@ const ZeldaDialoguePreview = ({ original, translation, label, onClose }: ZeldaDi
                 className="text-lg font-body leading-[2] tracking-wide"
                 style={{ color: 'hsl(45 30% 92%)' }}
               >
-                {translation || (
+                {textToType ? (
+                  <>
+                    {displayedText}
+                    {isTyping && (
+                      <span className="inline-block w-[2px] h-[1.1em] align-middle ml-0.5 animate-pulse" style={{ background: 'hsl(45 60% 55%)' }} />
+                    )}
+                  </>
+                ) : (
                   <span className="italic" style={{ color: 'hsl(45 20% 50% / 0.4)' }}>
                     لم يتم إدخال ترجمة بعد...
                   </span>
@@ -88,7 +129,7 @@ const ZeldaDialoguePreview = ({ original, translation, label, onClose }: ZeldaDi
             </div>
 
             {/* Bouncing arrow indicator */}
-            {translation && !isOverLength && (
+            {textToType && !isTyping && !isOverLength && (
               <div className="flex justify-start mt-3">
                 <span className="animate-bounce text-sm" style={{ color: 'hsl(45 60% 55% / 0.7)' }}>▼</span>
               </div>
