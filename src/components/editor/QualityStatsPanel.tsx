@@ -77,6 +77,11 @@ const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, tra
           <div className="p-3 rounded border border-rose-500/30 bg-rose-500/5 text-center cursor-pointer hover:bg-rose-500/10 transition-colors" onClick={() => { if (qualityStats.unclosedBrackets > 0) { setFilterStatus(new Set(["unclosed-brackets"])); setShowQualityStats(false); }}}>
             <p className="text-2xl font-display font-bold text-rose-500">{qualityStats.unclosedBrackets}</p>
             <p className="text-xs text-muted-foreground">أقواس مكسورة</p>
+            {qualityStats.unclosedBrackets > 0 && onFixAllBrackets && (
+              <Button variant="outline" size="sm" className="mt-1 text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); onFixAllBrackets(); }}>
+                🔧 إصلاح الكل
+              </Button>
+            )}
           </div>
           <div className="p-3 rounded border border-cyan-500/30 bg-cyan-500/5 text-center cursor-pointer hover:bg-cyan-500/10 transition-colors" onClick={() => setShowTerms(!showTerms)}>
             <p className="text-2xl font-display font-bold text-cyan-500">{qualityStats.inconsistentTerms.length}</p>
