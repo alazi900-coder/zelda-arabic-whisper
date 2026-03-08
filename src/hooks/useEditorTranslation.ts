@@ -85,6 +85,7 @@ export function useEditorTranslation({
           context: contextEntries.length > 0 ? contextEntries : undefined,
           userApiKey: userGeminiKey || undefined,
           translationEngine,
+          translationQuality,
           myMemoryEmail: myMemoryEmail || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
