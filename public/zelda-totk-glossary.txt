@@ -727,3 +727,71 @@ Miner = عامل منجم
 Explorer = مستكشف
 Archaeologist = عالم آثار
 Cartographer = رسام خرائط
+
+# === أقمشة المظلة الشراعية (Paraglider Fabrics) ===
+Paraglider Fabric = قماش المظلة الشراعية
+Default Fabric = القماش الافتراضي
+Hylian-Hood Fabric = قماش غطاء الهايليان
+Goron-Champion Fabric = قماش بطل الغورون
+Rito-Champion Fabric = قماش بطل الريتو
+Zora-Champion Fabric = قماش بطل الزورا
+Gerudo-Champion Fabric = قماش بطل الغيرودو
+Ancient-Sheikah Fabric = قماش الشيكا القديم
+Zonai Fabric = قماش الزوناي
+Tulin's Fabric = قماش تولين
+Yunobo's Fabric = قماش يونوبو
+Sidon's Fabric = قماش سيدون
+Riju's Fabric = قماش ريجو
+Korok Fabric = قماش الكوروك
+Sheikah Fabric = قماش الشيكا
+Gerudo-King Fabric = قماش ملك الغيرودو
+Demon King Fabric = قماش ملك الشياطين
+Princess Zelda Fabric = قماش الأميرة زيلدا
+King of Hyrule Fabric = قماش ملك هايرول
+Yiga Clan Fabric = قماش عشيرة الييغا
+Hudson Construction Fabric = قماش شركة بناء هدسون
+Lucky Clover Gazette Fabric = قماش صحيفة البرسيم المحظوظ
+Cece Fabric = قماش سيسي
+Lurelin Village Fabric = قماش قرية لوريلين
+Addison's Fabric = قماش أديسون
+
+# === روبيات وعملات (Rupees) ===
+Green Rupee = روبية خضراء
+Blue Rupee = روبية زرقاء
+Red Rupee = روبية حمراء
+Purple Rupee = روبية بنفسجية
+Silver Rupee = روبية فضية
+Gold Rupee = روبية ذهبية
+
+# === أدوات خاصة (Key Items) ===
+Purah Pad = لوح بورا
+Paraglider = المظلة الشراعية
+Travel Medallion = ميدالية السفر
+Autobuild Schema = مخطط البناء التلقائي
+Yiga Schematic = مخطط الييغا
+Battery Charge = شحن البطارية
+Poe = روح بو
+Large Poe = روح بو كبيرة
+Grand Poe = روح بو عظيمة
+Bubbul Gem = جوهرة بوبول
+Old Map = خريطة قديمة
+Sage's Will = إرادة الحكيم
+Light of Blessing = نور النعمة
+Crystallized Charge = شحنة متبلورة
+
+# === مصطلحات إضافية للموسوعة ===
+Hyrule Compendium = موسوعة هايرول
+Entry = مُدخل
+Common Locations = مواقع شائعة
+Recoverable Materials = مواد قابلة للاسترداد
+Creatures = المخلوقات
+Monsters = الوحوش
+Equipment = المعدات
+Materials = المواد
+Treasure = الكنوز
+No Data = لا توجد بيانات
+Picture Taken = تم التقاط الصورة
+Register = سجّل
+Already Registered = مسجل بالفعل
+Number = الرقم
+Habitat = الموطن
