@@ -212,6 +212,11 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         if (isTranslationTooLong(entry, trimmed)) { niTooLong++; needsImproveKeys.add(key); }
         if (hasStuckChars(trimmed)) { niStuck++; needsImproveKeys.add(key); }
         if (isMixedLanguage(trimmed)) { niMixed++; needsImproveKeys.add(key); }
+
+        // === Text cleanup checks ===
+        if (diacriticsRegex.test(trimmed)) { hasDiacritics++; hasDiacriticsKeys.add(key); }
+        if (/ {2,}/.test(trimmed) || / [،؛؟!.,;?]/.test(trimmed)) { hasDoubleSpaces++; hasDoubleSpacesKeys.add(key); }
+        if (/[أإآ]/.test(trimmed) || /ى\b/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
       }
 
       // Finalize duplicate detection
