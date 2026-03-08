@@ -800,7 +800,7 @@ export function useEditorState() {
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
     fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm,
-    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount,
+    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, paginatedEntries, totalPages,
     user,
