@@ -22,7 +22,7 @@ interface QualityStatsPanelProps {
   onFixAllPunctuation?: () => void;
 }
 
-const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport }) => {
+const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation }) => {
   const [showTerms, setShowTerms] = React.useState(false);
 
   return (

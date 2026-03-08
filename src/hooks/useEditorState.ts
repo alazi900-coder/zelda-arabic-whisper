@@ -856,7 +856,7 @@ export function useEditorState() {
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     handleSuggestShorterTranslations, handleApplyShorterTranslation, handleApplyAllShorterTranslations,
-    handleFixAllStuckCharacters, handleFixMixedLanguage,
+    handleFixAllStuckCharacters, handleFixMixedLanguage, handleFixAllPunctuation,
     ...fileIO,
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,
