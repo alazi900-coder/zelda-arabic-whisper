@@ -27,7 +27,7 @@ export function useEditorGlossary({
 
   const activeGlossary = glossaryEnabled ? (state?.glossary || '') : '';
 
-  // === Parse glossary into lookup map ===
+  // === Parse glossary into lookup map (exact match) ===
   const parseGlossaryMap = useCallback((glossaryText: string): Map<string, string> => {
     const map = new Map<string, string>();
     if (!glossaryText?.trim()) return map;
@@ -36,25 +36,51 @@ export function useEditorGlossary({
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
       const eqIdx = trimmed.indexOf('=');
       if (eqIdx < 1) continue;
-      const eng = trimmed.slice(0, eqIdx).trim().toLowerCase();
+      const eng = trimmed.slice(0, eqIdx).trim();
       const arb = trimmed.slice(eqIdx + 1).trim();
-      if (eng && arb) map.set(eng, arb);
+      if (eng && arb) {
+        map.set(eng.toLowerCase(), arb);
+      }
     }
     return map;
   }, []);
 
-  // === Merge helper ===
-  const mergeGlossaryText = (prev: EditorState, newText: string): EditorState => {
-    const existing = prev.glossary?.trim() || '';
-    const merged = existing ? existing + '\n' + newText : newText;
-    const seen = new Map<string, string>();
-    for (const line of merged.split('\n')) {
+  // === Parse glossary for partial matching (used in AI context injection) ===
+  const getGlossaryContext = useCallback((text: string, glossaryText: string): string => {
+    if (!glossaryText?.trim() || !text?.trim()) return '';
+    const textLower = text.toLowerCase();
+    const hints: string[] = [];
+    for (const line of glossaryText.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
       const eqIdx = trimmed.indexOf('=');
       if (eqIdx < 1) continue;
-      const key = trimmed.slice(0, eqIdx).trim().toLowerCase();
-      seen.set(key, trimmed);
+      const eng = trimmed.slice(0, eqIdx).trim();
+      const arb = trimmed.slice(eqIdx + 1).trim();
+      if (!eng || !arb) continue;
+      if (textLower.includes(eng.toLowerCase())) {
+        hints.push(`${eng}=${arb}`);
+      }
+    }
+    return hints.slice(0, 15).join('\n');
+  }, []);
+
+  // === Merge helper with validation and dedup ===
+  const mergeGlossaryText = (prev: EditorState, newText: string): EditorState => {
+    const existing = prev.glossary?.trim() || '';
+    const merged = existing ? existing + '\n' + newText : newText;
+    const seen = new Map<string, string>();
+    let skipped = 0;
+    for (const line of merged.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx < 1) { skipped++; continue; }
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim();
+      if (!key || !val) { skipped++; continue; }
+      // Keep the latest version (new overwrites old)
+      seen.set(key.toLowerCase(), `${key}=${val}`);
     }
     return { ...prev, glossary: Array.from(seen.values()).join('\n') };
   };
@@ -74,25 +100,30 @@ export function useEditorGlossary({
           const text = await file.text();
           newTerms += (newTerms ? '\n' : '') + text;
         }
+        // Validate and count valid terms
+        const validLines = newTerms.split('\n').filter(l => {
+          const t = l.trim();
+          if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+          const eqIdx = t.indexOf('=');
+          if (eqIdx < 1) return false;
+          const key = t.slice(0, eqIdx).trim();
+          const val = t.slice(eqIdx + 1).trim();
+          return key.length > 0 && val.length > 0;
+        });
+        const invalidLines = newTerms.split('\n').filter(l => {
+          const t = l.trim();
+          return t && !t.startsWith('#') && !t.startsWith('//') && !t.includes('=');
+        }).length;
+
         setState(prev => {
           if (!prev) return null;
-          const existing = prev.glossary?.trim() || '';
-          const merged = existing ? existing + '\n' + newTerms : newTerms;
-          const seen = new Map<string, string>();
-          for (const line of merged.split('\n')) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
-            const eqIdx = trimmed.indexOf('=');
-            if (eqIdx < 1) continue;
-            const key = trimmed.slice(0, eqIdx).trim().toLowerCase();
-            seen.set(key, trimmed);
-          }
-          return { ...prev, glossary: Array.from(seen.values()).join('\n') };
+          return mergeGlossaryText(prev, newTerms);
         });
         const fileNames = Array.from(files).map(f => f.name).join('، ');
-        const newCount = newTerms.split('\n').filter(l => l.includes('=')).length;
-        setLastSaved(`📖 تم دمج ${newCount} مصطلح من (${fileNames})`);
-        setTimeout(() => setLastSaved(""), 4000);
+        let msg = `📖 تم دمج ${validLines.length} مصطلح من (${fileNames})`;
+        if (invalidLines > 0) msg += ` — ⚠️ ${invalidLines} سطر غير صالح تم تجاهله`;
+        setLastSaved(msg);
+        setTimeout(() => setLastSaved(""), 5000);
       } catch { alert('خطأ في قراءة الملف'); }
     };
     input.click();
@@ -104,13 +135,18 @@ export function useEditorGlossary({
       const response = await fetch(url);
       if (!response.ok) throw new Error('فشل تحميل القاموس');
       const text = await response.text();
-      const newCount = text.split('\n').filter(l => l.includes('=')).length;
+      const validCount = text.split('\n').filter(l => {
+        const t = l.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+        const eq = t.indexOf('=');
+        return eq > 0 && t.slice(0, eq).trim() && t.slice(eq + 1).trim();
+      }).length;
       if (replace) {
         setState(prev => prev ? { ...prev, glossary: text } : null);
       } else {
         setState(prev => prev ? mergeGlossaryText(prev, text) : null);
       }
-      setLastSaved(`📖 تم ${replace ? 'تحميل' : 'دمج'} ${name} (${newCount} مصطلح)`);
+      setLastSaved(`📖 تم ${replace ? 'تحميل' : 'دمج'} ${name} (${validCount} مصطلح صالح)`);
       setTimeout(() => setLastSaved(""), 3000);
     } catch { alert(`خطأ في تحميل ${name}`); }
   }, [setState, setLastSaved]);
@@ -132,13 +168,26 @@ export function useEditorGlossary({
         '/zelda-creatures-glossary.txt', '/zelda-abilities-glossary.txt',
       ];
       const responses = await Promise.all(urls.map(u => fetch(u)));
-      if (responses.some(r => !r.ok)) throw new Error('فشل تحميل أحد القواميس');
-      const texts = await Promise.all(responses.map(r => r.text()));
-      const combined = texts.join('\n');
-      setState(prev => prev ? mergeGlossaryText(prev, combined) : null);
-      const totalTerms = combined.split('\n').filter(l => l.includes('=')).length;
-      setLastSaved(`📖 تم تحميل جميع القواميس (${totalTerms} مصطلح)`);
-      setTimeout(() => setLastSaved(""), 3000);
+      const failedUrls = urls.filter((_, i) => !responses[i].ok);
+      if (failedUrls.length > 0) {
+        alert(`فشل تحميل: ${failedUrls.join(', ')}`);
+        // Continue with successful ones
+      }
+      const texts = await Promise.all(responses.map((r, i) => r.ok ? r.text() : Promise.resolve('')));
+      const combined = texts.filter(Boolean).join('\n');
+      // Use replace mode for "load all" to ensure clean state
+      setState(prev => {
+        if (!prev) return null;
+        return mergeGlossaryText({ ...prev, glossary: '' }, combined);
+      });
+      // Count after dedup
+      const dedupedCount = combined.split('\n').filter(l => {
+        const t = l.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+        return t.includes('=');
+      }).length;
+      setLastSaved(`📖 تم تحميل جميع القواميس (${dedupedCount} مصطلح — بعد إزالة التكرار)`);
+      setTimeout(() => setLastSaved(""), 4000);
     } catch { alert('خطأ في تحميل القواميس'); }
   };
 
@@ -172,7 +221,7 @@ export function useEditorGlossary({
   return {
     glossaryEnabled, setGlossaryEnabled,
     glossaryTermCount, activeGlossary,
-    parseGlossaryMap,
+    parseGlossaryMap, getGlossaryContext,
     handleImportGlossary,
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
     handleLoadMaterialsGlossary, handleLoadUIGlossary, handleLoadLocationsGlossary,
