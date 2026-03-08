@@ -474,7 +474,7 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
