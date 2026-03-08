@@ -40,6 +40,7 @@ import FindReplacePanel from "@/components/editor/FindReplacePanel";
 import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
+import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 
 const Editor = () => {
   const editor = useEditorState();
@@ -851,6 +852,16 @@ const Editor = () => {
           onConfirm={editor.handleBuild}
           building={editor.building}
         />
+
+        {editor.fixPreview && (
+          <FixPreviewDialog
+            open={!!editor.fixPreview}
+            onClose={() => editor.setFixPreview(null)}
+            onApply={editor.handleApplyFixPreview}
+            title={editor.fixPreview.title}
+            items={editor.fixPreview.items}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

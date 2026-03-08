@@ -56,6 +56,7 @@ export function useEditorState() {
   const [fixingMixed, setFixingMixed] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
   const [userGeminiKey, _setUserGeminiKey] = useState(() => {
     try { return localStorage.getItem('userGeminiKey') || ''; } catch { return ''; }
   });
@@ -634,7 +635,7 @@ export function useEditorState() {
   const handleFixAllPunctuation = useCallback(() => {
     if (!state) return;
     const updates: Record<string, string> = {};
-    let fixedCount = 0;
+    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = state.translations[key];
@@ -645,27 +646,20 @@ export function useEditorState() {
         fixed = fixed.replace(/[.。،]+\s*$/, '') + '؟';
       } else if (origEnd.endsWith('!') && !fixed.trimEnd().endsWith('!')) {
         fixed = fixed.replace(/[.。،]+\s*$/, '') + '!';
-      } else {
-        continue;
-      }
+      } else { continue; }
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
-        fixedCount++;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
       }
     }
-    if (fixedCount === 0) {
-      toast({ title: "لا توجد علامات ترقيم مفقودة للإصلاح", variant: "default" });
-      return;
-    }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    toast({ title: `✅ تم إصلاح علامات الترقيم في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+    if (items.length === 0) { toast({ title: "لا توجد علامات ترقيم مفقودة للإصلاح" }); return; }
+    setFixPreview({ title: "إصلاح الترقيم", items, updates });
   }, [state]);
 
   const handleFixAllBrackets = useCallback(() => {
     if (!state) return;
     const updates: Record<string, string> = {};
-    let fixedCount = 0;
+    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = state.translations[key];
@@ -681,43 +675,26 @@ export function useEditorState() {
       if (depth !== 0) broken = true;
       if (!broken) continue;
       let fixed = translation;
-      // Recalculate depth on the full string (the loop above may have broken early)
       depth = 0;
-      for (const ch of fixed) {
-        if (ch === '[') depth++;
-        else if (ch === ']') depth--;
-      }
-      if (depth > 0) {
-        fixed = fixed + ']'.repeat(depth);
-      } else if (depth < 0) {
-        fixed = '['.repeat(-depth) + fixed;
-      }
-      // If original has specific tags, try to restore missing ones
-      for (const tag of origTags) {
-        if (!fixed.includes(tag)) {
-          fixed = fixed.trimEnd() + ' ' + tag;
-        }
-      }
+      for (const ch of fixed) { if (ch === '[') depth++; else if (ch === ']') depth--; }
+      if (depth > 0) fixed = fixed + ']'.repeat(depth);
+      else if (depth < 0) fixed = '['.repeat(-depth) + fixed;
+      for (const tag of origTags) { if (!fixed.includes(tag)) fixed = fixed.trimEnd() + ' ' + tag; }
       fixed = fixed.replace(/ {2,}/g, ' ');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
-        fixedCount++;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
       }
     }
-    if (fixedCount === 0) {
-      toast({ title: "لا توجد أقواس مكسورة للإصلاح", variant: "default" });
-      return;
-    }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    toast({ title: `✅ تم إصلاح الأقواس في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+    if (items.length === 0) { toast({ title: "لا توجد أقواس مكسورة للإصلاح" }); return; }
+    setFixPreview({ title: "إصلاح الأقواس", items, updates });
   }, [state]);
 
   // === Fix diacritics (harakat) ===
   const handleFixAllDiacritics = useCallback(() => {
     if (!state) return;
     const updates: Record<string, string> = {};
-    let fixedCount = 0;
+    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
     const diacriticsRegex = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g;
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
@@ -725,84 +702,59 @@ export function useEditorState() {
       if (!translation?.trim()) continue;
       const fixed = translation.replace(diacriticsRegex, '');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
         updates[key] = fixed;
-        fixedCount++;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
       }
     }
-    if (fixedCount === 0) {
-      toast({ title: "لا توجد تشكيلات زائدة للإزالة" });
-      return;
-    }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    toast({ title: `✅ تم إزالة التشكيل من ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+    if (items.length === 0) { toast({ title: "لا توجد تشكيلات زائدة للإزالة" }); return; }
+    setFixPreview({ title: "إزالة التشكيل", items, updates });
   }, [state]);
 
   // === Fix double/extra spaces ===
   const handleFixAllSpaces = useCallback(() => {
     if (!state) return;
     const updates: Record<string, string> = {};
-    let fixedCount = 0;
+    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
-      // Protect content inside [tags] by temporarily replacing them
       const tagPlaceholders: string[] = [];
-      fixed = fixed.replace(/\[[^\]]*\]/g, (match) => {
-        tagPlaceholders.push(match);
-        return `\uFFFE${tagPlaceholders.length - 1}\uFFFE`;
-      });
-      // Merge multiple spaces
+      fixed = fixed.replace(/\[[^\]]*\]/g, (match) => { tagPlaceholders.push(match); return `\uFFFE${tagPlaceholders.length - 1}\uFFFE`; });
       fixed = fixed.replace(/ {2,}/g, ' ');
-      // Remove space before punctuation
       fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
-      // Add space after punctuation if missing (not before tag placeholders or other punctuation)
       fixed = fixed.replace(/([،؛؟!.,;?])([^\s\uFFFE،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
-      // Restore tags
       fixed = fixed.replace(/\uFFFE(\d+)\uFFFE/g, (_, idx) => tagPlaceholders[parseInt(idx)]);
       fixed = fixed.trim();
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
-        fixedCount++;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
       }
     }
-    if (fixedCount === 0) {
-      toast({ title: "لا توجد مسافات مزدوجة للإصلاح" });
-      return;
-    }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    toast({ title: `✅ تم إصلاح المسافات في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+    if (items.length === 0) { toast({ title: "لا توجد مسافات مزدوجة للإصلاح" }); return; }
+    setFixPreview({ title: "إصلاح المسافات", items, updates });
   }, [state]);
 
   // === Normalize hamza/alef ===
   const handleFixAllHamza = useCallback(() => {
     if (!state) return;
     const updates: Record<string, string> = {};
-    let fixedCount = 0;
+    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
-      // Normalize alef variants to bare alef
       fixed = fixed.replace(/[أإآ]/g, 'ا');
-      // Normalize alef maqsura at end of words (followed by space, punctuation, end, or non-Arabic)
       fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉\u0000-\u001F]|$)/g, 'ي');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
-        fixedCount++;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
       }
     }
-    if (fixedCount === 0) {
-      toast({ title: "لا توجد همزات أو ألفات تحتاج توحيد" });
-      return;
-    }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    toast({ title: `✅ تم توحيد الهمزات في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+    if (items.length === 0) { toast({ title: "لا توجد همزات أو ألفات تحتاج توحيد" }); return; }
+    setFixPreview({ title: "توحيد الهمزات", items, updates });
   }, [state]);
 
   const handleFixMixedLanguage = async () => {
@@ -956,6 +908,18 @@ export function useEditorState() {
   };
 
 
+  const handleApplyFixPreview = useCallback(() => {
+    if (!state || !fixPreview) return;
+    const prev: Record<string, string> = {};
+    for (const key of Object.keys(fixPreview.updates)) {
+      prev[key] = state.translations[key] || '';
+    }
+    setPreviousTranslations(p => ({ ...p, ...prev }));
+    setState(s => s ? { ...s, translations: { ...s.translations, ...fixPreview.updates } } : null);
+    toast({ title: `✅ تم تطبيق ${fixPreview.items.length} إصلاح`, description: fixPreview.title });
+    setFixPreview(null);
+  }, [state, fixPreview]);
+
   const handleBulkReplace = useCallback((replacements: Record<string, string>) => {
     if (!state) return;
     const prev: Record<string, string> = {};
@@ -983,7 +947,7 @@ export function useEditorState() {
     previousTranslations, currentPage,
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
-    fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm,
+    fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm, fixPreview,
     categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, paginatedEntries, totalPages,
@@ -995,7 +959,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, translationQuality, setTranslationQuality,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
-    setMyMemoryEmail, setMyMemoryCharsUsed,
+    setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
 
     // Handlers
     toggleProtection, toggleTechnicalBypass,
@@ -1010,7 +974,7 @@ export function useEditorState() {
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,
     handleCloudSave, handleCloudLoad,
-    handleApplyArabicProcessing, handlePreBuild, handleBuild, handleBulkReplace,
+    handleApplyArabicProcessing, handlePreBuild, handleBuild, handleBulkReplace, handleApplyFixPreview,
 
     // Quality helpers
     isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement,
