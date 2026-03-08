@@ -19,9 +19,10 @@ interface QualityStatsPanelProps {
   setFilterStatus: (status: Set<string>) => void;
   setShowQualityStats: (show: boolean) => void;
   onExportReport: () => void;
+  onFixAllPunctuation?: () => void;
 }
 
-const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport }) => {
+const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation }) => {
   const [showTerms, setShowTerms] = React.useState(false);
 
   return (
@@ -66,6 +67,11 @@ const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, tra
           <div className="p-3 rounded border border-violet-500/30 bg-violet-500/5 text-center cursor-pointer hover:bg-violet-500/10 transition-colors" onClick={() => { if (qualityStats.punctuationMismatch > 0) { setFilterStatus(new Set(["punctuation"])); setShowQualityStats(false); }}}>
             <p className="text-2xl font-display font-bold text-violet-500">{qualityStats.punctuationMismatch}</p>
             <p className="text-xs text-muted-foreground">ترقيم مفقود</p>
+            {qualityStats.punctuationMismatch > 0 && onFixAllPunctuation && (
+              <Button variant="outline" size="sm" className="mt-1 text-xs h-6 px-2" onClick={(e) => { e.stopPropagation(); onFixAllPunctuation(); }}>
+                🔧 إصلاح الكل
+              </Button>
+            )}
           </div>
           <div className="p-3 rounded border border-rose-500/30 bg-rose-500/5 text-center cursor-pointer hover:bg-rose-500/10 transition-colors" onClick={() => { if (qualityStats.unclosedBrackets > 0) { setFilterStatus(new Set(["unclosed-brackets"])); setShowQualityStats(false); }}}>
             <p className="text-2xl font-display font-bold text-rose-500">{qualityStats.unclosedBrackets}</p>

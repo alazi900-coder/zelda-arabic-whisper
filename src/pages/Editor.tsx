@@ -677,6 +677,7 @@ const Editor = () => {
               setFilterStatus={editor.setFilterStatus}
               setShowQualityStats={editor.setShowQualityStats}
               onExportReport={editor.exportQualityReport}
+              onFixAllPunctuation={editor.handleFixAllPunctuation}
             />
           )}
 

@@ -624,6 +624,39 @@ export function useEditorState() {
     setTimeout(() => setLastSaved(""), 3000);
   };
 
+  const handleFixAllPunctuation = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    let fixedCount = 0;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key]?.trim();
+      if (!translation) continue;
+      const origEnd = entry.original.trim();
+      let fixed = translation;
+      if (origEnd.endsWith('?') && !fixed.endsWith('؟') && !fixed.endsWith('?')) {
+        fixed = fixed.replace(/[.。،]+$/, '') + '؟';
+      } else if (origEnd.endsWith('!') && !fixed.endsWith('!')) {
+        fixed = fixed.replace(/[.。،]+$/, '') + '!';
+      } else {
+        continue;
+      }
+      if (fixed !== translation) {
+        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        updates[key] = fixed;
+        fixedCount++;
+      }
+    }
+    if (fixedCount === 0) {
+      setLastSaved("لا توجد علامات ترقيم مفقودة للإصلاح");
+      setTimeout(() => setLastSaved(""), 3000);
+      return;
+    }
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    setLastSaved(`✅ تم إصلاح علامات الترقيم في ${fixedCount} ترجمة`);
+    setTimeout(() => setLastSaved(""), 3000);
+  }, [state]);
+
   const handleFixMixedLanguage = async () => {
     if (!state) return;
     setFixingMixed(true);
@@ -823,7 +856,7 @@ export function useEditorState() {
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     handleSuggestShorterTranslations, handleApplyShorterTranslation, handleApplyAllShorterTranslations,
-    handleFixAllStuckCharacters, handleFixMixedLanguage,
+    handleFixAllStuckCharacters, handleFixMixedLanguage, handleFixAllPunctuation,
     ...fileIO,
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,
