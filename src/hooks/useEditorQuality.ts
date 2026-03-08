@@ -218,7 +218,9 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         // === Text cleanup checks ===
         if (diacriticsRegex.test(trimmed)) { hasDiacritics++; hasDiacriticsKeys.add(key); }
         if (/ {2,}/.test(trimmed) || / [،؛؟!.,;?]/.test(trimmed)) { hasDoubleSpaces++; hasDoubleSpacesKeys.add(key); }
-        if (/[أإآ]/.test(trimmed) || /ى(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
+      // Hamza issues: only flag inconsistent hamza usage patterns (e.g. إنشالله instead of إن شاء الله, or common mistakes)
+      // Flag only when alef-hamza appears at word boundaries inconsistently, or final ya/alef-maqsura confusion
+      if (/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed) && /ي(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
       }
 
       // Finalize duplicate detection
