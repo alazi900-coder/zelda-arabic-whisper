@@ -498,3 +498,105 @@ Trial of the Sword = تجربة السيف
 Beginning Trials = التجارب الأولى
 Middle Trials = التجارب الوسطى
 Final Trials = التجارب النهائية
+
+# ═══════════════════════════════════════════
+# === رسائل إنجاز إضافية (Achievement Messages) ===
+# ═══════════════════════════════════════════
+Shrine Complete! = !اكتمل المزار
+Lightroot Activated = تم تفعيل جذر النور
+Tower Activated = تم تفعيل البرج
+New Ability Acquired = تم اكتساب قدرة جديدة
+Sage's Vow Received = تم تلقي عهد الحكيم
+Korok Found! = !تم العثور على كوروك
+New Recipe Discovered = تم اكتشاف وصفة جديدة
+Map Updated = تم تحديث الخريطة
+Quest Accepted = تم قبول المهمة
+Quest Failed = فشلت المهمة
+Side Adventure Started = بدأت مغامرة جانبية
+Side Adventure Complete = اكتملت المغامرة الجانبية
+Main Quest Updated = تحديث المهمة الرئيسية
+Inventory Expanded = تم توسيع الحقيبة
+Heart Container Obtained = حصلت على حاوية قلب
+Stamina Vessel Obtained = حصلت على وعاء تحمل
+New Stamp Added = تم إضافة طابع جديد
+Photo Registered = تم تسجيل الصورة
+Paraglider Fabric Obtained = حصلت على قماش مظلة
+Armor Enhanced = تم تعزيز الدرع
+Armor Dyed = تم صبغ الدرع
+Horse Registered = تم تسجيل الحصان
+Horse Released = تم إطلاق الحصان
+
+# === رسائل التفاعل مع البيئة ===
+It's a beautiful day = إنه يوم جميل
+The rain has stopped = توقف المطر
+A storm is approaching = عاصفة تقترب
+The ground is slippery = الأرض زلقة
+You can't climb in the rain = لا يمكنك التسلق في المطر
+It's too dark to see = مظلم جداً للرؤية
+The temperature is dropping = الحرارة تنخفض
+You're overheating! = أنت محموم!
+You're freezing! = أنت متجمد!
+Metal equipment attracts lightning! = المعدات المعدنية تجذب البرق!
+Wooden equipment will catch fire! = المعدات الخشبية ستشتعل!
+
+# === مصطلحات الخريطة التفاعلية ===
+Warp Point = نقطة الانتقال
+Discovered Location = موقع مكتشف
+Undiscovered Location = موقع غير مكتشف
+Quest Location = موقع المهمة
+Target = الهدف
+Destination = الوجهة
+Distance = المسافة
+Altitude = الارتفاع
+Coordinates = الإحداثيات
+Region Name = اسم المنطقة
+Sub-Region = المنطقة الفرعية
+
+# === أزرار التفاعل الإضافية ===
+Attach = ألصق
+Detach = افصل
+Rotate = أدر
+Shake Off = انفض
+Build = ابنِ
+Deconstruct = فكّك
+Lift = ارفع
+Place = ضع
+Pull = اسحب
+Push = ادفع
+Hold = أمسك
+Release = أفلت
+Whistle = اصفر
+Call Horse = ناد الحصان
+Soothe Horse = هدّئ الحصان
+Spur = حفّز
+Slow Down = أبطئ
+Go Faster = أسرع
+Stop = قف
+
+# === مصطلحات شاشة الإيقاف المؤقت ===
+Pause = إيقاف مؤقت
+Resume = متابعة
+Quit Game = الخروج من اللعبة
+Return to Game = العودة للعبة
+Controller Settings = إعدادات وحدة التحكم
+Display Settings = إعدادات العرض
+Audio Settings = إعدادات الصوت
+Accessibility = إمكانية الوصول
+Vibration = الاهتزاز
+Rumble = الاهتزاز
+Button Layout = ترتيب الأزرار
+Stick Sensitivity = حساسية العصا
+Screen Brightness = سطوع الشاشة
+
+# === نصائح اللعب الإضافية ===
+Fuse materials to increase weapon damage = ادمج المواد لزيادة ضرر السلاح
+Some foods restore gloom hearts = بعض الأطعمة تستعيد قلوب الظلام
+Sundelions can cure gloom = هندباء الشمس تشفي الظلام
+Brightbloom Seeds light up dark areas = بذور الزهرة المضيئة تنير المناطق المظلمة
+Puffshrooms create a smoke screen = فطر الدخان يصنع شاشة دخانية
+Muddle Buds confuse enemies = براعم التشويش تربك الأعداء
+Dazzlefruits blind enemies temporarily = فواكه الإبهار تعمي الأعداء مؤقتاً
+Splash Fruits create a water splash = فواكه الماء تصنع رشقة مائية
+Rock Octoroks can repair rusty weapons = أوكتوروك الصخور يمكنه إصلاح الأسلحة الصدئة
+Cooking during a Blood Moon = الطبخ خلال قمر الدم يمنح مكافأة
+Fusing gems to arrows creates elemental arrows = دمج الأحجار بالسهام يصنع سهام عنصرية

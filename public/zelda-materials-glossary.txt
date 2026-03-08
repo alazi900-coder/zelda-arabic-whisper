@@ -603,3 +603,140 @@ Durability Up = زيادة المتانة
 Attack Up = زيادة الهجوم
 Shield Guard Up = زيادة حماية الدرع
 Surf Master = خبير التزلج
+
+# ========================================
+# ===== أطباق مطبوخة إضافية (More Cooked Dishes) =====
+# ========================================
+Copious Meat Skewer = سيخ لحم وفير
+Copious Mushroom Skewer = سيخ فطر وفير
+Copious Seafood Skewer = سيخ مأكولات بحرية وفير
+Veggie Porridge = عصيدة الخضار
+Fruit and Mushroom Mix = خلطة فواكه وفطر
+Monster Rice Balls = كرات أرز الوحش
+Meat and Rice Bowl = طبق لحم وأرز
+Prime Meat and Rice Bowl = طبق لحم ممتاز وأرز
+Gourmet Meat and Rice Bowl = طبق لحم فاخر وأرز
+Seafood Rice Balls = كرات أرز بالمأكولات البحرية
+Veggie Rice Balls = كرات أرز بالخضار
+Mushroom Rice Balls = كرات أرز بالفطر
+Egg Rice Balls = كرات أرز بالبيض
+Steamed Fish = سمك مبخّر
+Steamed Fruit = فاكهة مبخّرة
+Salt-Grilled Mushrooms = فطر مشوي بالملح
+Salt-Grilled Greens = خضار مشوية بالملح
+Pepper Steak = ستيك بالفلفل
+Pepper Seafood = مأكولات بحرية بالفلفل
+Meat-Stuffed Pumpkin = يقطين محشو باللحم
+Fish Pie = فطيرة سمك
+Meat Pie = فطيرة لحم
+Hot Buttered Apple = تفاحة بالزبدة الحارة
+Warm Milk = حليب دافئ
+Monster Curry = كاري الوحش
+Carrot Cake = كعكة الجزر
+Pumpkin Pie = فطيرة اليقطين
+Honey Candy = حلوى العسل
+Fried Bananas = موز مقلي
+Grilled Meat = لحم مشوي
+Grilled Fish = سمك مشوي
+Seared Steak = ستيك محمّر
+Roasted Bird Drumstick = ساق طائر محمصة
+Roasted Whole Bird = طائر كامل محمص
+Frozen Bird Drumstick = ساق طائر مجمدة
+Frozen Whole Bird = طائر كامل مجمد
+Icy Bird Thigh = فخذ طائر مثلج
+
+# ========================================
+# ===== أطعمة معدّلة بالتأثيرات =====
+# ========================================
+Hearty Simmered Fruit = فاكهة مطهية منيعة
+Hearty Mushroom Skewer = سيخ فطر منيع
+Hearty Meat Skewer = سيخ لحم منيع
+Hearty Steamed Meat = لحم مبخّر منيع
+Energizing Simmered Fruit = فاكهة مطهية منشّطة
+Energizing Mushroom Skewer = سيخ فطر منشّط
+Enduring Mushroom Skewer = سيخ فطر مستديم
+Hasty Simmered Fruit = فاكهة مطهية سريعة
+Hasty Mushroom Skewer = سيخ فطر سريع
+Sneaky Simmered Fruit = فاكهة مطهية خفية
+Sneaky Mushroom Skewer = سيخ فطر خفي
+Mighty Simmered Fruit = فاكهة مطهية قوية
+Mighty Mushroom Skewer = سيخ فطر قوي
+Tough Simmered Fruit = فاكهة مطهية متينة
+Tough Mushroom Skewer = سيخ فطر متين
+Spicy Simmered Fruit = فاكهة مطهية حارة
+Chilly Simmered Fruit = فاكهة مطهية باردة
+Electro Simmered Fruit = فاكهة مطهية كهربائية
+Bright Simmered Fruit = فاكهة مطهية مضيئة
+Sunny Veggie Porridge = عصيدة خضار مشمسة
+Sunny Mushroom Skewer = سيخ فطر مشمس
+Gloom-Recover Meat Skewer = سيخ لحم مستعيد من الظلام
+Sticky Simmered Fruit = فاكهة مطهية لاصقة
+
+# ========================================
+# ===== مواد إضافية مفقودة =====
+# ========================================
+Gibdo Bone = عظم غيبدو
+Octorok Tentacle = مِجَسّ الأوكتوروك
+Like Like Stone = حجر لايك لايك
+Fire Like Stone = حجر لايك لايك الناري
+Ice Like Stone = حجر لايك لايك الجليدي
+Shock Like Stone = حجر لايك لايك الكهربائي
+Octo Balloon = بالون أوكتو
+Frox Fang = ناب فروكس
+Obsidian Frox Fang = ناب فروكس السبج
+Blue-White Frox Fang = ناب فروكس الأزرق
+Molduga Jaw = فك المولدوغا
+King's Scale = حرشفة الملك
+Horriblin Guts = أحشاء هوريبلين
+Gibdo Guts = أحشاء غيبدو
+Frox Guts = أحشاء فروكس
+
+# ========================================
+# ===== مواد البناء والدمج (Fuse Materials) =====
+# ========================================
+Bone = عظم
+Ancient Blade = نصل قديم
+Hylian Pine Cone = مخروط صنوبر هايليان
+Korok Frond = سعفة كوروك
+Stambulb = بصلة الطاقة
+Sun Pumpkin = يقطين شمسي
+Fortified Pumpkin = يقطين محصن
+Blue Nightshade = ظل الليل الأزرق
+Armoranth = زهرة الدرع
+Electric Safflina = عشبة السافلينا الكهربائية
+Sundelion = هندباء الشمس
+Golden Apple = تفاحة ذهبية
+Hylian Tomato = طماطم هايليان
+Wildberry = توت بري
+Fleet-Lotus Seeds = بذور اللوتس السريع
+Spicy Pepper = فلفل حار
+Big Hearty Truffle = كمأة منيعة كبيرة
+Hearty Truffle = كمأة منيعة
+Endura Shroom = فطر التحمل
+Rushroom = فطر السرعة
+Brightcap = فطر مضيء
+Stamella Shroom = فطر ستاميلا
+Chillshroom = فطر بارد
+Sunshroom = فطر شمسي
+Hylian Shroom = فطر هايليان
+Zapshroom = فطر كهربائي
+Silent Shroom = فطر صامت
+Razorshroom = فطر حاد
+Ironshroom = فطر حديدي
+Skyshroom = فطر سماوي
+Puffshroom = فطر الدخان
+Big Hearty Radish = فجل منيع كبير
+Swift Violet = بنفسجة سريعة
+Mighty Thistle = شوك قوي
+Courser Bee Honey = عسل النحل السريع
+Goron Spice = بهارات الغورون
+Goat Butter = زبدة الماعز
+Monster Extract = خلاصة الوحش
+Hateno Cheese = جبن هاتينو
+Fresh Milk = حليب طازج
+Hylian Rice = أرز هايليان
+Bird Egg = بيضة طائر
+Cane Sugar = سكر القصب
+Chickaloo Tree Nut = جوزة شجرة تشيكالو
+Oil Jar = جرة زيت
+Dark Clump = كتلة مظلمة

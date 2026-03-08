@@ -795,3 +795,286 @@ Register = سجّل
 Already Registered = مسجل بالفعل
 Number = الرقم
 Habitat = الموطن
+
+# ═══════════════════════════════════════════
+# === أقمشة المظلة الإضافية (More Paraglider Fabrics) ===
+# ═══════════════════════════════════════════
+Bokoblin Fabric = قماش البوكوبلين
+Lynel Fabric = قماش اللاينل
+Gleeok Fabric = قماش الغليوك
+Colgera Fabric = قماش كولجيرا
+Frox Fabric = قماش الفروكس
+Gibdo Fabric = قماش الغيبدو
+Hinox Fabric = قماش الهاينوكس
+Talus Fabric = قماش التالوس
+Molduga Fabric = قماش المولدوغا
+Mirror of Twilight Fabric = قماش مرآة الشفق
+Sword-Spirit Fabric = قماش روح السيف
+Nostalgic Fabric = قماش الحنين
+Pixel Fabric = قماش البكسل
+Egg Fabric = قماش البيضة
+Lon Lon Ranch Fabric = قماش مزرعة لون لون
+Goddess Fabric = قماش الإلهة
+Horse-God Fabric = قماش إله الأحصنة
+Cucco Fabric = قماش الكوكو
+Eldin-Ostrich Fabric = قماش نعامة إلدين
+Dondon Fabric = قماش الدوندون
+Naboris Fabric = قماش نابوريس
+Ruta Fabric = قماش روتا
+Rudania Fabric = قماش رودانيا
+Medoh Fabric = قماش ميدوه
+Champion's Leather Fabric = قماش جلد البطل
+Rito-Village Fabric = قماش قرية الريتو
+Goron Fabric = قماش الغورون
+Zora Fabric = قماش الزورا
+
+# ═══════════════════════════════════════════
+# === معدات الأحصنة (Horse Equipment) ===
+# ═══════════════════════════════════════════
+Stable Saddle = سرج الإسطبل
+Traveler's Saddle = سرج المسافر
+Royal Saddle = السرج الملكي
+Knight's Saddle = سرج الفارس
+Extravagant Saddle = سرج فاخر
+Monster Saddle = سرج الوحوش
+Ancient Saddle = السرج القديم
+Stable Bridle = لجام الإسطبل
+Traveler's Bridle = لجام المسافر
+Royal Bridle = اللجام الملكي
+Knight's Bridle = لجام الفارس
+Extravagant Bridle = لجام فاخر
+Monster Bridle = لجام الوحوش
+Ancient Bridle = اللجام القديم
+
+# === تسريحات العُرف (Mane Styles) ===
+Natural Mane = عُرف طبيعي
+Braided Mane = عُرف مضفر
+Flowing Mane = عُرف متدفق
+Shortened Mane = عُرف مقصر
+
+# === مزاج الأحصنة (Horse Temperament) ===
+Gentle = لطيف
+Wild = بري
+Soothing = مهدئ
+Bond = رابطة
+Max Bond = رابطة كاملة
+Register = تسجيل
+Board = إيداع
+Take Out = إخراج
+Release = إطلاق
+Feed = أطعم
+
+# ═══════════════════════════════════════════
+# === مهام جانبية إضافية مفقودة ===
+# ═══════════════════════════════════════════
+A Paraglider! = مظلة شراعية!
+Camera Work in the Depths = عمل الكاميرا في الأعماق
+Filling Out the Compendium = ملء الموسوعة
+Goddess Statue Quest = مهمة تمثال الإلهة
+Priceless Maracas = ماراكاس بلا ثمن
+The Incomplete Stable Locations = مواقع الإسطبلات غير المكتملة
+The Impa and the Geoglyphs = إمبا والرسوم الأرضية
+Master Kohga of the Yiga Clan = السيد كوغا من عشيرة الييغا
+The Dragon's Tears = دموع التنين
+Trail of the Master Sword = مسار السيف الأسطوري
+Destroy Ganondorf = القضاء على غاننودورف
+Find the Fifth Sage = ابحث عن الحكيم الخامس
+Investigate the Depths = استكشف الأعماق
+Investigate the Great Sky Island = استكشف جزيرة السماء الكبرى
+Purah Pad Camera = كاميرا لوح بورا
+Sensor Quest = مهمة المستشعر
+Travel Medallion Quest = مهمة ميدالية السفر
+Hero's Path Mode = وضع مسار البطل
+
+# ═══════════════════════════════════════════
+# === عبارات حوارية إضافية (More NPC Dialogue) ===
+# ═══════════════════════════════════════════
+Hmm, what to do... = هممم، ماذا أفعل...
+I've been expecting you = كنت أنتظرك
+Do you know what happened? = هل تعرف ماذا حدث؟
+Something terrible has happened! = حدث شيء فظيع!
+The sky is falling! = السماء تسقط!
+Have you seen the princess? = هل رأيت الأميرة؟
+The monsters are everywhere! = الوحوش في كل مكان!
+I can't believe my eyes! = لا أصدق عيني!
+You saved us! = أنقذتنا!
+I'll never forget this = لن أنسى هذا أبداً
+Please be careful = كن حذراً من فضلك
+That was close! = كانت قريبة!
+Nice work! = عمل جيد!
+Not bad! = ليس سيئاً!
+You'll pay for this! = ستدفع ثمن هذا!
+How could this happen? = كيف حدث هذا؟
+I'm counting on you = أعتمد عليك
+Don't give up! = لا تستسلم!
+We believe in you! = نؤمن بك!
+The fate of Hyrule... = مصير هايرول...
+This land is sacred = هذه الأرض مقدسة
+A long time ago... = منذ زمن بعيد...
+In ancient times... = في العصور القديمة...
+The prophecy speaks of... = النبوءة تتحدث عن...
+Only the chosen one can... = فقط المختار يستطيع...
+The power of the gods... = قوة الآلهة...
+Light and darkness... = النور والظلام...
+The balance must be restored = يجب استعادة التوازن
+Your courage will be tested = ستُختبر شجاعتك
+The seal is weakening = الختم يضعف
+Time is running out = الوقت ينفد
+We must act now = يجب أن نتحرك الآن
+The kingdom depends on you = المملكة تعتمد عليك
+This is our last hope = هذا أملنا الأخير
+
+# ═══════════════════════════════════════════
+# === مصطلحات التقدم والإنجازات ===
+# ═══════════════════════════════════════════
+Shrine Cleared = تم إنجاز المزار
+All Shrines Complete = اكتملت جميع المزارات
+All Lightroots Found = تم العثور على جميع جذور النور
+Korok Seeds Collected = بذور كوروك المجمّعة
+Map Completion = اكتمال الخريطة
+Compendium Completion = اكتمال الموسوعة
+Side Quests Completed = المهام الجانبية المكتملة
+Side Adventures Completed = المغامرات الجانبية المكتملة
+Main Quests Completed = المهام الرئيسية المكتملة
+Hours Played = ساعات اللعب
+Enemies Defeated = الأعداء المهزومون
+Distance Traveled = المسافة المقطوعة
+Dishes Cooked = الأطباق المطبوخة
+Rupees Earned = الروبيات المكتسبة
+Materials Collected = المواد المجمّعة
+Photos Taken = الصور الملتقطة
+
+# ═══════════════════════════════════════════
+# === مصطلحات الخريطة الإضافية ===
+# ═══════════════════════════════════════════
+Unexplored = غير مستكشف
+Foggy Area = منطقة ضبابية
+Chasm = هوّة
+Active Chasm = هوّة نشطة
+Gloom Pool = بركة ظلام
+Abandoned Mine = منجم مهجور
+Poe Soul = روح بو
+Bargainer Statue = تمثال المساوم
+Goddess Statue = تمثال الإلهة
+Hudson Sign = لافتة هدسون
+Addison Sign = لافتة أديسون
+Monster Fort = حصن الوحوش
+Bokoblin Camp = معسكر البوكوبلين
+Moblin Camp = معسكر الموبلين
+Pirate Ship = سفينة القراصنة
+Ruins = أطلال
+Treasure Location = موقع الكنز
+
+# ═══════════════════════════════════════════
+# === تعزيزات الطعام التفصيلية ===
+# ═══════════════════════════════════════════
+Hearty Effect = تأثير منيع
+Full Recovery = استعادة كاملة
+Temporary Hearts = قلوب مؤقتة
+Extra Hearts = قلوب إضافية
+Extra Stamina = تحمل إضافي
+Temporary Stamina = تحمل مؤقت
+Level 1 Boost = تعزيز المستوى ١
+Level 2 Boost = تعزيز المستوى ٢
+Level 3 Boost = تعزيز المستوى ٣
+Duration: 30 minutes = المدة: ٣٠ دقيقة
+Duration: 15 minutes = المدة: ١٥ دقيقة
+Duration: 10 minutes = المدة: ١٠ دقائق
+Duration: 5 minutes = المدة: ٥ دقائق
+No Effect = بدون تأثير
+Cooking Failed = فشل الطبخ
+Critical Success = نجاح حاسم
+
+# ═══════════════════════════════════════════
+# === مصطلحات الأميبو (amiibo Items) ===
+# ═══════════════════════════════════════════
+amiibo = أميبو
+amiibo Reward = مكافأة الأميبو
+amiibo Drop = غنيمة الأميبو
+Scan amiibo = مسح الأميبو
+amiibo Rune = رمز الأميبو
+Epona = إيبونا
+Wolf Link = لينك الذئب
+Twilight Bow = قوس الشفق
+Hero's Shield = درع البطل
+Sea-Breeze Boomerang = بوميرانغ نسيم البحر
+Biggoron's Sword = سيف بيغورون
+Fierce Deity Equipment = معدات الإله الشرس
+
+# ═══════════════════════════════════════════
+# === ألقاب وأوصاف الشخصيات ===
+# ═══════════════════════════════════════════
+Hero of Hyrule = بطل هايرول
+Princess of Hyrule = أميرة هايرول
+King of Hyrule = ملك هايرول
+First King of Hyrule = أول ملوك هايرول
+First Queen of Hyrule = أولى ملكات هايرول
+Demon King = ملك الشياطين
+Sage of Light = حكيم النور
+Sage of Time = حكيم الزمن
+Great Deku Tree = شجرة ديكو العظيمة
+Lord of the Mountain = سيد الجبل
+Horse God = إله الأحصنة
+Goddess of Time = إلهة الزمن
+Goddess of Wisdom = إلهة الحكمة
+Spirit of the Master Sword = روح السيف الأسطوري
+Ancient Sage = حكيم قديم
+Chosen Hero = البطل المختار
+Bearer of the Triforce = حامل التراي فورس
+Champion of Hyrule = بطل هايرول
+Knight of Hyrule = فارس هايرول
+Captain of the Guard = قائد الحرس
+Leader of the Yiga = زعيم الييغا
+Chief of the Gerudo = رئيسة الغيرودو
+Elder of the Rito = شيخ الريتو
+Patriarch of the Gorons = بطريرك الغورون
+King of the Zora = ملك الزورا
+Calamity = الكارثة
+Scourge = الآفة
+Blight = اللعنة
+Thunderblight Ganon = غانون آفة الرعد
+Waterblight Ganon = غانون آفة الماء
+Fireblight Ganon = غانون آفة النار
+Windblight Ganon = غانون آفة الريح
+
+# ═══════════════════════════════════════════
+# === أصوات ومؤثرات (Sound/Music Terms) ===
+# ═══════════════════════════════════════════
+BGM = الموسيقى الخلفية
+SFX = المؤثرات الصوتية
+Voice = الصوت
+Cutscene = مشهد سينمائي
+Credits = شارة النهاية
+Opening = المقدمة
+Ending = النهاية
+Boss Theme = موسيقى الزعيم
+Battle Theme = موسيقى المعركة
+Main Theme = الموسيقى الرئيسية
+Overworld Theme = موسيقى العالم المفتوح
+Shrine Theme = موسيقى المزار
+Temple Theme = موسيقى المعبد
+Stable Theme = موسيقى الإسطبل
+Village Theme = موسيقى القرية
+Night Theme = موسيقى الليل
+
+# ═══════════════════════════════════════════
+# === مصطلحات متقدمة للقتال ===
+# ═══════════════════════════════════════════
+Weapon Durability = متانة السلاح
+Weapon Broken = انكسر السلاح
+Shield Broken = انكسر الدرع
+Bow Broken = انكسر القوس
+Last Hit = الضربة الأخيرة
+Final Blow = الضربة القاضية
+Finishing Move = الحركة الختامية
+Combo = سلسلة ضربات
+Chain Attack = هجوم متسلسل
+Perfect Timing = توقيت مثالي
+Dodge Window = نافذة المراوغة
+Parry Window = نافذة الصد
+I-Frames = إطارات الحصانة
+Knockback Resistance = مقاومة الارتداد
+Stagger = ترنح
+Downed = مطروح أرضاً
+Recovery = تعافي
+Second Wind = الفرصة الثانية
