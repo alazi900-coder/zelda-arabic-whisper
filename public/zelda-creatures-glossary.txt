@@ -292,3 +292,102 @@ Eyeball = عين
 Hoof = حافر
 Bone = عظم
 Jelly = هلام
+Scale = حرشفة
+Shell = صدفة
+Feather = ريشة
+Fur = فرو
+Hide = جلد
+Skin = جلد
+Spike = شوكة
+
+# ═══════════════════════════════════════════
+# === حشرات (Insects) ===
+# ═══════════════════════════════════════════
+Winterwing Butterfly = فراشة الشتاء
+Summerwing Butterfly = فراشة الصيف
+Thunderwing Butterfly = فراشة الرعد
+Smotherwing Butterfly = فراشة اللهب
+Cold Darner = يعسوب بارد
+Warm Darner = يعسوب دافئ
+Electric Darner = يعسوب كهربائي
+Energetic Rhino Beetle = خنفساء وحيد القرن النشيطة
+Bladed Rhino Beetle = خنفساء وحيد القرن الحادة
+Rugged Rhino Beetle = خنفساء وحيد القرن الخشنة
+Sunset Firefly = يراعة الغروب
+Deep Firefly = يراعة الأعماق
+Restless Cricket = صرصور لا يهدأ
+Fairy = جنية
+Bubbulfrog = ضفدع بوبول
+
+# ═══════════════════════════════════════════
+# === ضفادع وسحالي (Frogs & Lizards) ===
+# ═══════════════════════════════════════════
+Tireless Frog = ضفدع لا يكلّ
+Hot-Footed Frog = ضفدع سريع القدم
+Sticky Frog = ضفدع لزج
+Hearty Lizard = سحلية منيعة
+Hightail Lizard = سحلية سريعة
+Fireproof Lizard = سحلية مقاومة للنار
+Sticky Lizard = سحلية لزجة
+
+# ═══════════════════════════════════════════
+# === أسماك (Fish) ===
+# ═══════════════════════════════════════════
+Hearty Salmon = سلمون منيع
+Hearty Bass = باس منيع
+Hyrule Bass = باس هايرول
+Staminoka Bass = باس ستامينوكا
+Chillfin Trout = سلمون الزعنفة الباردة
+Sizzlefin Trout = سلمون الزعنفة الحارة
+Voltfin Trout = سلمون الزعنفة الكهربائية
+Stealthfin Trout = سلمون الزعنفة الخفية
+Mighty Carp = شبوط قوي
+Armored Carp = شبوط مدرع
+Sanke Carp = شبوط سانكي
+Ancient Arowana = أروانا قديمة
+Glowing Cave Fish = سمكة كهف متوهجة
+Mighty Porgy = دنيس قوي
+Armored Porgy = دنيس مدرع
+
+# ═══════════════════════════════════════════
+# === سرطانات وقواقع (Crabs & Snails) ===
+# ═══════════════════════════════════════════
+Sneaky River Snail = حلزون النهر الخفي
+Razorclaw Crab = سرطان المخلب الحاد
+Ironshell Crab = سرطان الصدفة الحديدية
+Bright-Eyed Crab = سرطان العين المضيئة
+
+# ═══════════════════════════════════════════
+# === أنماط سلوك الأعداء ===
+# ═══════════════════════════════════════════
+Patrol = دورية
+Alert = تنبيه
+Searching = بحث
+Combat = قتال
+Retreating = انسحاب
+Sleeping = نائم
+Eating = يأكل
+Dancing = يرقص
+Guarding = يحرس
+Riding = يركب
+Archery = رماية
+Melee = قتال قريب
+Ranged = هجوم بعيد
+Elemental Attack = هجوم عنصري
+Charge Attack = هجوم اندفاعي
+Area Attack = هجوم منطقة
+Grab Attack = هجوم إمساك
+Spin Attack = هجوم دوراني
+Breath Attack = هجوم نفث
+Roar = زئير
+Summon = استدعاء
+Enrage = غضب
+Phase = مرحلة
+Phase 1 = المرحلة الأولى
+Phase 2 = المرحلة الثانية
+Phase 3 = المرحلة الثالثة
+Weak Point = نقطة ضعف
+Vulnerable = ضعيف
+Invulnerable = لا يُقهر
+Shield = تدريع
+Regeneration = تجديد
