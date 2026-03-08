@@ -637,19 +637,19 @@ export function useEditorState() {
     let fixedCount = 0;
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key]?.trim();
-      if (!translation) continue;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
       const origEnd = entry.original.trim();
       let fixed = translation;
-      if (origEnd.endsWith('?') && !fixed.endsWith('؟') && !fixed.endsWith('?')) {
-        fixed = fixed.replace(/[.。،]+$/, '') + '؟';
-      } else if (origEnd.endsWith('!') && !fixed.endsWith('!')) {
-        fixed = fixed.replace(/[.。،]+$/, '') + '!';
+      if (origEnd.endsWith('?') && !fixed.trimEnd().endsWith('؟') && !fixed.trimEnd().endsWith('?')) {
+        fixed = fixed.replace(/[.。،]+\s*$/, '') + '؟';
+      } else if (origEnd.endsWith('!') && !fixed.trimEnd().endsWith('!')) {
+        fixed = fixed.replace(/[.。،]+\s*$/, '') + '!';
       } else {
         continue;
       }
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
@@ -668,8 +668,8 @@ export function useEditorState() {
     let fixedCount = 0;
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key]?.trim();
-      if (!translation) continue;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
       const orig = entry.original;
       const origTags = orig.match(/\[[^\]]*\]/g) || [];
       let depth = 0;
@@ -681,6 +681,12 @@ export function useEditorState() {
       if (depth !== 0) broken = true;
       if (!broken) continue;
       let fixed = translation;
+      // Recalculate depth on the full string (the loop above may have broken early)
+      depth = 0;
+      for (const ch of fixed) {
+        if (ch === '[') depth++;
+        else if (ch === ']') depth--;
+      }
       if (depth > 0) {
         fixed = fixed + ']'.repeat(depth);
       } else if (depth < 0) {
@@ -692,9 +698,9 @@ export function useEditorState() {
           fixed = fixed.trimEnd() + ' ' + tag;
         }
       }
-      fixed = fixed.replace(/\s{2,}/g, ' ').trim();
+      fixed = fixed.replace(/ {2,}/g, ' ');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
@@ -742,12 +748,23 @@ export function useEditorState() {
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
+      // Protect content inside [tags] by temporarily replacing them
+      const tagPlaceholders: string[] = [];
+      fixed = fixed.replace(/\[[^\]]*\]/g, (match) => {
+        tagPlaceholders.push(match);
+        return `\uFFFE${tagPlaceholders.length - 1}\uFFFE`;
+      });
+      // Merge multiple spaces
       fixed = fixed.replace(/ {2,}/g, ' ');
+      // Remove space before punctuation
       fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
-      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\]،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
+      // Add space after punctuation if missing (not before tag placeholders or other punctuation)
+      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\uFFFE،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
+      // Restore tags
+      fixed = fixed.replace(/\uFFFE(\d+)\uFFFE/g, (_, idx) => tagPlaceholders[parseInt(idx)]);
       fixed = fixed.trim();
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
@@ -770,10 +787,12 @@ export function useEditorState() {
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
+      // Normalize alef variants to bare alef
       fixed = fixed.replace(/[أإآ]/g, 'ا');
-      fixed = fixed.replace(/ى\b/g, 'ي');
+      // Normalize alef maqsura at end of words (followed by space, punctuation, end, or non-Arabic)
+      fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉\u0000-\u001F]|$)/g, 'ي');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
