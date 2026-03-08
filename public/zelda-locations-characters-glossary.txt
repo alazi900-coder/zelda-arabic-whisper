@@ -478,3 +478,91 @@ Labyrinth = متاهة
 Mine = منجم
 Hot Spring = ينبوع حار
 Underground Ruins = الأطلال تحت الأرضية
+
+# ═══════════════════════════════════════════
+# === شخصيات إضافية مفقودة ===
+# ═══════════════════════════════════════════
+Master Kohga = السيد كوغا
+Kohga = كوغا
+Sooga = سوغا
+Astor = أستور
+Terrako = تيراكو
+Fi = فاي
+Midna = ميدنا
+Navi = نافي
+Tatl = تاتل
+King Rhoam = الملك روم
+King Rhoam Bosphoramus Hyrule = الملك روم بوسفورامس هايرول
+Monk Maz Koshia = الراهب ماز كوشيا
+Malanya the Horse God = مالانيا إله الأحصنة
+Horned Statue = التمثال ذو القرون
+Goddess Statue = تمثال الإلهة
+Hylia = هايليا
+Goddess Hylia = الإلهة هايليا
+
+# === تجار وخدمات ===
+Bargainer Statue = تمثال المساوم
+Poe Collector = جامع أرواح بو
+Fairy Fountain = نافورة الجنية
+Horse God = إله الأحصنة
+
+# === قبائل وأعراق إضافية ===
+Minish = مينيش
+Deku = ديكو
+Kokiri = كوكيري
+Mogma = موغما
+Parella = باريلا
+Kikwi = كيكوي
+Loftwing = لوفتوينغ
+Ancient Hero's Aspect = مظهر البطل القديم
+
+# ═══════════════════════════════════════════
+# === كهوف مهمة ===
+# ═══════════════════════════════════════════
+Crenel Hills Cave = كهف تلال كرينيل
+Hyrule Castle Cave = كهف قلعة هايرول
+Hebra Mountain Cave = كهف جبل هيبرا
+Akkala Citadel Cave = كهف قلعة أكالا
+Gerudo Canyon Cave = كهف وادي غيرودو
+Lanayru Mountain Cave = كهف جبل لناييرو
+Satori Mountain Cave = كهف جبل ساتوري
+Dueling Peaks Cave = كهف القمم المتبارزة
+Lindor's Brow Cave = كهف حاجب ليندور
+Eldin Canyon Cave = كهف وادي إلدين
+
+# === آبار ===
+Lookout Landing Well = بئر مرسى المراقبة
+Kakariko Village Well = بئر قرية كاكاريكو
+Hateno Village Well = بئر قرية هاتينو
+Gerudo Town Well = بئر بلدة الغيرودو
+Tarrey Town Well = بئر بلدة تاري
+Goron City Well = بئر مدينة الغورون
+Lurelin Village Well = بئر قرية لوريلين
+
+# ═══════════════════════════════════════════
+# === جزر سماوية إضافية ===
+# ═══════════════════════════════════════════
+Courage Island = جزيرة الشجاعة
+Bravery Island = جزيرة البسالة
+North Hyrule Sky = سماء شمال هايرول
+South Hyrule Sky = سماء جنوب هايرول
+Starview Island = جزيرة مشاهدة النجوم
+Zonaite Forge Island = جزيرة مسبك الزوناي
+Sky Mine = منجم السماء
+South Lomei Labyrinth = متاهة لومي الجنوبية
+North Lomei Labyrinth = متاهة لومي الشمالية
+Lomei Labyrinth Island = جزيرة متاهة لومي
+
+# ═══════════════════════════════════════════
+# === المحيطات والبحيرات الإضافية ===
+# ═══════════════════════════════════════════
+Lanayru Bay = خليج لناييرو
+Lurelin Bay = خليج لوريلين
+Hateno Bay = خليج هاتينو
+Akkala Bay = خليج أكالا
+Ralis Pond = بركة رالس
+Toto Lake = بحيرة توتو
+Ja'Abu Ridge = تلال جاأبو
+Upland Zorana = مرتفعات زورانا
+Mikau Lake = بحيرة ميكاو
+Lulu Lake = بحيرة لولو

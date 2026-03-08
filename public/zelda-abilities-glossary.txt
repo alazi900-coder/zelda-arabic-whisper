@@ -273,3 +273,102 @@ Wind = ريح
 Light = نور
 Dark = ظلام
 Spirit = روح
+
+# ═══════════════════════════════════════════
+# === حركات القتال المتقدمة ===
+# ═══════════════════════════════════════════
+Backflip = شقلبة خلفية
+Side Hop = قفزة جانبية
+Perfect Dodge = مراوغة مثالية
+Flurry Rush = هجوم متتابع
+Jump Attack = هجوم قفز
+Charged Attack = هجوم مشحون
+Spin Attack = هجوم دوراني
+Shield Surf = تزلج بالدرع
+Shield Parry = صد بالدرع
+Mounted Attack = هجوم من على الظهر
+Sneak Strike = ضربة خفية
+Bullet Time = إبطاء الزمن
+Headshot = إصابة الرأس
+Arrow Rain = أمطار السهام
+Multishot = رمي متعدد
+Bomb Arrow = سهم متفجر
+Fire Arrow = سهم ناري
+Ice Arrow = سهم جليدي
+Shock Arrow = سهم كهربائي
+Light Arrow = سهم نوراني
+Fuse Attack = هجوم الدمج
+Material Throw = رمي المواد
+Shield Attach = تثبيت على الدرع
+Arrow Attach = تثبيت على السهم
+
+# ═══════════════════════════════════════════
+# === حركات التنقل والاستكشاف ===
+# ═══════════════════════════════════════════
+Climbing = تسلق
+Swimming = سباحة
+Diving = غوص
+Paragliding = تحليق بالمظلة
+Surfing = تزلج
+Horse Riding = ركوب الخيل
+Sand Seal Surfing = تزلج بفقمة الرمل
+Minecart Ride = ركوب عربة المنجم
+Shield Surfing = تزلج بالدرع
+Skydiving = قفز حر
+Free Fall = سقوط حر
+Gliding = انزلاق
+Dashing = اندفاع
+Sprinting = ركض سريع
+Crouching = انحناء
+Sneaking = تسلل
+Whistling = صفير
+Cooking = طبخ
+Resting = راحة
+Praying = صلاة
+Trading = تجارة
+Photographing = تصوير
+Registering = تسجيل
+Enhancing = تعزيز
+Dyeing = صبغ
+
+# ═══════════════════════════════════════════
+# === تأثيرات بيئية إضافية ===
+# ═══════════════════════════════════════════
+Updraft = تيار صاعد هوائي
+Thermal = تيار حراري
+Gust = هبة ريح
+Tornado = إعصار
+Eruption = ثوران بركاني
+Earthquake = زلزال
+Flood = فيضان
+Drought = جفاف
+Eclipse = كسوف
+Aurora = شفق قطبي
+Shooting Star = نجم مندفع
+Meteor Shower = زخة شهب
+Sunrise = شروق
+Sunset = غروب
+Noon = ظهيرة
+Midnight = منتصف الليل
+Dawn = فجر
+Dusk = غسق
+Morning = صباح
+Afternoon = بعد الظهر
+Evening = مساء
+Night = ليل
+Day = نهار
+
+# ═══════════════════════════════════════════
+# === أصوات وتعبيرات المعركة ===
+# ═══════════════════════════════════════════
+Hit! = !أصابت
+Miss! = !خطأ
+Critical! = !حرجة
+Blocked! = !صُدت
+Deflected! = !انحرفت
+Absorbed! = !امتصت
+Reflected! = !انعكست
+Immune! = !محصّن
+Resisted! = !مقاوَمة
+Weak! = !ضعيفة
+Super Effective! = !فعالة جداً
