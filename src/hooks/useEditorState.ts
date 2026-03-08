@@ -105,7 +105,7 @@ export function useEditorState() {
   const { activeGlossary, parseGlossaryMap } = glossary;
 
   const quality = useEditorQuality({ state });
-  const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount } = quality;
+  const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount, exportQualityReport } = quality;
 
   const build = useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation });
   const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, handleApplyArabicProcessing, handlePreBuild, handleBuild } = build;
