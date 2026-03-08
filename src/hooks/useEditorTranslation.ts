@@ -234,6 +234,7 @@ export function useEditorTranslation({
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
               userApiKey: userGeminiKey || undefined,
               translationEngine,
+              translationQuality,
               myMemoryEmail: myMemoryEmail || undefined,
               category: batchCategory,
               filePath: batchFilePath,
