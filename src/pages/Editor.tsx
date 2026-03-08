@@ -529,23 +529,96 @@ const Editor = () => {
 
           {/* Glossary indicator */}
           {editor.glossaryTermCount > 0 && (
-            <div className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/15">
-              <BookOpen className="w-3.5 h-3.5 text-primary/70" />
-              <span className="text-xs text-primary/80 font-body">
-                📖 القاموس: <strong>{editor.glossaryTermCount}</strong> مصطلح
-              </span>
-              <Button
-                variant={editor.glossaryEnabled ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => editor.setGlossaryEnabled(!editor.glossaryEnabled)}
-                className="mr-auto h-6 px-2 text-xs font-body"
-              >
-                {editor.glossaryEnabled ? (
-                  <><Eye className="w-3 h-3" /> مفعّل</>
-                ) : (
-                  <><EyeOff className="w-3 h-3" /> معطّل</>
-                )}
-              </Button>
+            <div className="mb-4 rounded-lg bg-primary/5 border border-primary/15">
+              <div className="flex items-center gap-2 px-3 py-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-primary/70" />
+                <span className="text-xs text-primary/80 font-body">
+                  📖 القاموس: <strong>{editor.glossaryTermCount}</strong> مصطلح
+                </span>
+                <Button
+                  variant={editor.glossaryEnabled ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => editor.setGlossaryEnabled(!editor.glossaryEnabled)}
+                  className="mr-auto h-6 px-2 text-xs font-body"
+                >
+                  {editor.glossaryEnabled ? (
+                    <><Eye className="w-3 h-3" /> مفعّل</>
+                  ) : (
+                    <><EyeOff className="w-3 h-3" /> معطّل</>
+                  )}
+                </Button>
+              </div>
+              {/* Coverage Stats */}
+              {editor.glossaryCoverage && editor.state && (
+                <div className="px-3 pb-2 pt-1 border-t border-primary/10">
+                  <div className="grid grid-cols-2 gap-2 text-xs font-body">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">تغطية المصدر</span>
+                      <div className="flex items-center gap-1.5">
+                        <Progress value={editor.glossaryCoverage.coveragePercent} className="h-2 flex-1" />
+                        <span className="text-primary font-semibold min-w-[3ch] text-left">
+                          {editor.glossaryCoverage.coveragePercent}%
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground/70 text-[10px]">
+                        {editor.glossaryCoverage.matchedInSource} / {editor.glossaryCoverage.totalTerms} مصطلح موجود
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">اتساق الترجمة</span>
+                      <div className="flex items-center gap-1.5">
+                        <Progress
+                          value={editor.glossaryCoverage.consistencyPercent}
+                          className={`h-2 flex-1 ${editor.glossaryCoverage.consistencyPercent < 50 ? '[&>div]:bg-destructive' : editor.glossaryCoverage.consistencyPercent < 80 ? '[&>div]:bg-yellow-500' : ''}`}
+                        />
+                        <span className={`font-semibold min-w-[3ch] text-left ${editor.glossaryCoverage.consistencyPercent < 50 ? 'text-destructive' : editor.glossaryCoverage.consistencyPercent < 80 ? 'text-yellow-600' : 'text-primary'}`}>
+                          {editor.glossaryCoverage.consistencyPercent}%
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground/70 text-[10px]">
+                        {editor.glossaryCoverage.translatedWithGlossary} / {editor.glossaryCoverage.translatedTotal} ترجمة متوافقة
+                      </span>
+                    </div>
+                  </div>
+                  {editor.glossaryCoverage.topMatched.length > 0 && (
+                    <Collapsible>
+                      <CollapsibleTrigger className="text-[10px] text-primary/60 hover:text-primary/90 mt-1.5 flex items-center gap-1 cursor-pointer">
+                        <BarChart3 className="w-3 h-3" /> عرض تفاصيل المصطلحات
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-1.5 space-y-1">
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="font-semibold text-green-600">✅ مصطلحات مطابقة ({editor.glossaryCoverage.matchedInSource}):</span>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {editor.glossaryCoverage.topMatched.map((t, i) => (
+                              <span key={i} className="bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded text-[10px]">
+                                {t.eng} → {t.arb}
+                              </span>
+                            ))}
+                            {editor.glossaryCoverage.matchedInSource > 20 && (
+                              <span className="text-muted-foreground/50">+{editor.glossaryCoverage.matchedInSource - 20} أخرى</span>
+                            )}
+                          </div>
+                        </div>
+                        {editor.glossaryCoverage.topUnmatched.length > 0 && (
+                          <div className="text-[10px] text-muted-foreground">
+                            <span className="font-semibold text-orange-600">⚠️ غير موجودة في النصوص ({editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource}):</span>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {editor.glossaryCoverage.topUnmatched.map((t, i) => (
+                                <span key={i} className="bg-orange-500/10 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded text-[10px]">
+                                  {t.eng}
+                                </span>
+                              ))}
+                              {(editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource) > 10 && (
+                                <span className="text-muted-foreground/50">+{editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource - 10} أخرى</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
