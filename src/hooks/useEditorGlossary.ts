@@ -100,25 +100,30 @@ export function useEditorGlossary({
           const text = await file.text();
           newTerms += (newTerms ? '\n' : '') + text;
         }
+        // Validate and count valid terms
+        const validLines = newTerms.split('\n').filter(l => {
+          const t = l.trim();
+          if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+          const eqIdx = t.indexOf('=');
+          if (eqIdx < 1) return false;
+          const key = t.slice(0, eqIdx).trim();
+          const val = t.slice(eqIdx + 1).trim();
+          return key.length > 0 && val.length > 0;
+        });
+        const invalidLines = newTerms.split('\n').filter(l => {
+          const t = l.trim();
+          return t && !t.startsWith('#') && !t.startsWith('//') && !t.includes('=');
+        }).length;
+
         setState(prev => {
           if (!prev) return null;
-          const existing = prev.glossary?.trim() || '';
-          const merged = existing ? existing + '\n' + newTerms : newTerms;
-          const seen = new Map<string, string>();
-          for (const line of merged.split('\n')) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
-            const eqIdx = trimmed.indexOf('=');
-            if (eqIdx < 1) continue;
-            const key = trimmed.slice(0, eqIdx).trim().toLowerCase();
-            seen.set(key, trimmed);
-          }
-          return { ...prev, glossary: Array.from(seen.values()).join('\n') };
+          return mergeGlossaryText(prev, newTerms);
         });
         const fileNames = Array.from(files).map(f => f.name).join('، ');
-        const newCount = newTerms.split('\n').filter(l => l.includes('=')).length;
-        setLastSaved(`📖 تم دمج ${newCount} مصطلح من (${fileNames})`);
-        setTimeout(() => setLastSaved(""), 4000);
+        let msg = `📖 تم دمج ${validLines.length} مصطلح من (${fileNames})`;
+        if (invalidLines > 0) msg += ` — ⚠️ ${invalidLines} سطر غير صالح تم تجاهله`;
+        setLastSaved(msg);
+        setTimeout(() => setLastSaved(""), 5000);
       } catch { alert('خطأ في قراءة الملف'); }
     };
     input.click();
