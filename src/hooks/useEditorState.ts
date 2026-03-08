@@ -664,6 +664,53 @@ export function useEditorState() {
     setTimeout(() => setLastSaved(""), 3000);
   }, [state]);
 
+  const handleFixAllBrackets = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    let fixedCount = 0;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key]?.trim();
+      if (!translation) continue;
+      const orig = entry.original;
+      const origTags = orig.match(/\[[^\]]*\]/g) || [];
+      let depth = 0;
+      let broken = false;
+      for (const ch of translation) {
+        if (ch === '[') depth++;
+        else if (ch === ']') { depth--; if (depth < 0) { broken = true; break; } }
+      }
+      if (depth !== 0) broken = true;
+      if (!broken) continue;
+      let fixed = translation;
+      if (depth > 0) {
+        fixed = fixed + ']'.repeat(depth);
+      } else if (depth < 0) {
+        fixed = '['.repeat(-depth) + fixed;
+      }
+      // If original has specific tags, try to restore missing ones
+      for (const tag of origTags) {
+        if (!fixed.includes(tag)) {
+          fixed = fixed.trimEnd() + ' ' + tag;
+        }
+      }
+      fixed = fixed.replace(/\s{2,}/g, ' ').trim();
+      if (fixed !== translation) {
+        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        updates[key] = fixed;
+        fixedCount++;
+      }
+    }
+    if (fixedCount === 0) {
+      setLastSaved("لا توجد أقواس مكسورة للإصلاح");
+      setTimeout(() => setLastSaved(""), 3000);
+      return;
+    }
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    setLastSaved(`✅ تم إصلاح الأقواس في ${fixedCount} ترجمة`);
+    setTimeout(() => setLastSaved(""), 3000);
+  }, [state]);
+
   const handleFixMixedLanguage = async () => {
     if (!state) return;
     setFixingMixed(true);
