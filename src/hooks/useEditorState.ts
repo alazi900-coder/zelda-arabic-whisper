@@ -668,8 +668,8 @@ export function useEditorState() {
     let fixedCount = 0;
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key]?.trim();
-      if (!translation) continue;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
       const orig = entry.original;
       const origTags = orig.match(/\[[^\]]*\]/g) || [];
       let depth = 0;
@@ -681,6 +681,12 @@ export function useEditorState() {
       if (depth !== 0) broken = true;
       if (!broken) continue;
       let fixed = translation;
+      // Recalculate depth on the full string (the loop above may have broken early)
+      depth = 0;
+      for (const ch of fixed) {
+        if (ch === '[') depth++;
+        else if (ch === ']') depth--;
+      }
       if (depth > 0) {
         fixed = fixed + ']'.repeat(depth);
       } else if (depth < 0) {
@@ -692,9 +698,9 @@ export function useEditorState() {
           fixed = fixed.trimEnd() + ' ' + tag;
         }
       }
-      fixed = fixed.replace(/\s{2,}/g, ' ').trim();
+      fixed = fixed.replace(/ {2,}/g, ' ');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
