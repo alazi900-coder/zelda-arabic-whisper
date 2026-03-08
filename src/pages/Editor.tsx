@@ -708,6 +708,7 @@ const Editor = () => {
               setShowQualityStats={editor.setShowQualityStats}
               onExportReport={editor.exportQualityReport}
               onFixAllPunctuation={editor.handleFixAllPunctuation}
+              onFixAllBrackets={editor.handleFixAllBrackets}
             />
           )}
 
