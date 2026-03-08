@@ -415,7 +415,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, translationQuality, myMemoryEmail: myMemoryEmail || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
