@@ -29,7 +29,7 @@ interface UseEditorTranslationProps {
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
