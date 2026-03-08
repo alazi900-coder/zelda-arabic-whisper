@@ -279,7 +279,7 @@ export function useEditorGlossary({
 
   return {
     glossaryEnabled, setGlossaryEnabled,
-    glossaryTermCount, activeGlossary,
+    glossaryTermCount, activeGlossary, glossaryCoverage,
     parseGlossaryMap, getGlossaryContext,
     handleImportGlossary,
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
