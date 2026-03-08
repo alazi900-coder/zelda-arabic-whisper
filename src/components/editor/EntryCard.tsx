@@ -32,10 +32,14 @@ interface EntryCardProps {
   translationMemory?: { key: string; translation: string }[];
 }
 
-function findGlossaryMatches(original: string, glossary?: string): { term: string; translation: string }[] {
-  if (!glossary?.trim() || !original?.trim()) return [];
-  const origLower = original.toLowerCase();
-  const matches: { term: string; translation: string }[] = [];
+// Cached parsed glossary to avoid re-parsing on every entry
+let _cachedGlossaryText = '';
+let _cachedGlossaryEntries: { eng: string; engLower: string; arb: string; regex: RegExp }[] = [];
+
+function getParsedGlossary(glossary: string) {
+  if (glossary === _cachedGlossaryText) return _cachedGlossaryEntries;
+  _cachedGlossaryText = glossary;
+  const entries: typeof _cachedGlossaryEntries = [];
   for (const line of glossary.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
@@ -44,15 +48,41 @@ function findGlossaryMatches(original: string, glossary?: string): { term: strin
     const eng = trimmed.slice(0, eqIdx).trim();
     const arb = trimmed.slice(eqIdx + 1).trim();
     if (!eng || !arb) continue;
-    // Word-boundary partial match (case-insensitive)
     const engLower = eng.toLowerCase();
-    const regex = new RegExp(`\\b${engLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(origLower)) {
-      matches.push({ term: eng, translation: arb });
+    const escaped = engLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Use word boundary for Latin, lookaround for mixed content
+    const regex = new RegExp(`(?:^|\\b|\\s)${escaped}(?:$|\\b|\\s|[.,!?;:'"\\-])`, 'i');
+    entries.push({ eng, engLower, arb, regex });
+  }
+  // Sort by term length descending so longer matches take priority
+  entries.sort((a, b) => b.eng.length - a.eng.length);
+  _cachedGlossaryEntries = entries;
+  return entries;
+}
+
+function findGlossaryMatches(original: string, glossary?: string): { term: string; translation: string }[] {
+  if (!glossary?.trim() || !original?.trim()) return [];
+  const parsed = getParsedGlossary(glossary);
+  const origLower = original.toLowerCase();
+  const matches: { term: string; translation: string }[] = [];
+  const matchedSpans: [number, number][] = []; // prevent overlapping matches
+
+  for (const entry of parsed) {
+    if (matches.length >= 10) break;
+    // Quick check before regex
+    if (!origLower.includes(entry.engLower)) continue;
+    if (entry.regex.test(original)) {
+      // Check for overlap with already matched longer terms
+      const startIdx = origLower.indexOf(entry.engLower);
+      const endIdx = startIdx + entry.engLower.length;
+      const overlaps = matchedSpans.some(([s, e]) => startIdx >= s && startIdx < e || endIdx > s && endIdx <= e);
+      if (!overlaps) {
+        matches.push({ term: entry.eng, translation: entry.arb });
+        matchedSpans.push([startIdx, endIdx]);
+      }
     }
   }
-  // Sort by term length descending (longer matches first)
-  return matches.sort((a, b) => b.term.length - a.term.length).slice(0, 6);
+  return matches;
 }
 
 const EntryCard: React.FC<EntryCardProps> = ({
