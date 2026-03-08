@@ -135,13 +135,18 @@ export function useEditorGlossary({
       const response = await fetch(url);
       if (!response.ok) throw new Error('فشل تحميل القاموس');
       const text = await response.text();
-      const newCount = text.split('\n').filter(l => l.includes('=')).length;
+      const validCount = text.split('\n').filter(l => {
+        const t = l.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+        const eq = t.indexOf('=');
+        return eq > 0 && t.slice(0, eq).trim() && t.slice(eq + 1).trim();
+      }).length;
       if (replace) {
         setState(prev => prev ? { ...prev, glossary: text } : null);
       } else {
         setState(prev => prev ? mergeGlossaryText(prev, text) : null);
       }
-      setLastSaved(`📖 تم ${replace ? 'تحميل' : 'دمج'} ${name} (${newCount} مصطلح)`);
+      setLastSaved(`📖 تم ${replace ? 'تحميل' : 'دمج'} ${name} (${validCount} مصطلح صالح)`);
       setTimeout(() => setLastSaved(""), 3000);
     } catch { alert(`خطأ في تحميل ${name}`); }
   }, [setState, setLastSaved]);
@@ -163,13 +168,26 @@ export function useEditorGlossary({
         '/zelda-creatures-glossary.txt', '/zelda-abilities-glossary.txt',
       ];
       const responses = await Promise.all(urls.map(u => fetch(u)));
-      if (responses.some(r => !r.ok)) throw new Error('فشل تحميل أحد القواميس');
-      const texts = await Promise.all(responses.map(r => r.text()));
-      const combined = texts.join('\n');
-      setState(prev => prev ? mergeGlossaryText(prev, combined) : null);
-      const totalTerms = combined.split('\n').filter(l => l.includes('=')).length;
-      setLastSaved(`📖 تم تحميل جميع القواميس (${totalTerms} مصطلح)`);
-      setTimeout(() => setLastSaved(""), 3000);
+      const failedUrls = urls.filter((_, i) => !responses[i].ok);
+      if (failedUrls.length > 0) {
+        alert(`فشل تحميل: ${failedUrls.join(', ')}`);
+        // Continue with successful ones
+      }
+      const texts = await Promise.all(responses.map((r, i) => r.ok ? r.text() : Promise.resolve('')));
+      const combined = texts.filter(Boolean).join('\n');
+      // Use replace mode for "load all" to ensure clean state
+      setState(prev => {
+        if (!prev) return null;
+        return mergeGlossaryText({ ...prev, glossary: '' }, combined);
+      });
+      // Count after dedup
+      const dedupedCount = combined.split('\n').filter(l => {
+        const t = l.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) return false;
+        return t.includes('=');
+      }).length;
+      setLastSaved(`📖 تم تحميل جميع القواميس (${dedupedCount} مصطلح — بعد إزالة التكرار)`);
+      setTimeout(() => setLastSaved(""), 4000);
     } catch { alert('خطأ في تحميل القواميس'); }
   };
 
