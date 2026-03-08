@@ -908,7 +908,19 @@ export function useEditorState() {
   };
 
 
-  const handleBulkReplace = useCallback((replacements: Record<string, string>) => {
+  const handleApplyFixPreview = useCallback(() => {
+    if (!state || !fixPreview) return;
+    const prev: Record<string, string> = {};
+    for (const key of Object.keys(fixPreview.updates)) {
+      prev[key] = state.translations[key] || '';
+    }
+    setPreviousTranslations(p => ({ ...p, ...prev }));
+    setState(s => s ? { ...s, translations: { ...s.translations, ...fixPreview.updates } } : null);
+    toast({ title: `✅ تم تطبيق ${fixPreview.items.length} إصلاح`, description: fixPreview.title });
+    setFixPreview(null);
+  }, [state, fixPreview]);
+
+
     if (!state) return;
     const prev: Record<string, string> = {};
     for (const key of Object.keys(replacements)) {
