@@ -19,6 +19,7 @@ interface QualityStatsPanelProps {
   setFilterStatus: (status: Set<string>) => void;
   setShowQualityStats: (show: boolean) => void;
   onExportReport: () => void;
+  onFixAllPunctuation?: () => void;
 }
 
 const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport }) => {
