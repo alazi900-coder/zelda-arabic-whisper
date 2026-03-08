@@ -37,12 +37,14 @@ export function useEditorTranslation({
   const [tmStats, setTmStats] = useState<{ reused: number; sent: number } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  /** Auto-fix: restore any tags the AI dropped from translations */
-  const autoFixTags = (translations: Record<string, string>): Record<string, string> => {
-    if (!state) return translations;
+  /** Auto-fix: restore any tags the AI dropped from translations.
+   *  Uses the provided entryMap for O(1) lookups instead of stale state reference. */
+  const autoFixTags = (translations: Record<string, string>, entryMap?: Map<string, ExtractedEntry>): Record<string, string> => {
+    const lookup = entryMap || (state ? new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e])) : null);
+    if (!lookup) return translations;
     const fixed: Record<string, string> = {};
     for (const [key, trans] of Object.entries(translations)) {
-      const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === key);
+      const entry = lookup.get(key);
       if (entry && hasTechnicalTags(entry.original)) {
         fixed[key] = restoreTagsLocally(entry.original, trans);
       } else {
