@@ -48,7 +48,7 @@ interface UseEditorQualityProps {
 
 export function useEditorQuality({ state }: UseEditorQualityProps) {
   const [categoryProgress, setCategoryProgress] = useState<Record<string, { total: number; translated: number }>>({});
-  const [qualityStats, setQualityStats] = useState<QualityStats>({ tooLong: 0, nearLimit: 0, missingTags: 0, placeholderMismatch: 0, total: 0, problemKeys: new Set<string>(), damagedTags: 0, damagedTagKeys: new Set<string>(), duplicateTranslations: 0, duplicateTranslationKeys: new Set<string>(), punctuationMismatch: 0, punctuationMismatchKeys: new Set<string>(), unclosedBrackets: 0, unclosedBracketKeys: new Set<string>(), inconsistentTerms: [] });
+  const [qualityStats, setQualityStats] = useState<QualityStats>({ tooLong: 0, nearLimit: 0, missingTags: 0, placeholderMismatch: 0, total: 0, problemKeys: new Set<string>(), damagedTags: 0, damagedTagKeys: new Set<string>(), duplicateTranslations: 0, duplicateTranslationKeys: new Set<string>(), punctuationMismatch: 0, punctuationMismatchKeys: new Set<string>(), unclosedBrackets: 0, unclosedBracketKeys: new Set<string>(), inconsistentTerms: [], hasDiacritics: 0, hasDiacriticsKeys: new Set<string>(), hasDoubleSpaces: 0, hasDoubleSpacesKeys: new Set<string>(), hasHamzaIssues: 0, hasHamzaIssuesKeys: new Set<string>() });
   const [needsImproveCount, setNeedsImproveCount] = useState<NeedsImproveCount>({ total: 0, tooShort: 0, tooLong: 0, stuck: 0, mixed: 0 });
   const [translatedCount, setTranslatedCount] = useState(0);
   const combinedStatsTimerRef = useRef<ReturnType<typeof setTimeout>>();
