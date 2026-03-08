@@ -69,15 +69,25 @@ export function useEditorTranslation({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const idx = state.entries.indexOf(entry);
-      const contextEntries = [-2, -1, 1, 2]
+      const contextEntries = [-3, -2, -1, 1, 2, 3]
         .map(offset => state.entries[idx + offset])
         .filter(n => n && state.translations[`${n.msbtFile}:${n.index}`]?.trim())
         .map(n => ({ key: `${n.msbtFile}:${n.index}`, original: n.original, translation: state.translations[`${n.msbtFile}:${n.index}`] }));
+      const entryCategory = categorizeFile(entry.msbtFile, entry.label);
 
       const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries: [{ key, original: entry.original }], glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+        body: JSON.stringify({
+          entries: [{ key, original: entry.original, label: entry.label, maxBytes: entry.maxBytes }],
+          glossary: activeGlossary,
+          context: contextEntries.length > 0 ? contextEntries : undefined,
+          userApiKey: userGeminiKey || undefined,
+          translationEngine,
+          myMemoryEmail: myMemoryEmail || undefined,
+          category: entryCategory,
+          filePath: entry.msbtFile,
+        }),
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
@@ -185,12 +195,12 @@ export function useEditorTranslation({
         const batch = needsAI.slice(b * AI_BATCH_SIZE, (b + 1) * AI_BATCH_SIZE);
         setTranslateProgress(`🔄 ترجمة الدفعة ${b + 1}/${totalBatches} (${batch.length} نص)...`);
 
-        const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original }));
+        const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, label: e.label, maxBytes: e.maxBytes }));
         const contextEntries: { key: string; original: string; translation?: string }[] = [];
         const contextKeys = new Set<string>();
         for (const e of batch) {
           const idx = state.entries.indexOf(e);
-          for (const offset of [-2, -1, 1, 2]) {
+          for (const offset of [-3, -2, -1, 1, 2, 3]) {
             const neighbor = state.entries[idx + offset];
             if (neighbor) {
               const nKey = `${neighbor.msbtFile}:${neighbor.index}`;
@@ -202,6 +212,10 @@ export function useEditorTranslation({
           }
         }
 
+        // Detect category from first entry in batch
+        const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
+        const batchFilePath = batch[0].msbtFile;
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         let response: Response;
@@ -212,7 +226,16 @@ export function useEditorTranslation({
             method: 'POST',
             headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
             signal: abortControllerRef.current.signal,
-            body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+            body: JSON.stringify({
+              entries,
+              glossary: activeGlossary,
+              context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
+              userApiKey: userGeminiKey || undefined,
+              translationEngine,
+              myMemoryEmail: myMemoryEmail || undefined,
+              category: batchCategory,
+              filePath: batchFilePath,
+            }),
           });
           if (response.status === 429 && retries < maxRetries) {
             retries++;
@@ -302,12 +325,12 @@ export function useEditorTranslation({
         }
         const batch = entriesToRetranslate.slice(b * AI_BATCH_SIZE, (b + 1) * AI_BATCH_SIZE);
         setTranslateProgress(`🔄 إعادة ترجمة الدفعة ${b + 1}/${totalBatches} (${batch.length} نص)...`);
-        const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original }));
+        const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, label: e.label, maxBytes: e.maxBytes }));
         const contextEntries: { key: string; original: string; translation?: string }[] = [];
         const contextKeys = new Set<string>();
         for (const e of batch) {
           const idx = state.entries.indexOf(e);
-          for (const offset of [-2, -1, 1, 2]) {
+          for (const offset of [-3, -2, -1, 1, 2, 3]) {
             const neighbor = state.entries[idx + offset];
             if (neighbor) {
               const nKey = `${neighbor.msbtFile}:${neighbor.index}`;
@@ -318,13 +341,23 @@ export function useEditorTranslation({
             }
           }
         }
+        const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, context: contextEntries.length > 0 ? contextEntries.slice(0, 10) : undefined, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({
+            entries,
+            glossary: activeGlossary,
+            context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
+            userApiKey: userGeminiKey || undefined,
+            translationEngine,
+            myMemoryEmail: myMemoryEmail || undefined,
+            category: batchCategory,
+            filePath: batch[0].msbtFile,
+          }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
