@@ -423,7 +423,10 @@ export function useEditorState() {
             (fs === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
             (fs === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
             (fs === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
-            (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key))
+            (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key)) ||
+            (fs === "duplicates" && qualityStats.duplicateTranslationKeys.has(key)) ||
+            (fs === "punctuation" && qualityStats.punctuationMismatchKeys.has(key)) ||
+            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key))
           )
         ));
       const matchTechnical = 
