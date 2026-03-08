@@ -18,6 +18,7 @@ interface UseEditorTranslationProps {
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
   translationEngine: 'gemini' | 'lovable' | 'mymemory';
+  translationQuality: 'fast' | 'quality';
   filteredEntries: ExtractedEntry[];
   isFilterActive: boolean;
   myMemoryEmail: string;
