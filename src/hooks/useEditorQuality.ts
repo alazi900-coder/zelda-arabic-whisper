@@ -216,7 +216,7 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         // === Text cleanup checks ===
         if (diacriticsRegex.test(trimmed)) { hasDiacritics++; hasDiacriticsKeys.add(key); }
         if (/ {2,}/.test(trimmed) || / [،؛؟!.,;?]/.test(trimmed)) { hasDoubleSpaces++; hasDoubleSpacesKeys.add(key); }
-        if (/[أإآ]/.test(trimmed) || /ى\b/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
+        if (/[أإآ]/.test(trimmed) || /ى(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
       }
 
       // Finalize duplicate detection
