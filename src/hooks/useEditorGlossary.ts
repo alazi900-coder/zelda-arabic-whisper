@@ -221,7 +221,7 @@ export function useEditorGlossary({
   return {
     glossaryEnabled, setGlossaryEnabled,
     glossaryTermCount, activeGlossary,
-    parseGlossaryMap,
+    parseGlossaryMap, getGlossaryContext,
     handleImportGlossary,
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
     handleLoadMaterialsGlossary, handleLoadUIGlossary, handleLoadLocationsGlossary,
