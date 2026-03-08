@@ -312,8 +312,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       if (keys.size === 0) return;
       lines.push(`\n--- ${title} (${keys.size}) ---`);
       for (const k of keys) {
-        const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
-        if (!entry) continue;
+      const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
+        if (!entry) continue;  // exportQualityReport runs rarely, O(n) find is acceptable here
         const trans = state.translations[k] || '';
         lines.push(`  [${k}] ${entry.label}`);
         lines.push(`    الأصل: ${entry.original.slice(0, 80)}${entry.original.length > 80 ? '...' : ''}`);

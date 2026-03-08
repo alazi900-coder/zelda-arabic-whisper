@@ -260,7 +260,7 @@ export function useEditorTranslation({
         }
         const data = await response.json();
         if (data.translations) {
-          const fixedTranslations = autoFixTags(data.translations);
+          const fixedTranslations = autoFixTags(data.translations, entryMap);
           allTranslations = { ...allTranslations, ...fixedTranslations };
           setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...fixedTranslations } } : null);
         }
