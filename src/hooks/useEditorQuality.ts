@@ -106,6 +106,14 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       const punctuationMismatchKeys = new Set<string>();
       let unclosedBrackets = 0;
       const unclosedBracketKeys = new Set<string>();
+      // Text cleanup checks
+      let hasDiacritics = 0;
+      const hasDiacriticsKeys = new Set<string>();
+      let hasDoubleSpaces = 0;
+      const hasDoubleSpacesKeys = new Set<string>();
+      let hasHamzaIssues = 0;
+      const hasHamzaIssuesKeys = new Set<string>();
+      const diacriticsRegex = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/;
 
       // For duplicate detection: translation -> list of keys
       const translationToKeys = new Map<string, string[]>();
