@@ -137,11 +137,14 @@ export function useEditorTranslation({
       return;
     }
 
+    // Build entry lookup map once for O(1) access
+    const entryMap = new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
+
     // Translation Memory
     const tmMap = new Map<string, string>();
     for (const [key, val] of Object.entries(state.translations)) {
       if (val.trim()) {
-        const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === key);
+        const entry = entryMap.get(key);
         if (entry) {
           const norm = entry.original.trim().toLowerCase();
           if (!tmMap.has(norm)) tmMap.set(norm, val);
