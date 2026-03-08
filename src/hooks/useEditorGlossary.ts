@@ -27,7 +27,7 @@ export function useEditorGlossary({
 
   const activeGlossary = glossaryEnabled ? (state?.glossary || '') : '';
 
-  // === Parse glossary into lookup map ===
+  // === Parse glossary into lookup map (exact match) ===
   const parseGlossaryMap = useCallback((glossaryText: string): Map<string, string> => {
     const map = new Map<string, string>();
     if (!glossaryText?.trim()) return map;
@@ -36,25 +36,51 @@ export function useEditorGlossary({
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
       const eqIdx = trimmed.indexOf('=');
       if (eqIdx < 1) continue;
-      const eng = trimmed.slice(0, eqIdx).trim().toLowerCase();
+      const eng = trimmed.slice(0, eqIdx).trim();
       const arb = trimmed.slice(eqIdx + 1).trim();
-      if (eng && arb) map.set(eng, arb);
+      if (eng && arb) {
+        map.set(eng.toLowerCase(), arb);
+      }
     }
     return map;
   }, []);
 
-  // === Merge helper ===
-  const mergeGlossaryText = (prev: EditorState, newText: string): EditorState => {
-    const existing = prev.glossary?.trim() || '';
-    const merged = existing ? existing + '\n' + newText : newText;
-    const seen = new Map<string, string>();
-    for (const line of merged.split('\n')) {
+  // === Parse glossary for partial matching (used in AI context injection) ===
+  const getGlossaryContext = useCallback((text: string, glossaryText: string): string => {
+    if (!glossaryText?.trim() || !text?.trim()) return '';
+    const textLower = text.toLowerCase();
+    const hints: string[] = [];
+    for (const line of glossaryText.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
       const eqIdx = trimmed.indexOf('=');
       if (eqIdx < 1) continue;
-      const key = trimmed.slice(0, eqIdx).trim().toLowerCase();
-      seen.set(key, trimmed);
+      const eng = trimmed.slice(0, eqIdx).trim();
+      const arb = trimmed.slice(eqIdx + 1).trim();
+      if (!eng || !arb) continue;
+      if (textLower.includes(eng.toLowerCase())) {
+        hints.push(`${eng}=${arb}`);
+      }
+    }
+    return hints.slice(0, 15).join('\n');
+  }, []);
+
+  // === Merge helper with validation and dedup ===
+  const mergeGlossaryText = (prev: EditorState, newText: string): EditorState => {
+    const existing = prev.glossary?.trim() || '';
+    const merged = existing ? existing + '\n' + newText : newText;
+    const seen = new Map<string, string>();
+    let skipped = 0;
+    for (const line of merged.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx < 1) { skipped++; continue; }
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim();
+      if (!key || !val) { skipped++; continue; }
+      // Keep the latest version (new overwrites old)
+      seen.set(key.toLowerCase(), `${key}=${val}`);
     }
     return { ...prev, glossary: Array.from(seen.values()).join('\n') };
   };
