@@ -14,6 +14,9 @@ interface QualityStatsPanelProps {
     punctuationMismatch: number; punctuationMismatchKeys: Set<string>;
     unclosedBrackets: number; unclosedBracketKeys: Set<string>;
     inconsistentTerms: InconsistentTerm[];
+    hasDiacritics: number; hasDiacriticsKeys: Set<string>;
+    hasDoubleSpaces: number; hasDoubleSpacesKeys: Set<string>;
+    hasHamzaIssues: number; hasHamzaIssuesKeys: Set<string>;
   };
   translatedCount: number;
   setFilterStatus: (status: Set<string>) => void;
@@ -21,9 +24,12 @@ interface QualityStatsPanelProps {
   onExportReport: () => void;
   onFixAllPunctuation?: () => void;
   onFixAllBrackets?: () => void;
+  onFixAllDiacritics?: () => void;
+  onFixAllSpaces?: () => void;
+  onFixAllHamza?: () => void;
 }
 
-const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation, onFixAllBrackets }) => {
+const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation, onFixAllBrackets, onFixAllDiacritics, onFixAllSpaces, onFixAllHamza }) => {
   const [showTerms, setShowTerms] = React.useState(false);
 
   return (
@@ -89,7 +95,36 @@ const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, tra
           </div>
         </div>
 
-        {/* Inconsistent terms collapsible */}
+        {/* Text cleanup row */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+          <div className="p-3 rounded border border-emerald-500/30 bg-emerald-500/5 text-center">
+            <p className="text-2xl font-display font-bold text-emerald-500">{qualityStats.hasDiacritics}</p>
+            <p className="text-xs text-muted-foreground">تشكيل زائد</p>
+            {qualityStats.hasDiacritics > 0 && onFixAllDiacritics && (
+              <Button variant="outline" size="sm" className="mt-1 text-xs h-6 px-2" onClick={() => onFixAllDiacritics()}>
+                🔧 إزالة الكل
+              </Button>
+            )}
+          </div>
+          <div className="p-3 rounded border border-sky-500/30 bg-sky-500/5 text-center">
+            <p className="text-2xl font-display font-bold text-sky-500">{qualityStats.hasDoubleSpaces}</p>
+            <p className="text-xs text-muted-foreground">مسافات مزدوجة</p>
+            {qualityStats.hasDoubleSpaces > 0 && onFixAllSpaces && (
+              <Button variant="outline" size="sm" className="mt-1 text-xs h-6 px-2" onClick={() => onFixAllSpaces()}>
+                🔧 إصلاح الكل
+              </Button>
+            )}
+          </div>
+          <div className="p-3 rounded border border-amber-600/30 bg-amber-600/5 text-center">
+            <p className="text-2xl font-display font-bold text-amber-600">{qualityStats.hasHamzaIssues}</p>
+            <p className="text-xs text-muted-foreground">همزات غير موحدة</p>
+            {qualityStats.hasHamzaIssues > 0 && onFixAllHamza && (
+              <Button variant="outline" size="sm" className="mt-1 text-xs h-6 px-2" onClick={() => onFixAllHamza()}>
+                🔧 توحيد الكل
+              </Button>
+            )}
+          </div>
+        </div>
         {showTerms && qualityStats.inconsistentTerms.length > 0 && (
           <div className="mt-3 p-3 rounded border border-cyan-500/20 bg-cyan-500/5 max-h-60 overflow-y-auto">
             <h4 className="text-sm font-display font-bold mb-2 text-cyan-600">🔍 مصطلحات غير متسقة</h4>

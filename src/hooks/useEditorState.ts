@@ -707,6 +707,85 @@ export function useEditorState() {
     toast({ title: `✅ تم إصلاح الأقواس في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
   }, [state]);
 
+  // === Fix diacritics (harakat) ===
+  const handleFixAllDiacritics = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    let fixedCount = 0;
+    const diacriticsRegex = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
+      const fixed = translation.replace(diacriticsRegex, '');
+      if (fixed !== translation) {
+        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        updates[key] = fixed;
+        fixedCount++;
+      }
+    }
+    if (fixedCount === 0) {
+      toast({ title: "لا توجد تشكيلات زائدة للإزالة" });
+      return;
+    }
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    toast({ title: `✅ تم إزالة التشكيل من ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+  }, [state]);
+
+  // === Fix double/extra spaces ===
+  const handleFixAllSpaces = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    let fixedCount = 0;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
+      let fixed = translation;
+      fixed = fixed.replace(/ {2,}/g, ' ');
+      fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
+      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\]،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
+      fixed = fixed.trim();
+      if (fixed !== translation) {
+        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        updates[key] = fixed;
+        fixedCount++;
+      }
+    }
+    if (fixedCount === 0) {
+      toast({ title: "لا توجد مسافات مزدوجة للإصلاح" });
+      return;
+    }
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    toast({ title: `✅ تم إصلاح المسافات في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+  }, [state]);
+
+  // === Normalize hamza/alef ===
+  const handleFixAllHamza = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    let fixedCount = 0;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
+      let fixed = translation;
+      fixed = fixed.replace(/[أإآ]/g, 'ا');
+      fixed = fixed.replace(/ى\b/g, 'ي');
+      if (fixed !== translation) {
+        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        updates[key] = fixed;
+        fixedCount++;
+      }
+    }
+    if (fixedCount === 0) {
+      toast({ title: "لا توجد همزات أو ألفات تحتاج توحيد" });
+      return;
+    }
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    toast({ title: `✅ تم توحيد الهمزات في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
+  }, [state]);
+
   const handleFixMixedLanguage = async () => {
     if (!state) return;
     setFixingMixed(true);
@@ -907,6 +986,7 @@ export function useEditorState() {
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     handleSuggestShorterTranslations, handleApplyShorterTranslation, handleApplyAllShorterTranslations,
     handleFixAllStuckCharacters, handleFixMixedLanguage, handleFixAllPunctuation, handleFixAllBrackets,
+    handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza,
     ...fileIO,
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,

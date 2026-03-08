@@ -20,6 +20,13 @@ export interface QualityStats {
   unclosedBrackets: number;
   unclosedBracketKeys: Set<string>;
   inconsistentTerms: InconsistentTerm[];
+  // Text cleanup checks
+  hasDiacritics: number;
+  hasDiacriticsKeys: Set<string>;
+  hasDoubleSpaces: number;
+  hasDoubleSpacesKeys: Set<string>;
+  hasHamzaIssues: number;
+  hasHamzaIssuesKeys: Set<string>;
 }
 
 export interface InconsistentTerm {
@@ -41,7 +48,7 @@ interface UseEditorQualityProps {
 
 export function useEditorQuality({ state }: UseEditorQualityProps) {
   const [categoryProgress, setCategoryProgress] = useState<Record<string, { total: number; translated: number }>>({});
-  const [qualityStats, setQualityStats] = useState<QualityStats>({ tooLong: 0, nearLimit: 0, missingTags: 0, placeholderMismatch: 0, total: 0, problemKeys: new Set<string>(), damagedTags: 0, damagedTagKeys: new Set<string>(), duplicateTranslations: 0, duplicateTranslationKeys: new Set<string>(), punctuationMismatch: 0, punctuationMismatchKeys: new Set<string>(), unclosedBrackets: 0, unclosedBracketKeys: new Set<string>(), inconsistentTerms: [] });
+  const [qualityStats, setQualityStats] = useState<QualityStats>({ tooLong: 0, nearLimit: 0, missingTags: 0, placeholderMismatch: 0, total: 0, problemKeys: new Set<string>(), damagedTags: 0, damagedTagKeys: new Set<string>(), duplicateTranslations: 0, duplicateTranslationKeys: new Set<string>(), punctuationMismatch: 0, punctuationMismatchKeys: new Set<string>(), unclosedBrackets: 0, unclosedBracketKeys: new Set<string>(), inconsistentTerms: [], hasDiacritics: 0, hasDiacriticsKeys: new Set<string>(), hasDoubleSpaces: 0, hasDoubleSpacesKeys: new Set<string>(), hasHamzaIssues: 0, hasHamzaIssuesKeys: new Set<string>() });
   const [needsImproveCount, setNeedsImproveCount] = useState<NeedsImproveCount>({ total: 0, tooShort: 0, tooLong: 0, stuck: 0, mixed: 0 });
   const [translatedCount, setTranslatedCount] = useState(0);
   const combinedStatsTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -99,6 +106,14 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       const punctuationMismatchKeys = new Set<string>();
       let unclosedBrackets = 0;
       const unclosedBracketKeys = new Set<string>();
+      // Text cleanup checks
+      let hasDiacritics = 0;
+      const hasDiacriticsKeys = new Set<string>();
+      let hasDoubleSpaces = 0;
+      const hasDoubleSpacesKeys = new Set<string>();
+      let hasHamzaIssues = 0;
+      const hasHamzaIssuesKeys = new Set<string>();
+      const diacriticsRegex = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/;
 
       // For duplicate detection: translation -> list of keys
       const translationToKeys = new Map<string, string[]>();
@@ -197,6 +212,11 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         if (isTranslationTooLong(entry, trimmed)) { niTooLong++; needsImproveKeys.add(key); }
         if (hasStuckChars(trimmed)) { niStuck++; needsImproveKeys.add(key); }
         if (isMixedLanguage(trimmed)) { niMixed++; needsImproveKeys.add(key); }
+
+        // === Text cleanup checks ===
+        if (diacriticsRegex.test(trimmed)) { hasDiacritics++; hasDiacriticsKeys.add(key); }
+        if (/ {2,}/.test(trimmed) || / [،؛؟!.,;?]/.test(trimmed)) { hasDoubleSpaces++; hasDoubleSpacesKeys.add(key); }
+        if (/[أإآ]/.test(trimmed) || /ى\b/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
       }
 
       // Finalize duplicate detection
@@ -246,6 +266,9 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         punctuationMismatch, punctuationMismatchKeys,
         unclosedBrackets, unclosedBracketKeys,
         inconsistentTerms,
+        hasDiacritics, hasDiacriticsKeys,
+        hasDoubleSpaces, hasDoubleSpacesKeys,
+        hasHamzaIssues, hasHamzaIssuesKeys,
       });
       setNeedsImproveCount({ total: needsImproveKeys.size, tooShort: niTooShort, tooLong: niTooLong, stuck: niStuck, mixed: niMixed });
       setTranslatedCount(translated);
