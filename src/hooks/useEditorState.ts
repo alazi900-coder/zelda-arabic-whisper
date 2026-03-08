@@ -105,7 +105,7 @@ export function useEditorState() {
   const { activeGlossary, parseGlossaryMap } = glossary;
 
   const quality = useEditorQuality({ state });
-  const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount } = quality;
+  const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount, exportQualityReport } = quality;
 
   const build = useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation });
   const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, handleApplyArabicProcessing, handlePreBuild, handleBuild } = build;
@@ -423,7 +423,10 @@ export function useEditorState() {
             (fs === "too-long" && isTranslated && isTranslationTooLong(e, translation)) ||
             (fs === "stuck-chars" && isTranslated && hasStuckChars(translation)) ||
             (fs === "mixed-lang" && isTranslated && isMixedLanguage(translation)) ||
-            (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key))
+            (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key)) ||
+            (fs === "duplicates" && qualityStats.duplicateTranslationKeys.has(key)) ||
+            (fs === "punctuation" && qualityStats.punctuationMismatchKeys.has(key)) ||
+            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key))
           )
         ));
       const matchTechnical = 
@@ -432,7 +435,7 @@ export function useEditorState() {
         (filterTechnical === "exclude" && !isTechnical);
       return matchSearch && matchFile && matchCategory && matchStatus && matchTechnical;
     });
-  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
+  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical]);
 
@@ -800,7 +803,7 @@ export function useEditorState() {
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
     fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm,
-    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount,
+    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, paginatedEntries, totalPages,
     user,

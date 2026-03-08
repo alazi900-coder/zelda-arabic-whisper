@@ -376,7 +376,7 @@ const Editor = () => {
                 </Button>
                ) : (
                 <>
-                  <div className="flex flex-wrap gap-1.5">
+                   <div className="flex flex-wrap gap-1.5">
                     {[
                       { value: "translated", label: "✅ مترجم" },
                       { value: "untranslated", label: "⬜ غير مترجم" },
@@ -388,6 +388,9 @@ const Editor = () => {
                       { value: "mixed-lang", label: `🌐 مختلط (${editor.needsImproveCount.mixed})` },
                       { value: "has-tags", label: `🔧 رموز تقنية (${editor.tagsCount})` },
                       { value: "no-tags", label: "✨ بدون رموز" },
+                      { value: "duplicates", label: `🔁 مكرر (${editor.qualityStats.duplicateTranslations})` },
+                      { value: "punctuation", label: `❓ ترقيم (${editor.qualityStats.punctuationMismatch})` },
+                      { value: "unclosed-brackets", label: `🔓 أقواس (${editor.qualityStats.unclosedBrackets})` },
                     ].map(f => (
                       <Button
                         key={f.value}
@@ -438,6 +441,9 @@ const Editor = () => {
                     { value: "mixed-lang", label: "🌐 مختلط" },
                     { value: "has-tags", label: "🔧 رموز تقنية" },
                     { value: "no-tags", label: "✨ بدون رموز" },
+                    { value: "duplicates", label: "🔁 مكرر" },
+                    { value: "punctuation", label: "❓ ترقيم" },
+                    { value: "unclosed-brackets", label: "🔓 أقواس" },
                   ].map(f => (
                     <Button
                       key={f.value}
@@ -670,6 +676,7 @@ const Editor = () => {
               translatedCount={editor.translatedCount}
               setFilterStatus={editor.setFilterStatus}
               setShowQualityStats={editor.setShowQualityStats}
+              onExportReport={editor.exportQualityReport}
             />
           )}
 
