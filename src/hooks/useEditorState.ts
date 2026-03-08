@@ -70,6 +70,13 @@ export function useEditorState() {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch {}
   }, []);
+  const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
+    try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
+  });
+  const setTranslationQuality = useCallback((q: 'fast' | 'quality') => {
+    _setTranslationQuality(q);
+    try { localStorage.setItem('translationQuality', q); } catch {}
+  }, []);
   const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
     try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
   });
