@@ -20,6 +20,13 @@ export interface QualityStats {
   unclosedBrackets: number;
   unclosedBracketKeys: Set<string>;
   inconsistentTerms: InconsistentTerm[];
+  // Text cleanup checks
+  hasDiacritics: number;
+  hasDiacriticsKeys: Set<string>;
+  hasDoubleSpaces: number;
+  hasDoubleSpacesKeys: Set<string>;
+  hasHamzaIssues: number;
+  hasHamzaIssuesKeys: Set<string>;
 }
 
 export interface InconsistentTerm {
