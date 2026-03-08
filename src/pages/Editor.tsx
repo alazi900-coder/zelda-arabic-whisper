@@ -670,6 +670,7 @@ const Editor = () => {
               translatedCount={editor.translatedCount}
               setFilterStatus={editor.setFilterStatus}
               setShowQualityStats={editor.setShowQualityStats}
+              onExportReport={editor.exportQualityReport}
             />
           )}
 
