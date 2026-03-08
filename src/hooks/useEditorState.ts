@@ -637,19 +637,19 @@ export function useEditorState() {
     let fixedCount = 0;
     for (const entry of state.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key]?.trim();
-      if (!translation) continue;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
       const origEnd = entry.original.trim();
       let fixed = translation;
-      if (origEnd.endsWith('?') && !fixed.endsWith('؟') && !fixed.endsWith('?')) {
-        fixed = fixed.replace(/[.。،]+$/, '') + '؟';
-      } else if (origEnd.endsWith('!') && !fixed.endsWith('!')) {
-        fixed = fixed.replace(/[.。،]+$/, '') + '!';
+      if (origEnd.endsWith('?') && !fixed.trimEnd().endsWith('؟') && !fixed.trimEnd().endsWith('?')) {
+        fixed = fixed.replace(/[.。،]+\s*$/, '') + '؟';
+      } else if (origEnd.endsWith('!') && !fixed.trimEnd().endsWith('!')) {
+        fixed = fixed.replace(/[.。،]+\s*$/, '') + '!';
       } else {
         continue;
       }
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
