@@ -14,6 +14,9 @@ interface QualityStatsPanelProps {
     punctuationMismatch: number; punctuationMismatchKeys: Set<string>;
     unclosedBrackets: number; unclosedBracketKeys: Set<string>;
     inconsistentTerms: InconsistentTerm[];
+    hasDiacritics: number; hasDiacriticsKeys: Set<string>;
+    hasDoubleSpaces: number; hasDoubleSpacesKeys: Set<string>;
+    hasHamzaIssues: number; hasHamzaIssuesKeys: Set<string>;
   };
   translatedCount: number;
   setFilterStatus: (status: Set<string>) => void;
@@ -21,9 +24,12 @@ interface QualityStatsPanelProps {
   onExportReport: () => void;
   onFixAllPunctuation?: () => void;
   onFixAllBrackets?: () => void;
+  onFixAllDiacritics?: () => void;
+  onFixAllSpaces?: () => void;
+  onFixAllHamza?: () => void;
 }
 
-const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation, onFixAllBrackets }) => {
+const QualityStatsPanel: React.FC<QualityStatsPanelProps> = ({ qualityStats, translatedCount, setFilterStatus, setShowQualityStats, onExportReport, onFixAllPunctuation, onFixAllBrackets, onFixAllDiacritics, onFixAllSpaces, onFixAllHamza }) => {
   const [showTerms, setShowTerms] = React.useState(false);
 
   return (
