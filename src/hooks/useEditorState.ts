@@ -435,7 +435,7 @@ export function useEditorState() {
         (filterTechnical === "exclude" && !isTechnical);
       return matchSearch && matchFile && matchCategory && matchStatus && matchTechnical;
     });
-  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
+  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical]);
 
