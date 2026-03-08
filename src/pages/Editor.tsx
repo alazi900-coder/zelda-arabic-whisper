@@ -709,6 +709,9 @@ const Editor = () => {
               onExportReport={editor.exportQualityReport}
               onFixAllPunctuation={editor.handleFixAllPunctuation}
               onFixAllBrackets={editor.handleFixAllBrackets}
+              onFixAllDiacritics={editor.handleFixAllDiacritics}
+              onFixAllSpaces={editor.handleFixAllSpaces}
+              onFixAllHamza={editor.handleFixAllHamza}
             />
           )}
 
