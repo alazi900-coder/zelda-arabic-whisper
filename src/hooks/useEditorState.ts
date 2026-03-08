@@ -947,7 +947,7 @@ export function useEditorState() {
     previousTranslations, currentPage,
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
-    fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm,
+    fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm, fixPreview,
     categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, paginatedEntries, totalPages,
