@@ -27,6 +27,65 @@ export function useEditorGlossary({
 
   const activeGlossary = glossaryEnabled ? (state?.glossary || '') : '';
 
+  // === Coverage stats: how many glossary terms appear in loaded entries ===
+  const glossaryCoverage = useMemo(() => {
+    if (!state?.glossary?.trim() || !state?.entries?.length) return null;
+    const terms: { eng: string; arb: string }[] = [];
+    for (const line of state.glossary.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#') || t.startsWith('//')) continue;
+      const eq = t.indexOf('=');
+      if (eq < 1) continue;
+      const eng = t.slice(0, eq).trim();
+      const arb = t.slice(eq + 1).trim();
+      if (eng && arb) terms.push({ eng: eng.toLowerCase(), arb });
+    }
+    if (terms.length === 0) return null;
+
+    // Build a combined text from all original entries for fast lookup
+    const allOriginals = state.entries.map(e => e.original.toLowerCase()).join(' \n ');
+
+    let matched = 0;
+    const matchedTerms: { eng: string; arb: string }[] = [];
+    const unmatchedTerms: { eng: string; arb: string }[] = [];
+    for (const term of terms) {
+      if (allOriginals.includes(term.eng)) {
+        matched++;
+        if (matchedTerms.length < 20) matchedTerms.push(term);
+      } else {
+        if (unmatchedTerms.length < 10) unmatchedTerms.push(term);
+      }
+    }
+
+    // Check how many translated entries use glossary terms correctly
+    let translatedWithGlossary = 0;
+    let translatedTotal = 0;
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key]?.trim();
+      if (!translation || translation === entry.original) continue;
+      translatedTotal++;
+      const origLower = entry.original.toLowerCase();
+      for (const term of terms) {
+        if (origLower.includes(term.eng) && translation.includes(term.arb)) {
+          translatedWithGlossary++;
+          break;
+        }
+      }
+    }
+
+    return {
+      totalTerms: terms.length,
+      matchedInSource: matched,
+      coveragePercent: Math.round((matched / terms.length) * 100),
+      translatedWithGlossary,
+      translatedTotal,
+      consistencyPercent: translatedTotal > 0 ? Math.round((translatedWithGlossary / translatedTotal) * 100) : 0,
+      topMatched: matchedTerms,
+      topUnmatched: unmatchedTerms,
+    };
+  }, [state?.glossary, state?.entries, state?.translations]);
+
   // === Parse glossary into lookup map (exact match) ===
   const parseGlossaryMap = useCallback((glossaryText: string): Map<string, string> => {
     const map = new Map<string, string>();
@@ -220,7 +279,7 @@ export function useEditorGlossary({
 
   return {
     glossaryEnabled, setGlossaryEnabled,
-    glossaryTermCount, activeGlossary,
+    glossaryTermCount, activeGlossary, glossaryCoverage,
     parseGlossaryMap, getGlossaryContext,
     handleImportGlossary,
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
