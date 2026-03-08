@@ -56,6 +56,7 @@ export function useEditorState() {
   const [fixingMixed, setFixingMixed] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
   const [userGeminiKey, _setUserGeminiKey] = useState(() => {
     try { return localStorage.getItem('userGeminiKey') || ''; } catch { return ''; }
   });
