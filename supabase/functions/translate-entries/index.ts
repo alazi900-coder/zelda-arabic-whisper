@@ -252,8 +252,9 @@ ${textsBlock}`;
     let data: any;
 
     if (userApiKey && userApiKey.trim()) {
-      // Use user's own Gemini API key — upgrade to gemini-2.5-flash
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey.trim()}`;
+      // Use user's own Gemini API key — select model based on quality
+      const geminiModel = translationQuality === 'quality' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${userApiKey.trim()}`;
       
       const geminiResponse = await fetch(geminiUrl, {
         method: 'POST',
