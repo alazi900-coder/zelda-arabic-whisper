@@ -119,6 +119,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       const translationToKeys = new Map<string, string[]>();
       // For terminology consistency: english word -> Set of arabic translations
       const termMap = new Map<string, Map<string, string[]>>();
+      // Build entry lookup map for O(1) access
+      const entryByKey = new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
 
       for (const entry of state.entries) {
         const key = `${entry.msbtFile}:${entry.index}`;
