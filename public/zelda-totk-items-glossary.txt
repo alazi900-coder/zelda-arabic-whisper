@@ -1,83 +1,83 @@
 # قاموس مواد وأسلحة Tears of the Kingdom
-# تم إنشاؤه من بيانات المستخدم
+# تم تحديثه وتوحيد المصطلحات
 
 # === مواد الأعداء — قرون ===
-Bokoblin Horn = قرن بوكوبلن
-Blue Bokoblin Horn = قرن بوكوبلن الأزرق
-Black Bokoblin Horn = قرن بوكوبلن الأسود
-Silver Bokoblin Horn = قرن بوكوبلن الفضي
-Moblin Horn = قرن موبلن
-Blue Moblin Horn = قرن موبلن الأزرق
-Black Moblin Horn = قرن موبلن الأسود
-Silver Moblin Horn = قرن موبلن الفضي
-Horriblin Horn = قرن هوربلين
-Blue Horriblin Horn = قرن هوربلين الأزرق
-Black Horriblin Horn = قرن هوربلين الأسود
-Silver Horriblin Horn = قرن هوربلين الفضي
+Bokoblin Horn = قرن بوكوبلين
+Blue Bokoblin Horn = قرن بوكوبلين الأزرق
+Black Bokoblin Horn = قرن بوكوبلين الأسود
+Silver Bokoblin Horn = قرن بوكوبلين الفضي
+Moblin Horn = قرن موبلين
+Blue Moblin Horn = قرن موبلين الأزرق
+Black Moblin Horn = قرن موبلين الأسود
+Silver Moblin Horn = قرن موبلين الفضي
+Horriblin Horn = قرن هوريبلين
+Blue Horriblin Horn = قرن هوريبلين الأزرق
+Black Horriblin Horn = قرن هوريبلين الأسود
+Silver Horriblin Horn = قرن هوريبلين الفضي
 Lizalfos Horn = قرن ليزالفوس
 Blue Lizalfos Horn = قرن ليزالفوس الأزرق
 Black Lizalfos Horn = قرن ليزالفوس الأسود
 Silver Lizalfos Horn = قرن ليزالفوس الفضي
-Fire-Breath Lizalfos Horn = قرن تنفّس النار
-Ice-Breath Lizalfos Horn = قرن تنفّس الجليد
-Electric Lizalfos Horn = قرن تنفّس الكهرباء
-Lynel Mace Horn = قرن هراوة لينيل
-Blue-Maned Lynel Mace Horn = قرن هراوة لينيل عريض اللحية
-White-Maned Lynel Mace Horn = قرن هراوة لينيل أبيض اللحية
-Silver Lynel Mace Horn = قرن هراوة لينيل الفضي
-Lynel Saber Horn = قرن سيف لينيل
-Blue-Maned Lynel Saber Horn = قرن سيف لينيل عريض اللحية
-White-Maned Lynel Saber Horn = قرن سيف لينيل أبيض اللحية
-Silver Lynel Saber Horn = قرن سيف لينيل الفضي
-Soldier Construct Horn = قرن بُرجي
-Soldier Construct II Horn = قرن بُرجي II
-Soldier Construct III Horn = قرن بُرجي III
-Soldier Construct IV Horn = قرن بُرجي IV
-Captain Construct I Horn = قرن كابتن برجي I
-Captain Construct II Horn = قرن كابتن برجي II
-Captain Construct III Horn = قرن كابتن برجي III
-Captain Construct IV Horn = قرن كابتن برجي IV
-Gleeok Flame Horn = قرن التنين غليوك الناري
-Gleeok Frost Horn = قرن التنين غليوك الجليدي
-Gleeok Thunder Horn = قرن التنين غليوك البرق
+Fire-Breath Lizalfos Horn = قرن ليزالفوس الناري
+Ice-Breath Lizalfos Horn = قرن ليزالفوس الجليدي
+Electric Lizalfos Horn = قرن ليزالفوس الكهربائي
+Lynel Mace Horn = قرن هراوة لاينل
+Blue-Maned Lynel Mace Horn = قرن هراوة لاينل أزرق العرف
+White-Maned Lynel Mace Horn = قرن هراوة لاينل أبيض العرف
+Silver Lynel Mace Horn = قرن هراوة لاينل الفضي
+Lynel Saber Horn = قرن سيف لاينل
+Blue-Maned Lynel Saber Horn = قرن سيف لاينل أزرق العرف
+White-Maned Lynel Saber Horn = قرن سيف لاينل أبيض العرف
+Silver Lynel Saber Horn = قرن سيف لاينل الفضي
+Soldier Construct Horn = قرن الجندي الآلي
+Soldier Construct II Horn = قرن الجندي الآلي II
+Soldier Construct III Horn = قرن الجندي الآلي III
+Soldier Construct IV Horn = قرن الجندي الآلي IV
+Captain Construct I Horn = قرن القائد الآلي I
+Captain Construct II Horn = قرن القائد الآلي II
+Captain Construct III Horn = قرن القائد الآلي III
+Captain Construct IV Horn = قرن القائد الآلي IV
+Gleeok Flame Horn = قرن غليوك الناري
+Gleeok Frost Horn = قرن غليوك الجليدي
+Gleeok Thunder Horn = قرن غليوك الرعدي
 Dinraal's Horn = قرن دينرال
 Naydra's Horn = قرن نايدرا
 Farosh's Horn = قرن فاروش
-Light Dragon's Horn = قرن التنين النور
+Light Dragon's Horn = قرن تنين النور
 
 # === مواد الأعداء — أسنان ومخالب ===
-Bokoblin Fang = سن بوكوبلن
-Moblin Fang = سن موبلن
-Boss Bokoblin Fang = سن بوكوبلن القائد
-Hinox Tooth = سِن هينوكس
-Hinox Toenail = ظفر هينوكس
-Horriblin Claw = مخلب هوربلين
+Bokoblin Fang = ناب بوكوبلين
+Moblin Fang = ناب موبلين
+Boss Bokoblin Fang = ناب بوكوبلين القائد
+Hinox Tooth = سن هاينوكس
+Hinox Toenail = ظفر هاينوكس
+Horriblin Claw = مخلب هوريبلين
 Lizalfos Talon = مخلب ليزالفوس
 Frox Fingernail = ظفر فروكس
-Lynel Hoof = حافر لينيل
+Lynel Hoof = حافر لاينل
 Dinraal's Claw = مخلب دينرال
 Naydra's Claw = مخلب نايدرا
 Farosh's Claw = مخلب فاروش
-Light Dragon's Talon = مخلب التنين النور
+Light Dragon's Talon = مخلب تنين النور
 
 # === مواد الأعداء — أحشاء ===
-Bokoblin Guts = أحشاء بوكوبلن
-Moblin Guts = أحشاء موبلن
-Boss Bokoblin Guts = أحشاء بوكوبلن القائد
-Lynel Guts = أحشاء لينيل
-Gleeok Guts = أحشاء التنين غليوك
-Molduga Guts = أحشاء مولدوجا
-Hinox Guts = أحشاء هينوكس
+Bokoblin Guts = أحشاء بوكوبلين
+Moblin Guts = أحشاء موبلين
+Boss Bokoblin Guts = أحشاء بوكوبلين القائد
+Lynel Guts = أحشاء لاينل
+Gleeok Guts = أحشاء غليوك
+Molduga Guts = أحشاء مولدوغا
+Hinox Guts = أحشاء هاينوكس
 
 # === مواد الأعداء — أجنحة ===
-Keese Wing = جناح خفاش ليلي
-Fire Keese Wing = جناح خفاش ناري
-Ice Keese Wing = جناح خفاش جليدي
-Electric Keese Wing = جناح خفاش كهربائي
+Keese Wing = جناح الخفاش
+Fire Keese Wing = جناح الخفاش الناري
+Ice Keese Wing = جناح الخفاش الجليدي
+Electric Keese Wing = جناح الخفاش الكهربائي
 Aerocuda Wing = جناح الإيروكودا
-Gibdo Wing = جناح جيبدو
-Gleeok Wing = جناح التنين غليوك
-Molduga Fin = زعانف مولدوجا
+Gibdo Wing = جناح غيبدو
+Gleeok Wing = جناح غليوك
+Molduga Fin = زعنفة مولدوغا
 
 # === مواد الأعداء — عيون ===
 Keese Eyeball = عين الخفاش
@@ -92,123 +92,123 @@ Zonaite = زونايت
 Large Zonaite = زونايت كبير
 Little Zonaite = زونايت صغير
 Zonai Charge = شحنة زوناي
-Luminous Stone = حجر متوهج
-Spark Stone = حجر برّاق
-Amber = عنبر
-Ruby = ياقوت أحمر
-Sapphire = ياقوت أزرق
-Topaz = توپاز
+Luminous Stone = حجر مضيء
+Spark Stone = حجر الشرارة
+Amber = كهرمان
+Ruby = ياقوتة حمراء
+Sapphire = ياقوتة زرقاء
+Topaz = توباز
 Opal = أوبال
-Diamond = ألماس
-Flint = فلينت
+Diamond = ألماسة
+Flint = صوّان
 
 # === الموارد الطبيعية — فواكه وخضار ===
-Voltfruit = قطرة برق
+Voltfruit = فاكهة البرق
 Palm Fruit = ثمرة النخيل
 Hydromelon = بطيخ مائي
 Mighty Bananas = موز قوي
-Endura Carrot = جزر إندورا
+Endura Carrot = جزر التحمل
 Swift Carrot = جزر سريع
 Hearty Radish = فجل منيع
-Swift Violet = بنفسج سريع
-Cool Safflina = الزافلين البارد
-Warm Safflina = الزافلين الدافئ
+Swift Violet = بنفسجة سريعة
+Cool Safflina = عشبة السافلينا الباردة
+Warm Safflina = عشبة السافلينا الدافئة
 Silent Princess = الأميرة الصامتة
-Mighty Thistle = خرشوف ضخم
+Mighty Thistle = شوك قوي
 Tabantha Wheat = قمح تابانثا
 
 # === البذور والأحجار ===
-Brightbloom Seed = بذرة برايتبلوم
-Giant Brightbloom Seed = بذرة برايتبلوم العملاقة
+Brightbloom Seed = بذرة الزهرة المضيئة
+Giant Brightbloom Seed = بذرة الزهرة المضيئة العملاقة
 Korok Seed = بذرة كوروك
-Lightroot = جذر ضوئي
+Lightroot = جذر النور
 
 # === الأسلحة — سيوف يد واحدة ===
-Decayed Master Sword = السيف الرئيسي المتحلل
-Master Sword = السيف الرئيسي
+Decayed Master Sword = السيف الأسطوري المتحلل
+Master Sword = السيف الأسطوري
 Traveler's Sword = سيف المسافر
-Soldier's Broadsword = سيف الجنود
-Knight's Broadsword = سيف الفرسان
-Royal Broadsword = السيف الملكي
+Soldier's Broadsword = سيف الجنود العريض
+Knight's Broadsword = سيف الفرسان العريض
+Royal Broadsword = السيف الملكي العريض
 Forest Dweller's Sword = سيف سكان الغابة
-Gerudo Scimitar = صقير الغرودو
+Gerudo Scimitar = سيف الغيرودو المنحني
 Scimitar of the Seven = سيف السبعة
-Eightfold Blade = نصل الثمانية
-Rusty Broadsword = السيف الصدئ
+Eightfold Blade = نصل الطيات الثمان
+Rusty Broadsword = سيف عريض صدئ
 Sword of the Hero = سيف البطل
 Royal Guard's Sword = سيف الحرس الملكي
-White Sword of the Sky = السيف الأبيض السماوي
-Zonaite Sword = سيف زوناي
-Strong Zonaite Sword = سيف زوناي القوي
-Mighty Zonaite Sword = سيف زوناي الجبار
-Gloom Sword = سيف القتامة
+White Sword of the Sky = سيف السماء الأبيض
+Zonaite Sword = سيف زونايت
+Strong Zonaite Sword = سيف زونايت القوي
+Mighty Zonaite Sword = سيف زونايت الجبار
+Gloom Sword = سيف الظلام
 
 # === الأسلحة — عصي وأدوات ===
 Wooden Stick = عصا خشبية
 Sturdy Wooden Stick = عصا خشبية متينة
-Gnarled Wooden Stick = عصا خشبية ملتفة
+Gnarled Wooden Stick = عصا خشبية معقّدة
 Long Stick = عصا طويلة
 Sturdy Long Stick = عصا طويلة متينة
-Gnarled Long Stick = عصا طويلة ملتفة
+Gnarled Long Stick = عصا طويلة معقّدة
 Magic Rod = عصا سحرية
 Magic Staff = عصا سحرية طويلة
-Farming Hoe = محراث الزراعة
+Farming Hoe = معزقة
 Boat Oar = مجداف القارب
 
-# === الأسلحة — بوميرانج ===
-Lizal Boomerang = بوميرانج ليزالفوس
-Giant Boomerang = بوميرانج عملاق
+# === الأسلحة — بوميرانغ ===
+Lizal Boomerang = بوميرانغ ليزالفوس
+Giant Boomerang = بوميرانغ عملاق
 
 # === الأسلحة — عظام ===
-Bokoblin Arm = ذراع بوكوبلن
+Bokoblin Arm = ذراع بوكوبلين
 Lizalfos Arm = ذراع ليزالفوس
 
 # === الأسلحة — سيوف ثنائية اليد ===
-Traveler's Claymore = خنجر المسافر
-Soldier's Claymore = خنجر الجنود
-Knight's Claymore = خنجر الفرسان
-Royal Claymore = خنجر الملكي
-Zora Longsword = سيف طويل زورا
-Cobble Crusher = كسارة الصخور
+Traveler's Claymore = سيف المسافر العريض
+Soldier's Claymore = سيف الجنود العريض الكبير
+Knight's Claymore = سيف الفرسان العريض
+Royal Claymore = السيف الملكي العريض
+Zora Longsword = سيف الزورا الطويل
+Cobble Crusher = محطم الحصى
 Boulder Breaker = محطم الصخور
 Biggoron's Sword = سيف بيغورون
-Gerudo Claymore = خنجر جرودو
-Eightfold Longblade = نصل الثمانية الطويل
-Dusk Claymore = خنجر الغسق
-Fierce Deity Sword = سيف إله الغضب
-Rusty Claymore = خنجر صدئ
-Royal Guard's Claymore = خنجر الحرس الملكي
+Gerudo Claymore = سيف الغيرودو العريض
+Eightfold Longblade = نصل الطيات الثمان الطويل
+Dusk Claymore = سيف الغسق العريض
+Fierce Deity Sword = سيف الإله الشرس
+Rusty Claymore = سيف عريض صدئ
+Royal Guard's Claymore = سيف الحرس الملكي العريض
 
 # === الأسلحة — رماح ===
-Zonaite Spear = رمح زوناي
-Strong Zonaite Spear = رمح زوناي القوي
-Mighty Zonaite Spear = رمح زوناي الجبار
-Gloom Spear = رمح القتامة
+Zonaite Spear = رمح زونايت
+Strong Zonaite Spear = رمح زونايت القوي
+Mighty Zonaite Spear = رمح زونايت الجبار
+Gloom Spear = رمح الظلام
 
 # === الدروع ===
-Boko Shield = درع بوكو
-Daybreaker = قناع النهار
-Dragonbone Boko Shield = درع بوكو عظمي
+Boko Shield = درع بوكوبلين
+Daybreaker = كاسر الفجر
+Dragonbone Boko Shield = درع بوكوبلين العظمي
 Emblazoned Shield = درع منقوش
 Fisherman's Shield = درع الصياد
 Forest Dweller's Shield = درع سكان الغابة
-Gerudo Shield = درع جرودو
+Gerudo Shield = درع الغيرودو
 Hunter's Shield = درع الصياد
-Hylian Shield = درع هيليان
-Kite Shield = درع كيت
-Knight's Shield = درع الفارس
-Lizal Shield = درع ليزال
-Lynel Shield = درع لينيل
-Mighty Lynel Shield = درع لينيل الجبار
+Hylian Shield = درع هايليا
+Kite Shield = درع الطائرة الورقية
+Knight's Shield = درع الفرسان
+Lizal Shield = درع ليزالفوس
+Lynel Shield = درع لاينل
+Mighty Lynel Shield = درع لاينل الجبار
 Soldier's Shield = درع الجنود
 Shield of the Mind's Eye = درع عين العقل
-Spiked Boko Shield = درع بوكو الشائك
-Steel Lizal Shield = درع ليزال الفولاذي
-Strong Zonaite Shield = درع زوناي القوي
+Spiked Boko Shield = درع بوكوبلين الشائك
+Steel Lizal Shield = درع ليزالفوس الفولاذي
+Strong Zonaite Shield = درع زونايت القوي
 Traveler's Shield = درع المسافر
 Wooden Shield = درع خشبي
-Zonaite Shield = درع زوناي
-Zora Shield = درع زورا
+Zonaite Shield = درع زونايت
+Zora Shield = درع الزورا
 
 # === أجهزة الزوناي ===
 Fan = مروحة زوناي
