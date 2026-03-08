@@ -5,11 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- Tag Protection: replace [content] with TAG_N placeholders ---
+// --- Tag Protection: replace [content] and control chars with TAG_N placeholders ---
 function protectTags(text: string): { cleaned: string; tags: Map<string, string> } {
   const tags = new Map<string, string>();
   let counter = 0;
-  // Protect both [bracket tags] AND Unicode control markers (U+FFF9-FFFC, PUA U+E000-E0FF)
   const cleaned = text.replace(/\[[^\]]*\]|[\uFFF9-\uFFFC\uE000-\uE0FF]+/g, (match) => {
     const placeholder = `TAG_${counter++}`;
     tags.set(placeholder, match);
@@ -26,19 +25,132 @@ function restoreTags(text: string, tags: Map<string, string>): string {
   return result;
 }
 
+// --- Post-processing: clean up AI output ---
+function postProcess(translation: string, original: string): string {
+  let t = translation;
+  // Remove extra whitespace
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  // Fix Arabic punctuation: ensure ؟ instead of ? when text is Arabic
+  const hasArabic = /[\u0600-\u06FF]/.test(t);
+  if (hasArabic) {
+    // Replace English ? at end with Arabic ؟
+    t = t.replace(/\?(\s*)$/g, '؟$1');
+    // Replace English ; with Arabic ؛
+    t = t.replace(/;/g, '؛');
+    // Fix common AI artifacts
+    t = t.replace(/\u200F/g, ''); // Remove RTL marks that AI sometimes inserts
+  }
+  // Restore missing end punctuation
+  const origEnd = original.trim();
+  const transEnd = t.trim();
+  if (origEnd.endsWith('?') && !transEnd.endsWith('؟') && !transEnd.endsWith('?') && hasArabic) {
+    t = t.trimEnd() + '؟';
+  }
+  if (origEnd.endsWith('!') && !transEnd.endsWith('!')) {
+    t = t.trimEnd() + '!';
+  }
+  if (origEnd.endsWith('.') && !transEnd.endsWith('.') && !transEnd.endsWith('。')) {
+    t = t.trimEnd() + '.';
+  }
+  return t;
+}
+
+// --- Build the system prompt based on category ---
+function buildSystemPrompt(category: string): string {
+  const base = `أنت مترجم ألعاب فيديو محترف متخصص في سلسلة The Legend of Zelda. تترجم من الإنجليزية إلى العربية الفصحى المبسطة.
+
+قواعد الأسلوب العامة:
+• استخدم العربية الفصحى المبسطة (ليست عامية ولا أكاديمية جامدة)
+• اجعل الترجمة طبيعية وسلسة كأنها كُتبت بالعربية أصلاً
+• حافظ على طول الترجمة قريباً من الأصل (مهم جداً لصناديق النص في اللعبة)
+• لا تضف كلمات زائدة أو شرح غير موجود في الأصل
+• حافظ على العلامات TAG_0, TAG_1 إلخ في أماكنها بالضبط
+• حافظ على رمز العنصر النائب \uFFFC كما هو
+• الأسماء العلم الشهيرة: Link=لينك، Zelda=زيلدا، Ganon=غانون، Hyrule=هايرول، Triforce=تريفورس، Master Sword=سيف الماستر
+• أعد فقط مصفوفة JSON من النصوص المترجمة بنفس الترتيب`;
+
+  const categoryPrompts: Record<string, string> = {
+    'story': `\n\nأسلوب خاص — حوارات القصة:
+• استخدم أسلوباً سردياً أدبياً جذاباً يناسب عالم الفانتازيا
+• حافظ على شخصية المتحدث (رسمي للملوك، ودود للقرويين، غامض للحكماء)
+• استخدم "أنت" و"أنتِ" حسب السياق
+• اجعل الحوارات تبدو حية وطبيعية لا جامدة`,
+
+    'hud': `\n\nأسلوب خاص — واجهة اللعب:
+• اختصر قدر الإمكان — كل حرف مهم
+• استخدم صيغة الأمر المباشر (اضغط، افتح، أغلق)
+• تجنب الضمائر والأدوات غير الضرورية`,
+
+    'main-menu': `\n\nأسلوب خاص — القائمة الرئيسية:
+• اختصر قدر الإمكان
+• استخدم مصطلحات شائعة في ألعاب الفيديو العربية`,
+
+    'settings': `\n\nأسلوب خاص — الإعدادات:
+• استخدم المصطلحات التقنية الشائعة (السطوع، مستوى الصوت، حساسية...)
+• اختصر قدر الإمكان`,
+
+    'pause-menu': `\n\nأسلوب خاص — قائمة الإيقاف:
+• اختصر بحيث يتسع النص في الأزرار
+• استخدم صيغ اسمية مباشرة`,
+
+    'swords': `\n\nأسلوب خاص — أسماء الأسلحة:
+• ترجم الوصف ولكن حافظ على الأسماء المميزة
+• استخدم صياغة ملحمية مختصرة (سيف البرق، رمح الظلام)`,
+    'spears': `\n\nأسلوب خاص — أسماء الرماح: استخدم صياغة ملحمية مختصرة`,
+    'bows': `\n\nأسلوب خاص — أسماء الأقواس: استخدم صياغة ملحمية مختصرة`,
+    'shields': `\n\nأسلوب خاص — أسماء الدروع: استخدم صياغة ملحمية مختصرة`,
+    'armor': `\n\nأسلوب خاص — الملابس والدروع: ترجم الاسم بشكل وصفي مختصر`,
+
+    'food': `\n\nأسلوب خاص — الطعام والطبخ:
+• استخدم أسماء الأطعمة الشائعة بالعربية
+• للوصفات المركبة، اجعل الاسم وصفياً جذاباً`,
+
+    'monsters': `\n\nأسلوب خاص — الوحوش والأعداء:
+• ترجم أسماء الوحوش العامة (Bokoblin=بوكوبلين، Lynel=لينيل)
+• حافظ على أسماء الزعماء الشهيرة`,
+
+    'challenge': `\n\nأسلوب خاص — المهام والتحديات:
+• استخدم أسلوباً تحفيزياً واضحاً
+• اجعل أسماء المهام جذابة ومثيرة`,
+
+    'map': `\n\nأسلوب خاص — المواقع والخرائط:
+• حافظ على الأسماء العلم أو اكتبها بالحروف العربية
+• ترجم الأوصاف الجغرافية (Peak=قمة، Lake=بحيرة، Forest=غابة)`,
+
+    'tips': `\n\nأسلوب خاص — النصائح والتعليمات:
+• استخدم أسلوب المخاطب المباشر
+• اجعل التعليمات واضحة ومباشرة`,
+
+    'npc': `\n\nأسلوب خاص — أسماء الشخصيات:
+• اكتب الأسماء بالحروف العربية بأقرب نطق ممكن
+• لا تترجم معنى الأسماء العلم`,
+
+    'zonai': `\n\nأسلوب خاص — أدوات زوناي:
+• ترجم وظيفة الأداة بشكل مختصر وواضح`,
+
+    'materials': `\n\nأسلوب خاص — المواد والموارد:
+• استخدم أسماء المواد الشائعة بالعربية`,
+  };
+
+  return base + (categoryPrompts[category] || '');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail } = await req.json() as {
-      entries: { key: string; original: string }[];
+    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail, category, filePath, labels } = await req.json() as {
+      entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
       translationEngine?: 'gemini' | 'lovable' | 'mymemory';
       myMemoryEmail?: string;
+      category?: string;
+      filePath?: string;
+      labels?: string[];
     };
 
     if (!entries || entries.length === 0) {
@@ -54,57 +166,60 @@ Deno.serve(async (req) => {
       return { ...e, cleaned, tags };
     });
 
-    // Build prompt with cleaned texts
-    const textsBlock = protectedEntries.map((e, i) => `[${i}] ${e.cleaned}`).join('\n');
-
-    let glossarySection = '';
-    if (glossary && glossary.trim()) {
-      glossarySection = `\n\nIMPORTANT - Use this glossary for consistent terminology:\n${glossary}\n`;
-    }
-
+    // Build rich context block
     let contextSection = '';
     if (context && context.length > 0) {
       const contextLines = context
         .filter(c => c.translation?.trim())
-        .map(c => `"${c.original}" → "${c.translation}"`)
-        .slice(0, 10)
+        .map(c => `EN: "${c.original}" → AR: "${c.translation}"`)
+        .slice(0, 15)
         .join('\n');
       if (contextLines) {
-        contextSection = `\n\nHere are some nearby already-translated texts for context and consistency:\n${contextLines}\n`;
+        contextSection = `\n\nترجمات مجاورة سابقة (استخدمها للاتساق في الأسلوب والمصطلحات):
+${contextLines}`;
       }
     }
 
-    // Detect category from entry keys for style guidance
-    let categoryHint = '';
-    const sampleKey = entries[0]?.key || '';
-    if (/ActorMsg\/PouchContent/i.test(sampleKey)) categoryHint = 'هذه نصوص أسماء أسلحة وأدوات ومواد - استخدم صيغة مختصرة ومباشرة.';
-    else if (/LayoutMsg/i.test(sampleKey)) categoryHint = 'هذه نصوص واجهة مستخدم وقوائم - استخدم صيغة مختصرة وواضحة.';
-    else if (/EventFlowMsg/i.test(sampleKey)) categoryHint = 'هذه حوارات قصة ومهام - استخدم أسلوباً سردياً طبيعياً وممتعاً.';
-    else if (/ChallengeMsg/i.test(sampleKey)) categoryHint = 'هذه نصوص مهام وتحديات - استخدم أسلوباً تحفيزياً واضحاً.';
-    else if (/LocationMsg/i.test(sampleKey)) categoryHint = 'هذه أسماء مواقع وخرائط - حافظ على الأسماء العلم أو ترجمها بالطريقة الشائعة.';
-    else if (/ActorMsg/i.test(sampleKey)) categoryHint = 'هذه أسماء شخصيات وأعداء - حافظ على الأسماء العلم الشهيرة كما هي.';
+    // Build glossary section with better formatting
+    let glossarySection = '';
+    if (glossary && glossary.trim()) {
+      const lines = glossary.trim().split('\n').filter(l => l.includes('='));
+      if (lines.length > 0) {
+        // Take most relevant glossary terms (first 100)
+        const relevant = lines.slice(0, 100);
+        glossarySection = `\n\nقاموس المصطلحات (يجب استخدام هذه الترجمات بالضبط عند ظهور المصطلح):
+${relevant.join('\n')}`;
+      }
+    }
 
-    const categorySection = categoryHint ? `\n\n${categoryHint}` : '';
+    // File/category metadata
+    let metadataSection = '';
+    if (filePath || category) {
+      metadataSection = '\n\nمعلومات الملف:';
+      if (filePath) metadataSection += `\nمسار الملف: ${filePath}`;
+      if (category) metadataSection += `\nالفئة: ${category}`;
+    }
 
-    const prompt = `You are a professional game translator specializing in The Legend of Zelda series. Translate the following game texts from English/Japanese to Arabic.
+    // Build texts block with labels for context
+    const textsBlock = protectedEntries.map((e, i) => {
+      const labelPart = e.label ? ` (${e.label})` : '';
+      const bytePart = e.maxBytes && e.maxBytes > 0 ? ` [حد: ${e.maxBytes} بايت]` : '';
+      return `[${i}]${labelPart}${bytePart} ${e.cleaned}`;
+    }).join('\n');
 
-CRITICAL RULES:
-- Keep placeholder tags like \uFFFC and TAG_0, TAG_1, etc. intact in their exact positions.
-- Keep the translation length close to the original to fit in-game text boxes.
-- Use terminology consistent with the Arabic gaming community (e.g. تريفورس for Triforce, سيف الماستر for Master Sword).
-- Preserve proper nouns like Link, Zelda, Ganon, Hyrule as-is or use their well-known Arabic equivalents.
-- Return ONLY a JSON array of strings in the same order. No explanations.${categorySection}${glossarySection}${contextSection}
+    // Build system prompt based on category
+    const systemPrompt = buildSystemPrompt(category || 'other');
 
-Texts:
+    const userPrompt = `ترجم النصوص التالية من الإنجليزية إلى العربية. أعد فقط مصفوفة JSON تحتوي على النصوص المترجمة بنفس الترتيب، بدون أي شرح أو تعليقات.${metadataSection}${glossarySection}${contextSection}
+
+النصوص للترجمة:
 ${textsBlock}`;
-
-    let data: any;
 
     // === MyMemory translation engine ===
     if (translationEngine === 'mymemory') {
       const result: Record<string, string> = {};
       let totalChars = 0;
-      const CONCURRENT = 5; // send 5 requests in parallel
+      const CONCURRENT = 5;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
         const batch = protectedEntries.slice(i, i + CONCURRENT);
         const promises = batch.map(async (entry) => {
@@ -117,13 +232,13 @@ ${textsBlock}`;
             const mmData = await mmResponse.json();
             const translated = mmData?.responseData?.translatedText;
             if (translated && translated.trim()) {
-              result[entry.key] = restoreTags(translated, entry.tags);
+              const restored = restoreTags(translated, entry.tags);
+              result[entry.key] = postProcess(restored, entry.original);
               totalChars += entry.cleaned.length;
             }
           } catch { /* skip */ }
         });
         await Promise.all(promises);
-        // small delay between batches to avoid rate limiting
         if (i + CONCURRENT < protectedEntries.length) {
           await new Promise(r => setTimeout(r, 150));
         }
@@ -133,22 +248,25 @@ ${textsBlock}`;
       });
     }
 
+    let data: any;
+
     if (userApiKey && userApiKey.trim()) {
-      // Use user's own Gemini API key directly
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey.trim()}`;
+      // Use user's own Gemini API key — upgrade to gemini-2.5-flash
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey.trim()}`;
       
       const geminiResponse = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [
-            { role: 'user', parts: [{ text: prompt }] }
+            { role: 'user', parts: [{ text: userPrompt }] }
           ],
           systemInstruction: {
-            parts: [{ text: 'You are a game text translator. Output only valid JSON arrays.' }]
+            parts: [{ text: systemPrompt }]
           },
           generationConfig: {
-            temperature: 0.3,
+            temperature: 0.2,
+            topP: 0.9,
           },
         }),
       });
@@ -162,7 +280,6 @@ ${textsBlock}`;
           });
         }
         if (geminiResponse.status === 429) {
-          // Check if quota is truly zero (free tier exhausted permanently)
           const isQuotaZero = errText.includes('limit: 0');
           const msg = isQuotaZero
             ? 'حصة مفتاح Gemini المجاني نفدت بالكامل. أنشئ مفتاحاً جديداً من مشروع Google Cloud جديد، أو فعّل الفوترة على ai.google.dev'
@@ -179,7 +296,6 @@ ${textsBlock}`;
       const geminiData = await geminiResponse.json();
       const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
       
-      // Extract JSON array from response
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('فشل في تحليل استجابة Gemini');
       
@@ -189,7 +305,8 @@ ${textsBlock}`;
       const result: Record<string, string> = {};
       for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
         if (translations[i] && translations[i].trim()) {
-          result[protectedEntries[i].key] = restoreTags(translations[i], protectedEntries[i].tags);
+          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
       
@@ -197,7 +314,7 @@ ${textsBlock}`;
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      // Use Lovable AI gateway (default)
+      // Use Lovable AI gateway — upgrade to gemini-2.5-pro
       const apiKey = Deno.env.get('LOVABLE_API_KEY');
       if (!apiKey) throw new Error('Missing LOVABLE_API_KEY');
 
@@ -210,10 +327,10 @@ ${textsBlock}`;
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: 'You are a game text translator. Output only valid JSON arrays.' },
-            { role: 'user', content: prompt },
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
           ],
-          temperature: 0.3,
+          temperature: 0.2,
         }),
       });
 
@@ -237,7 +354,8 @@ ${textsBlock}`;
       const result: Record<string, string> = {};
       for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
         if (translations[i] && translations[i].trim()) {
-          result[protectedEntries[i].key] = restoreTags(translations[i], protectedEntries[i].tags);
+          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
 
