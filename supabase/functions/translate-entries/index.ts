@@ -141,12 +141,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail, category, filePath, labels } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, myMemoryEmail, category, filePath, labels } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
       translationEngine?: 'gemini' | 'lovable' | 'mymemory';
+      translationQuality?: 'fast' | 'quality';
       myMemoryEmail?: string;
       category?: string;
       filePath?: string;
@@ -251,8 +252,9 @@ ${textsBlock}`;
     let data: any;
 
     if (userApiKey && userApiKey.trim()) {
-      // Use user's own Gemini API key — upgrade to gemini-2.5-flash
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey.trim()}`;
+      // Use user's own Gemini API key — select model based on quality
+      const geminiModel = translationQuality === 'quality' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${userApiKey.trim()}`;
       
       const geminiResponse = await fetch(geminiUrl, {
         method: 'POST',
@@ -314,10 +316,11 @@ ${textsBlock}`;
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      // Use Lovable AI gateway — upgrade to gemini-2.5-pro
+      // Use Lovable AI gateway — select model based on quality
       const apiKey = Deno.env.get('LOVABLE_API_KEY');
       if (!apiKey) throw new Error('Missing LOVABLE_API_KEY');
 
+      const gatewayModel = translationQuality === 'quality' ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -325,7 +328,7 @@ ${textsBlock}`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: gatewayModel,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },

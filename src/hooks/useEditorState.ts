@@ -70,6 +70,13 @@ export function useEditorState() {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch {}
   }, []);
+  const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
+    try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
+  });
+  const setTranslationQuality = useCallback((q: 'fast' | 'quality') => {
+    _setTranslationQuality(q);
+    try { localStorage.setItem('translationQuality', q); } catch {}
+  }, []);
   const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
     try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
   });
@@ -467,7 +474,7 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   });
   const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
@@ -845,7 +852,7 @@ export function useEditorState() {
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
-    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine,
+    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, translationQuality, setTranslationQuality,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed,
 

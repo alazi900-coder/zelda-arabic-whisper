@@ -18,6 +18,7 @@ interface UseEditorTranslationProps {
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
   translationEngine: 'gemini' | 'lovable' | 'mymemory';
+  translationQuality: 'fast' | 'quality';
   filteredEntries: ExtractedEntry[];
   isFilterActive: boolean;
   myMemoryEmail: string;
@@ -28,7 +29,7 @@ interface UseEditorTranslationProps {
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine,
+  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
@@ -84,6 +85,7 @@ export function useEditorTranslation({
           context: contextEntries.length > 0 ? contextEntries : undefined,
           userApiKey: userGeminiKey || undefined,
           translationEngine,
+          translationQuality,
           myMemoryEmail: myMemoryEmail || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
@@ -232,6 +234,7 @@ export function useEditorTranslation({
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
               userApiKey: userGeminiKey || undefined,
               translationEngine,
+              translationQuality,
               myMemoryEmail: myMemoryEmail || undefined,
               category: batchCategory,
               filePath: batchFilePath,
@@ -354,6 +357,7 @@ export function useEditorTranslation({
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
             userApiKey: userGeminiKey || undefined,
             translationEngine,
+            translationQuality,
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batch[0].msbtFile,
@@ -411,7 +415,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, translationEngine, translationQuality, myMemoryEmail: myMemoryEmail || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
