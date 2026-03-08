@@ -852,6 +852,16 @@ const Editor = () => {
           onConfirm={editor.handleBuild}
           building={editor.building}
         />
+
+        {editor.fixPreview && (
+          <FixPreviewDialog
+            open={!!editor.fixPreview}
+            onClose={() => editor.setFixPreview(null)}
+            onApply={editor.handleApplyFixPreview}
+            title={editor.fixPreview.title}
+            items={editor.fixPreview.items}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
