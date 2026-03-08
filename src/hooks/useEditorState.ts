@@ -700,13 +700,11 @@ export function useEditorState() {
       }
     }
     if (fixedCount === 0) {
-      setLastSaved("لا توجد أقواس مكسورة للإصلاح");
-      setTimeout(() => setLastSaved(""), 3000);
+      toast({ title: "لا توجد أقواس مكسورة للإصلاح", variant: "default" });
       return;
     }
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    setLastSaved(`✅ تم إصلاح الأقواس في ${fixedCount} ترجمة`);
-    setTimeout(() => setLastSaved(""), 3000);
+    toast({ title: `✅ تم إصلاح الأقواس في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
   }, [state]);
 
   const handleFixMixedLanguage = async () => {
