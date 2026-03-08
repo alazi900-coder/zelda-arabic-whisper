@@ -266,6 +266,9 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         punctuationMismatch, punctuationMismatchKeys,
         unclosedBrackets, unclosedBracketKeys,
         inconsistentTerms,
+        hasDiacritics, hasDiacriticsKeys,
+        hasDoubleSpaces, hasDoubleSpacesKeys,
+        hasHamzaIssues, hasHamzaIssuesKeys,
       });
       setNeedsImproveCount({ total: needsImproveKeys.size, tooShort: niTooShort, tooLong: niTooLong, stuck: niStuck, mixed: niMixed });
       setTranslatedCount(translated);
