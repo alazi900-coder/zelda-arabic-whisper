@@ -316,10 +316,11 @@ ${textsBlock}`;
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      // Use Lovable AI gateway — upgrade to gemini-2.5-pro
+      // Use Lovable AI gateway — select model based on quality
       const apiKey = Deno.env.get('LOVABLE_API_KEY');
       if (!apiKey) throw new Error('Missing LOVABLE_API_KEY');
 
+      const gatewayModel = translationQuality === 'quality' ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash';
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -327,7 +328,7 @@ ${textsBlock}`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: gatewayModel,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
