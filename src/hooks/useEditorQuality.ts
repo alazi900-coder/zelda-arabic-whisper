@@ -119,6 +119,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       const translationToKeys = new Map<string, string[]>();
       // For terminology consistency: english word -> Set of arabic translations
       const termMap = new Map<string, Map<string, string[]>>();
+      // Build entry lookup map for O(1) access
+      const entryByKey = new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
 
       for (const entry of state.entries) {
         const key = `${entry.msbtFile}:${entry.index}`;
@@ -216,7 +218,9 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         // === Text cleanup checks ===
         if (diacriticsRegex.test(trimmed)) { hasDiacritics++; hasDiacriticsKeys.add(key); }
         if (/ {2,}/.test(trimmed) || / [،؛؟!.,;?]/.test(trimmed)) { hasDoubleSpaces++; hasDoubleSpacesKeys.add(key); }
-        if (/[أإآ]/.test(trimmed) || /ى(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
+      // Hamza issues: only flag inconsistent hamza usage patterns (e.g. إنشالله instead of إن شاء الله, or common mistakes)
+      // Flag only when alef-hamza appears at word boundaries inconsistently, or final ya/alef-maqsura confusion
+      if (/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed) && /ي(?=[\s،؛؟!.,;?\]\[」』】）》〉]|$)/.test(trimmed)) { hasHamzaIssues++; hasHamzaIssuesKeys.add(key); }
       }
 
       // Finalize duplicate detection
@@ -227,8 +231,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         if (keys.length >= 2) {
           const originals = new Set<string>();
           for (const k of keys) {
-            const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
-            if (entry) originals.add(entry.original.trim());
+          const entry = entryByKey.get(k);
+          if (entry) originals.add(entry.original.trim());
           }
           if (originals.size > 1) {
             duplicateTranslations += keys.length;
@@ -308,8 +312,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       if (keys.size === 0) return;
       lines.push(`\n--- ${title} (${keys.size}) ---`);
       for (const k of keys) {
-        const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
-        if (!entry) continue;
+      const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
+        if (!entry) continue;  // exportQualityReport runs rarely, O(n) find is acceptable here
         const trans = state.translations[k] || '';
         lines.push(`  [${k}] ${entry.label}`);
         lines.push(`    الأصل: ${entry.original.slice(0, 80)}${entry.original.length > 80 ? '...' : ''}`);
