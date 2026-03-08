@@ -655,13 +655,11 @@ export function useEditorState() {
       }
     }
     if (fixedCount === 0) {
-      setLastSaved("لا توجد علامات ترقيم مفقودة للإصلاح");
-      setTimeout(() => setLastSaved(""), 3000);
+      toast({ title: "لا توجد علامات ترقيم مفقودة للإصلاح", variant: "default" });
       return;
     }
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    setLastSaved(`✅ تم إصلاح علامات الترقيم في ${fixedCount} ترجمة`);
-    setTimeout(() => setLastSaved(""), 3000);
+    toast({ title: `✅ تم إصلاح علامات الترقيم في ${fixedCount} ترجمة`, description: `تم تصحيح ${fixedCount} إدخال تلقائياً` });
   }, [state]);
 
   const handleFixAllBrackets = useCallback(() => {
