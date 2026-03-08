@@ -974,7 +974,7 @@ export function useEditorState() {
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,
     handleCloudSave, handleCloudLoad,
-    handleApplyArabicProcessing, handlePreBuild, handleBuild, handleBulkReplace,
+    handleApplyArabicProcessing, handlePreBuild, handleBuild, handleBulkReplace, handleApplyFixPreview,
 
     // Quality helpers
     isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement,
