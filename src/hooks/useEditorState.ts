@@ -787,10 +787,12 @@ export function useEditorState() {
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
+      // Normalize alef variants to bare alef
       fixed = fixed.replace(/[أإآ]/g, 'ا');
-      fixed = fixed.replace(/ى\b/g, 'ي');
+      // Normalize alef maqsura at end of words (followed by space, punctuation, end, or non-Arabic)
+      fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉\u0000-\u001F]|$)/g, 'ي');
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
