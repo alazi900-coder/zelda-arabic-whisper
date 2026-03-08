@@ -959,7 +959,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, translationQuality, setTranslationQuality,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
-    setMyMemoryEmail, setMyMemoryCharsUsed,
+    setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
 
     // Handlers
     toggleProtection, toggleTechnicalBypass,
