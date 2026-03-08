@@ -141,12 +141,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, myMemoryEmail, category, filePath, labels } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, myMemoryEmail, category, filePath, labels } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
       translationEngine?: 'gemini' | 'lovable' | 'mymemory';
+      translationQuality?: 'fast' | 'quality';
       myMemoryEmail?: string;
       category?: string;
       filePath?: string;
