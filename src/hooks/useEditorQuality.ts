@@ -231,8 +231,8 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
         if (keys.length >= 2) {
           const originals = new Set<string>();
           for (const k of keys) {
-            const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === k);
-            if (entry) originals.add(entry.original.trim());
+          const entry = entryByKey.get(k);
+          if (entry) originals.add(entry.original.trim());
           }
           if (originals.size > 1) {
             duplicateTranslations += keys.length;
