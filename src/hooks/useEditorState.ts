@@ -748,12 +748,23 @@ export function useEditorState() {
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
       let fixed = translation;
+      // Protect content inside [tags] by temporarily replacing them
+      const tagPlaceholders: string[] = [];
+      fixed = fixed.replace(/\[[^\]]*\]/g, (match) => {
+        tagPlaceholders.push(match);
+        return `\uFFFE${tagPlaceholders.length - 1}\uFFFE`;
+      });
+      // Merge multiple spaces
       fixed = fixed.replace(/ {2,}/g, ' ');
+      // Remove space before punctuation
       fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
-      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\]،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
+      // Add space after punctuation if missing (not before tag placeholders or other punctuation)
+      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\uFFFE،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
+      // Restore tags
+      fixed = fixed.replace(/\uFFFE(\d+)\uFFFE/g, (_, idx) => tagPlaceholders[parseInt(idx)]);
       fixed = fixed.trim();
       if (fixed !== translation) {
-        setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
+        setPreviousTranslations(prev => ({ ...prev, [key]: translation }));
         updates[key] = fixed;
         fixedCount++;
       }
