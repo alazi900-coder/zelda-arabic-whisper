@@ -441,6 +441,9 @@ const Editor = () => {
                     { value: "mixed-lang", label: "🌐 مختلط" },
                     { value: "has-tags", label: "🔧 رموز تقنية" },
                     { value: "no-tags", label: "✨ بدون رموز" },
+                    { value: "duplicates", label: "🔁 مكرر" },
+                    { value: "punctuation", label: "❓ ترقيم" },
+                    { value: "unclosed-brackets", label: "🔓 أقواس" },
                   ].map(f => (
                     <Button
                       key={f.value}
