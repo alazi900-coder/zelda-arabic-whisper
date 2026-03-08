@@ -920,7 +920,7 @@ export function useEditorState() {
     setFixPreview(null);
   }, [state, fixPreview]);
 
-
+  const handleBulkReplace = useCallback((replacements: Record<string, string>) => {
     if (!state) return;
     const prev: Record<string, string> = {};
     for (const key of Object.keys(replacements)) {
