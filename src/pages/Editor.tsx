@@ -220,6 +220,36 @@ const Editor = () => {
                   </Button>
                 </div>
               </div>
+              {/* Translation Quality Selector */}
+              {editor.translationEngine !== 'mymemory' && (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-display font-bold">جودة الترجمة</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant={editor.translationQuality === 'fast' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => editor.setTranslationQuality('fast')}
+                      className="text-xs font-body"
+                    >
+                      ⚡ سريعة (Flash)
+                    </Button>
+                    <Button
+                      variant={editor.translationQuality === 'quality' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => editor.setTranslationQuality('quality')}
+                      className="text-xs font-body"
+                    >
+                      💎 عالية الجودة (Pro)
+                    </Button>
+                  </div>
+                  <span className="text-xs text-muted-foreground font-body">
+                    {editor.translationQuality === 'quality' ? 'أدق لكن أبطأ — يستخدم Gemini Pro' : 'أسرع وأخف — يستخدم Gemini Flash'}
+                  </span>
+                </div>
+              )}
               {/* Gemini API Key */}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
