@@ -74,10 +74,10 @@ footer{text-align:center;margin-top:2rem;color:#6b7280;font-size:.75rem}
 <h2>⚠️ مشاكل الجودة</h2>
 <div class="stats">
 <div class="stat ${qualityStats.total > 0 ? 'warn' : ''}"><div class="num">${qualityStats.total}</div><div class="label">إجمالي المشاكل</div></div>
-<div class="stat ${qualityStats.tooShort > 0 ? 'warn' : ''}"><div class="num">${qualityStats.tooShort}</div><div class="label">📏 قصيرة جداً</div></div>
+<div class="stat ${needsImproveCount.tooShort > 0 ? 'warn' : ''}"><div class="num">${needsImproveCount.tooShort}</div><div class="label">📏 قصيرة جداً</div></div>
 <div class="stat ${qualityStats.tooLong > 0 ? 'danger' : ''}"><div class="num">${qualityStats.tooLong}</div><div class="label">📐 طويلة جداً</div></div>
-<div class="stat ${qualityStats.stuck > 0 ? 'warn' : ''}"><div class="num">${qualityStats.stuck}</div><div class="label">🔤 أحرف ملتصقة</div></div>
-<div class="stat ${qualityStats.mixed > 0 ? 'warn' : ''}"><div class="num">${qualityStats.mixed}</div><div class="label">🌐 لغة مختلطة</div></div>
+<div class="stat ${needsImproveCount.stuck > 0 ? 'warn' : ''}"><div class="num">${needsImproveCount.stuck}</div><div class="label">🔤 أحرف ملتصقة</div></div>
+<div class="stat ${needsImproveCount.mixed > 0 ? 'warn' : ''}"><div class="num">${needsImproveCount.mixed}</div><div class="label">🌐 لغة مختلطة</div></div>
 <div class="stat"><div class="num">${qualityStats.duplicateTranslations}</div><div class="label">🔁 مكررة</div></div>
 <div class="stat"><div class="num">${qualityStats.punctuationMismatch}</div><div class="label">❓ ترقيم</div></div>
 <div class="stat"><div class="num">${qualityStats.unclosedBrackets}</div><div class="label">🔓 أقواس مفتوحة</div></div>

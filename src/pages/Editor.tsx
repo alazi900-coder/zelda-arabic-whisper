@@ -241,6 +241,7 @@ const Editor = () => {
               totalEntries={editor.state.entries.length}
               translatedCount={editor.translatedCount}
               qualityStats={editor.qualityStats}
+              needsImproveCount={editor.needsImproveCount}
               categoryProgress={editor.categoryProgress}
             />
           </div>
