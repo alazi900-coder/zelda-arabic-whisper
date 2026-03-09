@@ -16,6 +16,11 @@ const Index = () => {
       <header className="relative flex flex-col items-center justify-center min-h-[70vh] px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         <div className="relative z-10 max-w-2xl mx-auto">
+          <img
+            src={linkHero}
+            alt="البطل لينك من لعبة زيلدا"
+            className="w-40 h-40 md:w-52 md:h-52 mx-auto mb-6 object-contain drop-shadow-[0_0_25px_hsl(var(--primary)/0.4)] animate-[float_3s_ease-in-out_infinite]"
+          />
           <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm text-primary font-display font-semibold">أداة تعريب تلقائية</span>
