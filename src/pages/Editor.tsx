@@ -964,6 +964,47 @@ const Editor = () => {
           />
         )}
 
+        {/* Glossary Apply Confirmation */}
+        <AlertDialog open={!!glossaryApplyConfirm} onOpenChange={(v) => !v && setGlossaryApplyConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-display">تطبيق مصطلحات القاموس</AlertDialogTitle>
+              <AlertDialogDescription className="font-body text-sm space-y-2" dir="rtl">
+                {(() => {
+                  const targetEntries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
+                  const translatedEntries = targetEntries.filter(e => {
+                    const key = `${e.msbtFile}:${e.index}`;
+                    const t = editor.state?.translations[key]?.trim();
+                    return t && t !== e.original;
+                  });
+                  return (
+                    <>
+                      <p>سيتم فحص <strong>{translatedEntries.length}</strong> نص مترجم {glossaryApplyConfirm === 'filtered' ? '(من المفلتر)' : '(من الكل)'} بحثاً عن مصطلحات إنجليزية قابلة للاستبدال من القاموس ({editor.glossaryTermCount} مصطلح).</p>
+                      <p className="text-muted-foreground">ستظهر لك معاينة للتغييرات قبل تطبيقها فعلياً.</p>
+                    </>
+                  );
+                })()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-body">إلغاء</AlertDialogCancel>
+              <AlertDialogAction className="font-body" onClick={() => {
+                const entries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
+                const changes = glossaryApplyConfirm === 'filtered'
+                  ? editor.handleApplyGlossaryToFiltered(entries)
+                  : editor.handleApplyGlossaryToAll();
+                if (changes && changes.length > 0) {
+                  setGlossaryPreviewChanges(changes);
+                  setShowGlossaryPreview(true);
+                }
+                setGlossaryApplyConfirm(null);
+              }}>
+                متابعة
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <GlossaryApplyPreview
           open={showGlossaryPreview}
           onClose={() => setShowGlossaryPreview(false)}
