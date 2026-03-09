@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Upload, X, Image as ImageIcon, ZoomIn } from "lucide-react";
+import { Upload, X, Image as ImageIcon, ZoomIn, Brain, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import type { ExtractedEntry } from "./types";
 
 interface ScreenshotData {
@@ -26,6 +27,34 @@ export default function ScreenshotContext({ open, onClose, entry, screenshots, o
   const [zoomedUrl, setZoomedUrl] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const handleAIAnalysis = useCallback(async () => {
+    const fileScreenshots = screenshots[entry.msbtFile] || [];
+    if (fileScreenshots.length === 0) {
+      toast({ title: "⚠️ أضف صورة أولاً للتحليل" });
+      return;
+    }
+    setAnalyzing(true);
+    setAiAnalysis(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('context-suggest', {
+        body: {
+          target: { original: entry.original },
+          context: [],
+          file: entry.msbtFile,
+          visualContext: `الملف: ${entry.msbtFile}, التسمية: ${entry.label}, عدد الصور: ${fileScreenshots.length}, ملاحظات الصور: ${fileScreenshots.map(s => s.note || 'بدون').join(', ')}`,
+        },
+      });
+      if (error) throw error;
+      setAiAnalysis(data?.contextNote || "تم تحليل السياق البصري بنجاح");
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في التحليل", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [entry, screenshots]);
 
   const fileScreenshots = screenshots[entry.msbtFile] || [];
 
@@ -99,7 +128,24 @@ export default function ScreenshotContext({ open, onClose, entry, screenshots, o
               >
                 <Upload className="w-3.5 h-3.5" /> رفع صورة
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAIAnalysis}
+                disabled={analyzing}
+                className="shrink-0"
+              >
+                {analyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                تحليل AI
+              </Button>
             </div>
+            {aiAnalysis && (
+              <div className="mt-2 rounded-lg bg-primary/10 border border-primary/20 p-2.5">
+                <p className="text-xs font-body text-primary/90">
+                  <strong>🧠 تحليل الذكاء الاصطناعي:</strong> {aiAnalysis}
+                </p>
+              </div>
+            )}
           </div>
 
           <ScrollArea className="flex-1 min-h-0">

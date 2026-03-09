@@ -50,6 +50,8 @@ import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
 import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
 import ScreenshotContext from "@/components/editor/ScreenshotContext";
 import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
+import EngineComparePanel from "@/components/editor/EngineComparePanel";
+import SmartBulkImprovePanel from "@/components/editor/SmartBulkImprovePanel";
 import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,6 +138,19 @@ const Editor = () => {
   }, []);
 
   const [showFeatureTour, setShowFeatureTour] = React.useState(false);
+  const [showEngineCompare, setShowEngineCompare] = React.useState(false);
+  const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
+  const [showSmartImprove, setShowSmartImprove] = React.useState(false);
+
+  const openEngineCompare = React.useCallback((entry: any) => {
+    setEngineCompareEntry(entry);
+    setShowEngineCompare(true);
+  }, []);
+
+  const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
+    if (!editor.state) return;
+    editor.updateTranslation && Object.entries(updates).forEach(([k, v]) => editor.updateTranslation(k, v));
+  }, [editor.state]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
@@ -885,6 +900,9 @@ const Editor = () => {
                   <DropdownMenuItem onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0}>
                     <Search className="w-4 h-4" /> كشف التناقضات 🔍
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0}>
+                    <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -948,6 +966,9 @@ const Editor = () => {
               </Button>
               <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-amber-500/30 text-amber-600 hover:text-amber-700">
                 <Search className="w-4 h-4" /> كشف التناقضات 🔍
+              </Button>
+              <Button variant="outline" onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30">
+                <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
               </Button>
             </div>
           )}
@@ -1091,6 +1112,13 @@ const Editor = () => {
                         title="اقتراحات سياقية بالـ AI"
                       >
                         💡
+                      </button>
+                      <button
+                        onClick={() => openEngineCompare(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
+                        title="مقارنة بين المحركات"
+                      >
+                        ⚖️
                       </button>
                     </div>
                     <EntryCard
@@ -1312,6 +1340,7 @@ const Editor = () => {
             entries={editor.state.entries}
             translations={editor.state.translations}
             glossary={editor.state.glossary}
+            onApplyFix={editor.updateTranslation}
           />
         )}
 
@@ -1354,6 +1383,35 @@ const Editor = () => {
 
         {/* Feature Tour */}
         <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
+
+        {/* Engine Compare */}
+        {engineCompareEntry && editor.state && (
+          <EngineComparePanel
+            open={showEngineCompare}
+            onClose={() => setShowEngineCompare(false)}
+            entry={engineCompareEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            userGeminiKey={editor.userGeminiKey}
+            myMemoryEmail={editor.myMemoryEmail}
+            onApplyTranslation={editor.updateTranslation}
+          />
+        )}
+
+        {/* Smart Bulk Improve */}
+        {editor.state && (
+          <SmartBulkImprovePanel
+            open={showSmartImprove}
+            onClose={() => setShowSmartImprove(false)}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            isFilterActive={editor.isFilterActive}
+            filteredEntries={editor.filteredEntries}
+            onApplyImprovements={handleSmartImproveApply}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
