@@ -41,6 +41,7 @@ import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
+import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 
 const Editor = () => {
   const editor = useEditorState();
