@@ -231,7 +231,7 @@ const Editor = () => {
             const parts = r.key.split(':');
             return {
               key: r.key,
-              label: r.reason || 'تحسين الصياغة',
+              label: `${r.categoryLabel || ''} ${r.reason || 'تحسين الصياغة'}`.trim(),
               file: parts[0] || '',
               oldText: r.current,
               newText: r.improved,
