@@ -49,6 +49,8 @@ const Editor = () => {
   const [showDiffView, setShowDiffView] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
   const [showFilterTranslateConfirm, setShowFilterTranslateConfirm] = React.useState(false);
+  const [glossaryPreviewChanges, setGlossaryPreviewChanges] = React.useState<GlossaryChange[]>([]);
+  const [showGlossaryPreview, setShowGlossaryPreview] = React.useState(false);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
