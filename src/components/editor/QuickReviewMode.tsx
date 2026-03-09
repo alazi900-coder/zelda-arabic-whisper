@@ -45,20 +45,18 @@ const QuickReviewMode: React.FC<QuickReviewModeProps> = ({
   filteredEntries, quickReviewIndex, setQuickReviewIndex, setQuickReviewMode,
   translations, qualityProblemKeys, updateTranslation, entries, glossary,
 }) => {
-  if (filteredEntries.length === 0) return null;
-
-  const entry = filteredEntries[quickReviewIndex];
-  if (!entry) return null;
-  const key = `${entry.msbtFile}:${entry.index}`;
-  const translation = translations[key] || '';
-  const hasProblem = qualityProblemKeys.has(key);
-  const byteUsed = entry.maxBytes > 0 ? utf8ByteLength(translation) : 0;
-  const difficulty = classifyDifficulty(entry);
+  const entry = filteredEntries[quickReviewIndex] ?? null;
+  const key = entry ? `${entry.msbtFile}:${entry.index}` : '';
+  const translation = entry ? (translations[key] || '') : '';
+  const hasProblem = entry ? qualityProblemKeys.has(key) : false;
+  const byteUsed = entry && entry.maxBytes > 0 ? utf8ByteLength(translation) : 0;
+  const difficulty = entry ? classifyDifficulty(entry) : { level: 'simple' as const, score: 0, reasons: [], estimatedMinutes: 0 };
   const diffConf = DIFFICULTY_CONFIG[difficulty.level];
-  const glossaryHints = useMemo(() => findGlossaryHints(entry.original, glossary), [entry.original, glossary]);
+  const glossaryHints = useMemo(() => entry ? findGlossaryHints(entry.original, glossary) : [], [entry?.original, glossary]);
 
   // Adjacent entries for context
   const adjacentContext = useMemo(() => {
+    if (!entry) return { prev: null, next: null };
     const allEntries = entries || filteredEntries;
     const sameFile = allEntries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index);
     const idx = sameFile.findIndex(e => e.index === entry.index);
