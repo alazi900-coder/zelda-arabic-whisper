@@ -44,6 +44,22 @@ const Index = () => {
         </div>
       </header>
 
+      {/* World Banner */}
+      <section className="relative w-full overflow-hidden">
+        <img
+          src={hyruleWorld}
+          alt="عالم هايرول مع أبطال اللعبة"
+          className="w-full h-64 md:h-96 object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="absolute bottom-6 inset-x-0 text-center">
+          <p className="text-lg md:text-2xl font-display font-bold text-foreground drop-shadow-lg">
+            🏰 استكشف عالم هايرول باللغة العربية
+          </p>
+        </div>
+      </section>
+
       {/* Steps */}
       <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto">
