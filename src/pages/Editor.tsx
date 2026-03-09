@@ -144,13 +144,16 @@ const Editor = () => {
         // Show as fix preview
         editor.setFixPreview({
           title: `تحسين الصياغة العربية (${changedResults.length} نص)`,
-          items: changedResults.map((r: any) => ({
-            key: r.key,
-            original: r.original,
-            before: r.current,
-            after: r.improved,
-            reason: r.reason,
-          })),
+          items: changedResults.map((r: any) => {
+            const parts = r.key.split(':');
+            return {
+              key: r.key,
+              label: r.reason || 'تحسين الصياغة',
+              file: parts[0] || '',
+              oldText: r.current,
+              newText: r.improved,
+            };
+          }),
           updates: Object.fromEntries(changedResults.map((r: any) => [r.key, r.improved])),
         });
       }
