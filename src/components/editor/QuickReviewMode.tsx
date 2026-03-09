@@ -67,10 +67,12 @@ const QuickReviewMode: React.FC<QuickReviewModeProps> = ({
   }, [entry, entries, filteredEntries]);
 
   // Stats for progress
-  const reviewedCount = filteredEntries.filter((e, i) => {
+  const reviewedCount = useMemo(() => filteredEntries.filter((e, i) => {
     const k = `${e.msbtFile}:${e.index}`;
     return translations[k]?.trim() && i <= quickReviewIndex;
-  }).length;
+  }).length, [filteredEntries, translations, quickReviewIndex]);
+
+  if (!entry || filteredEntries.length === 0) return null;
 
   return (
     <Card className="mb-6 border-primary/30 shadow-md">
