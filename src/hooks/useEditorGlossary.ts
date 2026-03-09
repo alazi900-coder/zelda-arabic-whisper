@@ -301,9 +301,9 @@ export function useEditorGlossary({
     setTimeout(() => setLastSaved(""), 5000);
   }, [state, parseGlossaryMap, setState, setLastSaved]);
 
-  // === Apply glossary terms to filtered translations only ===
-  const handleApplyGlossaryToFiltered = useCallback(() => {
-    if (!state?.glossary?.trim() || !filteredEntries?.length) return;
+  // === Apply glossary terms to specific entries only ===
+  const handleApplyGlossaryToFiltered = useCallback((entries: ExtractedEntry[]) => {
+    if (!state?.glossary?.trim() || !entries?.length) return;
 
     const glossaryMap = parseGlossaryMap(state.glossary);
     if (glossaryMap.size === 0) return;
@@ -314,7 +314,7 @@ export function useEditorGlossary({
     let appliedCount = 0;
     let entriesAffected = 0;
 
-    for (const entry of filteredEntries) {
+    for (const entry of entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = newTranslations[key]?.trim();
       if (!translation || translation === entry.original) continue;
@@ -345,7 +345,7 @@ export function useEditorGlossary({
         : '⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال في النصوص المفلترة'
     );
     setTimeout(() => setLastSaved(""), 5000);
-  }, [state, filteredEntries, parseGlossaryMap, setState, setLastSaved]);
+  }, [state, parseGlossaryMap, setState, setLastSaved]);
 
   // === Cloud glossary ===
   const handleSaveGlossaryToCloud = async () => {
