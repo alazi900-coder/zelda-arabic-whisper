@@ -1103,6 +1103,13 @@ const Editor = () => {
                   .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
                   .filter(t => t.translation.trim())
                   .slice(0, 5) : [];
+                // Adjacent context for inline preview
+                const sameFileEntries = editor.state ? editor.state.entries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index) : [];
+                const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
+                const adjacentContext = {
+                  prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
+                  next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
+                };
                 return (
                   <div key={key} className="relative">
                     {/* Difficulty + Context badges */}
