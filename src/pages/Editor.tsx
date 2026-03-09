@@ -1,14 +1,8 @@
 import React from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -18,17 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
-  ArrowRight, Download, FileText, Loader2, Filter, Sparkles, Save, Tag,
-  Upload, FileDown, Cloud, CloudUpload, LogIn, BookOpen, AlertTriangle,
-  Eye, EyeOff, RotateCcw, CheckCircle2, ShieldCheck, ChevronLeft, ChevronRight,
-  BarChart3, Menu, MoreVertical, Replace, Columns, Key, Search, Wand2, Layers,
+  ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
+  Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-  DropdownMenuSeparator, DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
 
 import { useEditorState } from "@/hooks/useEditorState";
 import { PAGE_SIZE, isTechnicalText } from "@/components/editor/types";
@@ -54,6 +42,9 @@ import EngineComparePanel from "@/components/editor/EngineComparePanel";
 import SmartBulkImprovePanel from "@/components/editor/SmartBulkImprovePanel";
 import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog";
+import EditorStatsCards from "@/components/editor/EditorStatsCards";
+import EditorToolbar from "@/components/editor/EditorToolbar";
+import QualityReportExport from "@/components/editor/QualityReportExport";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,7 +78,6 @@ const Editor = () => {
     } catch { return {}; }
   });
 
-  // Save screenshots to localStorage
   const handleAddScreenshot = React.useCallback((msbtFile: string, ss: { url: string; name: string; note?: string }) => {
     setScreenshots(prev => {
       const next = { ...prev, [msbtFile]: [...(prev[msbtFile] || []), ss] };
@@ -104,24 +94,13 @@ const Editor = () => {
     });
   }, []);
 
-  const openTMPanel = React.useCallback((entry: any) => {
-    setTmPanelEntry(entry);
-    setShowTMPanel(true);
-  }, []);
-
-  const openScreenshots = React.useCallback((entry: any) => {
-    setScreenshotEntry(entry);
-    setShowScreenshots(true);
-  }, []);
+  const openTMPanel = React.useCallback((entry: any) => { setTmPanelEntry(entry); setShowTMPanel(true); }, []);
+  const openScreenshots = React.useCallback((entry: any) => { setScreenshotEntry(entry); setShowScreenshots(true); }, []);
 
   const [showContextSuggest, setShowContextSuggest] = React.useState(false);
   const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
-  const openContextSuggest = React.useCallback((entry: any) => {
-    setContextSuggestEntry(entry);
-    setShowContextSuggest(true);
-  }, []);
+  const openContextSuggest = React.useCallback((entry: any) => { setContextSuggestEntry(entry); setShowContextSuggest(true); }, []);
 
-  // Translator notes (localStorage)
   const [translatorNotes, setTranslatorNotes] = React.useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem('zelda-editor-notes');
@@ -132,8 +111,7 @@ const Editor = () => {
   const handleUpdateNote = React.useCallback((key: string, note: string) => {
     setTranslatorNotes(prev => {
       const next = { ...prev };
-      if (note) next[key] = note;
-      else delete next[key];
+      if (note) next[key] = note; else delete next[key];
       try { localStorage.setItem('zelda-editor-notes', JSON.stringify(next)); } catch {}
       return next;
     });
@@ -145,10 +123,7 @@ const Editor = () => {
   const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
 
-  const openEngineCompare = React.useCallback((entry: any) => {
-    setEngineCompareEntry(entry);
-    setShowEngineCompare(true);
-  }, []);
+  const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
 
   const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
     if (!editor.state || !editor.updateTranslation) return;
@@ -157,10 +132,9 @@ const Editor = () => {
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
-  // Keyboard shortcuts
   useKeyboardShortcuts({
     onSave: editor.handleCloudSave,
-    onSearch: () => { const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]'); searchInput?.focus(); },
+    onSearch: () => { const s = document.querySelector<HTMLInputElement>('[data-search-input]'); s?.focus(); },
     onFindReplace: () => editor.setShowFindReplace(true),
     onTranslate: () => editor.handleAutoTranslate(),
     onBuild: () => editor.handlePreBuild(),
@@ -169,28 +143,13 @@ const Editor = () => {
     onPrevPage: () => editor.setCurrentPage(Math.max(0, editor.currentPage - 1)),
   }, !!editor.state);
 
-  // Drag & Drop handlers
-  const handleDragOver = React.useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = React.useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
+  const handleDragOver = React.useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+  const handleDragLeave = React.useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
   const handleDrop = React.useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer) {
-      await editor.handleDropImport(e.dataTransfer);
-    }
+    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+    if (e.dataTransfer) await editor.handleDropImport(e.dataTransfer);
   }, [editor.handleDropImport]);
-  // حساب عدد النصوص غير المترجمة (يحترم الفلتر النشط)
+
   const untranslatedCount = React.useMemo(() => {
     if (!editor.state) return 0;
     const entries = editor.isFilterActive ? editor.filteredEntries : editor.state.entries;
@@ -201,7 +160,6 @@ const Editor = () => {
     }).length;
   }, [editor.state, editor.filteredEntries, editor.isFilterActive]);
 
-  // Arabic polishing handler
   const handlePolishArabic = React.useCallback(async () => {
     if (!editor.state || polishing) return;
     const targetEntries = editor.isFilterActive ? editor.filteredEntries : editor.state.entries;
@@ -209,64 +167,40 @@ const Editor = () => {
       const key = `${e.msbtFile}:${e.index}`;
       const t = editor.state!.translations[key]?.trim();
       return t && t !== e.original;
-    }).slice(0, 15); // Batch of 15
+    }).slice(0, 15);
 
-    if (translatedEntries.length === 0) {
-      toast({ title: "⚠️ لا توجد ترجمات لتحسينها" });
-      return;
-    }
-
+    if (translatedEntries.length === 0) { toast({ title: "⚠️ لا توجد ترجمات لتحسينها" }); return; }
     setPolishing(true);
     try {
       const entries = translatedEntries.map(e => ({
-        key: `${e.msbtFile}:${e.index}`,
-        original: e.original,
+        key: `${e.msbtFile}:${e.index}`, original: e.original,
         translation: editor.state!.translations[`${e.msbtFile}:${e.index}`],
       }));
-
       const glossaryContext = editor.activeGlossary
         ? editor.activeGlossary.split('\n').filter(l => l.trim() && l.includes('=')).slice(0, 50).join('\n')
         : undefined;
-
-      const { data, error } = await supabase.functions.invoke('polish-arabic', {
-        body: { entries, glossary: glossaryContext },
-      });
-
+      const { data, error } = await supabase.functions.invoke('polish-arabic', { body: { entries, glossary: glossaryContext } });
       if (error) throw error;
       if (!data?.results) throw new Error('No results');
-
       const changedResults = data.results.filter((r: any) => r.changed);
       if (changedResults.length === 0) {
         toast({ title: "✅ الترجمات سليمة", description: "لم يتم العثور على أخطاء تحتاج تصحيح" });
       } else {
-        // Show as fix preview
         editor.setFixPreview({
           title: `تحسين الصياغة العربية (${changedResults.length} نص)`,
           items: changedResults.map((r: any) => {
             const parts = r.key.split(':');
-            return {
-              key: r.key,
-              label: `${r.categoryLabel || ''} ${r.reason || 'تحسين الصياغة'}`.trim(),
-              file: parts[0] || '',
-              oldText: r.current,
-              newText: r.improved,
-            };
+            return { key: r.key, label: `${r.categoryLabel || ''} ${r.reason || 'تحسين الصياغة'}`.trim(), file: parts[0] || '', oldText: r.current, newText: r.improved };
           }),
           updates: Object.fromEntries(changedResults.map((r: any) => [r.key, r.improved])),
         });
       }
     } catch (err: any) {
       toast({ title: "❌ خطأ في تحسين الصياغة", description: err.message, variant: "destructive" });
-    } finally {
-      setPolishing(false);
-    }
+    } finally { setPolishing(false); }
   }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, polishing]);
 
-  // Scene context handler
-  const openSceneContext = React.useCallback((entry: any) => {
-    setSceneContextEntry(entry);
-    setShowSceneContext(true);
-  }, []);
+  const openSceneContext = React.useCallback((entry: any) => { setSceneContextEntry(entry); setShowSceneContext(true); }, []);
 
   if (!editor.state) {
     return (
@@ -281,13 +215,7 @@ const Editor = () => {
 
   return (
     <TooltipProvider>
-      <div
-        className="min-h-screen py-4 md:py-8 px-3 md:px-4 relative"
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {/* Drop overlay */}
+      <div className="min-h-screen py-4 md:py-8 px-3 md:px-4 relative" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
         {isDragging && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 pointer-events-none">
             <div className="text-center space-y-3">
@@ -304,77 +232,40 @@ const Editor = () => {
 
           <div className="flex items-center gap-2 mb-1 md:mb-2 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-display font-bold">محرر الترجمة ✍️</h1>
-            <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">
-              ❓ دليل الأدوات
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowKeyboardShortcuts(true)} className="font-body text-xs h-7 px-2">
-              ⌨️ اختصارات
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">❓ دليل الأدوات</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowKeyboardShortcuts(true)} className="font-body text-xs h-7 px-2">⌨️ اختصارات</Button>
             {difficultyStats.totalMinutes > 0 && !isMobile && (
-              <span className="text-[10px] text-muted-foreground font-body mr-auto">
-                ⏱️ الوقت المقدّر: {Math.round(difficultyStats.totalMinutes)} دقيقة
-              </span>
+              <span className="text-[10px] text-muted-foreground font-body mr-auto">⏱️ الوقت المقدّر: {Math.round(difficultyStats.totalMinutes)} دقيقة</span>
             )}
+            <QualityReportExport
+              totalEntries={editor.state.entries.length}
+              translatedCount={editor.translatedCount}
+              qualityStats={editor.qualityStats}
+              needsImproveCount={editor.needsImproveCount}
+              categoryProgress={editor.categoryProgress}
+            />
           </div>
           <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6 font-body">عدّل النصوص العربية يدوياً أو استخدم الترجمة التلقائية</p>
 
-          {/* Stats Cards */}
+          {/* Stats + Translate Buttons */}
           <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6">
-            <Card className="flex-1 min-w-[100px]">
-              <CardContent className="flex items-center gap-2 md:gap-3 p-3 md:p-4">
-                <FileText className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                <div>
-                  <p className="text-base md:text-lg font-display font-bold">{editor.state.entries.length}</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">إجمالي النصوص</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="flex-1 min-w-[100px]">
-              <CardContent className="flex items-center gap-2 md:gap-3 p-3 md:p-4">
-                <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
-                <div>
-                  <p className="text-base md:text-lg font-display font-bold">{editor.translatedCount}</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">مترجم</p>
-                </div>
-              </CardContent>
-            </Card>
-            {!isMobile && (
-              <>
-                <Card className="flex-1 min-w-[140px]">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                    <div>
-                      <p className="text-lg font-display font-bold">{editor.qualityStats.total}</p>
-                      <p className="text-xs text-muted-foreground">مشاكل جودة</p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => editor.setShowQualityStats(!editor.showQualityStats)} className="ml-auto text-xs">
-                      {editor.showQualityStats ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                  </CardContent>
-                </Card>
-                <Card className="flex-1 min-w-[140px]">
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <Tag className="w-5 h-5 text-accent" />
-                    <div>
-                      <p className="text-lg font-display font-bold">{editor.state.protectedEntries?.size || 0} / {editor.state.entries.length}</p>
-                      <p className="text-xs text-muted-foreground">محمي من العكس</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
+            <EditorStatsCards
+              totalEntries={editor.state.entries.length}
+              translatedCount={editor.translatedCount}
+              qualityTotal={editor.qualityStats.total}
+              protectedCount={editor.state.protectedEntries?.size || 0}
+              showQualityStats={editor.showQualityStats}
+              setShowQualityStats={editor.setShowQualityStats}
+              isMobile={isMobile}
+            />
             {editor.translating ? (
               <Button size={isMobile ? "default" : "lg"} variant="destructive" onClick={editor.handleStopTranslate} className="font-display font-bold px-4 md:px-6">
                 <Loader2 className="w-4 h-4 animate-spin" /> إيقاف ⏹️
               </Button>
             ) : (
               <Button size={isMobile ? "default" : "lg"} variant="default" onClick={() => {
-                if (editor.isFilterActive) {
-                  setShowFilterTranslateConfirm(true);
-                } else {
-                  editor.handleAutoTranslate();
-                }
+                if (editor.isFilterActive) setShowFilterTranslateConfirm(true);
+                else editor.handleAutoTranslate();
               }} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
                 <Sparkles className="w-4 h-4" /> {editor.isFilterActive ? `ترجمة المحدد (${untranslatedCount}) 🎯` : 'ترجمة تلقائية 🤖'}
               </Button>
@@ -384,44 +275,27 @@ const Editor = () => {
             </Button>
           </div>
 
-          {/* Translation Engine Selector + Gemini API Key */}
+          {/* Translation Engine Selector */}
           <Card className="mb-6 border-primary/20 bg-primary/5">
             <CardContent className="p-3 md:p-4 space-y-3">
-              {/* Engine selector */}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Sparkles className="w-4 h-4 text-primary" />
                   <span className="text-sm font-display font-bold">محرك الترجمة</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                   <Button
-                    variant={editor.translationEngine === 'lovable' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => editor.setTranslationEngine('lovable')}
-                    className="text-xs font-body"
-                  >
-                    🤖 Lovable AI
-                  </Button>
-                  <Button
-                    variant={editor.translationEngine === 'gemini' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => editor.setTranslationEngine('gemini')}
-                    className="text-xs font-body"
-                    disabled={!editor.userGeminiKey}
-                  >
-                    ✨ Gemini (شخصي)
-                  </Button>
-                  <Button
-                    variant={editor.translationEngine === 'mymemory' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => editor.setTranslationEngine('mymemory')}
-                    className="text-xs font-body"
-                  >
-                    🌐 MyMemory (مجاني)
-                  </Button>
+                  {[
+                    { key: 'lovable', label: '🤖 Lovable AI', disabled: false },
+                    { key: 'gemini', label: '✨ Gemini (شخصي)', disabled: !editor.userGeminiKey },
+                    { key: 'mymemory', label: '🌐 MyMemory (مجاني)', disabled: false },
+                  ].map(eng => (
+                    <Button key={eng.key} variant={editor.translationEngine === eng.key ? 'default' : 'outline'} size="sm"
+                      onClick={() => editor.setTranslationEngine(eng.key as any)} className="text-xs font-body" disabled={eng.disabled}>
+                      {eng.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
-              {/* Translation Quality Selector */}
               {editor.translationEngine !== 'mymemory' && (
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex items-center gap-2 shrink-0">
@@ -429,85 +303,43 @@ const Editor = () => {
                     <span className="text-sm font-display font-bold">جودة الترجمة</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant={editor.translationQuality === 'fast' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => editor.setTranslationQuality('fast')}
-                      className="text-xs font-body"
-                    >
-                      ⚡ سريعة (Flash)
-                    </Button>
-                    <Button
-                      variant={editor.translationQuality === 'quality' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => editor.setTranslationQuality('quality')}
-                      className="text-xs font-body"
-                    >
-                      💎 عالية الجودة (Pro)
-                    </Button>
+                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Flash)</Button>
+                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Pro)</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
                     {editor.translationQuality === 'quality' ? 'أدق لكن أبطأ — يستخدم Gemini Pro' : 'أسرع وأخف — يستخدم Gemini Flash'}
                   </span>
                 </div>
               )}
-              {/* Gemini API Key */}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
                   <span className="text-sm font-display font-bold">🔑 مفتاح Gemini API</span>
                 </div>
                 <div className="flex gap-2 flex-1">
-                  <input
-                    type="password"
-                    placeholder="الصق مفتاح API هنا للترجمة المجانية..."
-                    value={editor.userGeminiKey}
-                    onChange={(e) => {
-                      editor.setUserGeminiKey(e.target.value);
-                      if (e.target.value) editor.setTranslationEngine('gemini');
-                    }}
-                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm"
-                    dir="ltr"
-                  />
+                  <input type="password" placeholder="الصق مفتاح API هنا للترجمة المجانية..." value={editor.userGeminiKey}
+                    onChange={(e) => { editor.setUserGeminiKey(e.target.value); if (e.target.value) editor.setTranslationEngine('gemini'); }}
+                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   {editor.userGeminiKey && (
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      editor.setUserGeminiKey('');
-                      if (editor.translationEngine === 'gemini') editor.setTranslationEngine('lovable');
-                    }} className="text-xs text-destructive shrink-0">
-                      مسح
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserGeminiKey(''); if (editor.translationEngine === 'gemini') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
                 </div>
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">
-                  احصل على مفتاح مجاني ↗
-                </a>
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح مجاني ↗</a>
               </div>
-              {editor.userGeminiKey && (
-                <p className="text-xs text-secondary font-body">✅ مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>
-              )}
-              {/* MyMemory Email & Quota */}
+              {editor.userGeminiKey && <p className="text-xs text-secondary font-body">✅ مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>}
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                     <span className="text-xs font-body text-muted-foreground shrink-0">📧 بريد إلكتروني (اختياري — يرفع الحد لـ 50,000 حرف/يوم):</span>
-                    <input
-                      type="email"
-                      placeholder="your@email.com"
-                      value={editor.myMemoryEmail}
-                      onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm"
-                      dir="ltr"
-                    />
+                    <input type="email" placeholder="your@email.com" value={editor.myMemoryEmail} onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs font-body text-muted-foreground">
                       <span>الاستهلاك اليومي</span>
                       <span>{editor.myMemoryCharsUsed.toLocaleString()} / {editor.myMemoryDailyLimit.toLocaleString()} حرف</span>
                     </div>
-                    <Progress
-                      value={editor.myMemoryDailyLimit > 0 ? (editor.myMemoryCharsUsed / editor.myMemoryDailyLimit) * 100 : 0}
-                      className={`h-2 ${editor.myMemoryCharsUsed / editor.myMemoryDailyLimit > 0.9 ? '[&>div]:bg-destructive' : editor.myMemoryCharsUsed / editor.myMemoryDailyLimit > 0.7 ? '[&>div]:bg-accent' : ''}`}
-                    />
+                    <Progress value={editor.myMemoryDailyLimit > 0 ? (editor.myMemoryCharsUsed / editor.myMemoryDailyLimit) * 100 : 0} className="h-2" />
                   </div>
                 </div>
               )}
@@ -516,17 +348,11 @@ const Editor = () => {
 
           {/* Category Progress */}
           <CategoryProgress
-            categoryProgress={editor.categoryProgress}
-            filterCategory={editor.filterCategory}
-            setFilterCategory={editor.setFilterCategory}
-            damagedTagsCount={editor.qualityStats.damagedTags}
-            onFilterDamagedTags={() => editor.toggleFilterStatus("damaged-tags")}
-            isDamagedTagsActive={editor.filterStatus.has("damaged-tags")}
-            onFixDamagedTags={() => editor.handleFixDamagedTags(editor.qualityStats.damagedTagKeys)}
-            onLocalFixDamagedTags={() => editor.handleLocalFixAllDamagedTags(editor.qualityStats.damagedTagKeys)}
-            isFixing={editor.translating}
-            onRedistributeTags={editor.handleRedistributeTags}
-            tagsCount={editor.tagsCount}
+            categoryProgress={editor.categoryProgress} filterCategory={editor.filterCategory} setFilterCategory={editor.setFilterCategory}
+            damagedTagsCount={editor.qualityStats.damagedTags} onFilterDamagedTags={() => editor.toggleFilterStatus("damaged-tags")}
+            isDamagedTagsActive={editor.filterStatus.has("damaged-tags")} onFixDamagedTags={() => editor.handleFixDamagedTags(editor.qualityStats.damagedTagKeys)}
+            onLocalFixDamagedTags={() => editor.handleLocalFixAllDamagedTags(editor.qualityStats.damagedTagKeys)} isFixing={editor.translating}
+            onRedistributeTags={editor.handleRedistributeTags} tagsCount={editor.tagsCount}
           />
 
           {/* Progress Bar */}
@@ -541,12 +367,8 @@ const Editor = () => {
           </div>
 
           {/* Status Messages */}
-          {editor.lastSaved && (
-            <Card className="mb-4 border-secondary/30 bg-secondary/5"><CardContent className="p-4 text-center font-display">{editor.lastSaved}</CardContent></Card>
-          )}
-          {editor.translateProgress && (
-            <Card className="mb-4 border-secondary/30 bg-secondary/5"><CardContent className="p-4 text-center font-display">{editor.translateProgress}</CardContent></Card>
-          )}
+          {editor.lastSaved && <Card className="mb-4 border-secondary/30 bg-secondary/5"><CardContent className="p-4 text-center font-display">{editor.lastSaved}</CardContent></Card>}
+          {editor.translateProgress && <Card className="mb-4 border-secondary/30 bg-secondary/5"><CardContent className="p-4 text-center font-display">{editor.translateProgress}</CardContent></Card>}
           {editor.buildProgress && (
             <Card className="mb-4 border-secondary/30 bg-secondary/5 cursor-pointer" onClick={() => editor.buildStats && editor.setBuildStats(editor.buildStats)}>
               <CardContent className="p-4 text-center font-display">
@@ -555,35 +377,22 @@ const Editor = () => {
               </CardContent>
             </Card>
           )}
-          {editor.cloudStatus && (
-            <Card className="mb-4 border-primary/30 bg-primary/5"><CardContent className="p-4 text-center font-display">{editor.cloudStatus}</CardContent></Card>
-          )}
+          {editor.cloudStatus && <Card className="mb-4 border-primary/30 bg-primary/5"><CardContent className="p-4 text-center font-display">{editor.cloudStatus}</CardContent></Card>}
           {editor.tmStats && (
             <Card className="mb-4 border-secondary/30 bg-secondary/5">
-              <CardContent className="p-4 text-center font-display">
-                🧠 ذاكرة الترجمة: أُعيد استخدام {editor.tmStats.reused} ترجمة — أُرسل {editor.tmStats.sent} للذكاء الاصطناعي
-              </CardContent>
+              <CardContent className="p-4 text-center font-display">🧠 ذاكرة الترجمة: أُعيد استخدام {editor.tmStats.reused} ترجمة — أُرسل {editor.tmStats.sent} للذكاء الاصطناعي</CardContent>
             </Card>
           )}
 
           {/* Review Results */}
           <ReviewPanel
-            reviewResults={editor.reviewResults}
-            shortSuggestions={editor.shortSuggestions}
-            improveResults={editor.improveResults}
-            suggestingShort={editor.suggestingShort}
-            filterCategory={editor.filterCategory}
-            filterFile={editor.filterFile}
-            filterStatus={editor.filterStatus}
-            search={editor.search}
-            handleSuggestShorterTranslations={editor.handleSuggestShorterTranslations}
-            handleApplyShorterTranslation={editor.handleApplyShorterTranslation}
-            handleApplyAllShorterTranslations={editor.handleApplyAllShorterTranslations}
-            handleApplyImprovement={editor.handleApplyImprovement}
-            handleApplyAllImprovements={editor.handleApplyAllImprovements}
-            setReviewResults={editor.setReviewResults}
-            setShortSuggestions={editor.setShortSuggestions}
-            setImproveResults={editor.setImproveResults}
+            reviewResults={editor.reviewResults} shortSuggestions={editor.shortSuggestions} improveResults={editor.improveResults}
+            suggestingShort={editor.suggestingShort} filterCategory={editor.filterCategory} filterFile={editor.filterFile}
+            filterStatus={editor.filterStatus} search={editor.search}
+            handleSuggestShorterTranslations={editor.handleSuggestShorterTranslations} handleApplyShorterTranslation={editor.handleApplyShorterTranslation}
+            handleApplyAllShorterTranslations={editor.handleApplyAllShorterTranslations} handleApplyImprovement={editor.handleApplyImprovement}
+            handleApplyAllImprovements={editor.handleApplyAllImprovements} setReviewResults={editor.setReviewResults}
+            setShortSuggestions={editor.setShortSuggestions} setImproveResults={editor.setImproveResults}
           />
 
           {!editor.user && (
@@ -595,48 +404,32 @@ const Editor = () => {
           {/* Filter Bar */}
           <div className="mb-6 p-3 md:p-4 bg-card rounded border border-border">
             <div className="flex gap-2 md:gap-3 items-center">
-              <DebouncedInput
-                placeholder="ابحث عن نصوص..."
-                value={editor.search}
-                onChange={(val) => editor.setSearch(val)}
-                className="flex-1 min-w-[120px] px-3 py-2 rounded bg-background border border-border font-body text-sm"
-              />
+              <DebouncedInput placeholder="ابحث عن نصوص..." value={editor.search} onChange={(val) => editor.setSearch(val)}
+                className="flex-1 min-w-[120px] px-3 py-2 rounded bg-background border border-border font-body text-sm" />
               {isMobile ? (
                 <Button variant={editor.filtersOpen ? "secondary" : "outline"} size="sm" onClick={() => editor.setFiltersOpen(!editor.filtersOpen)} className="font-body text-xs shrink-0">
                   <Filter className="w-3 h-3" /> فلاتر
                 </Button>
-               ) : (
+              ) : (
                 <>
-                   <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     {[
-                      { value: "translated", label: "✅ مترجم" },
-                      { value: "untranslated", label: "⬜ غير مترجم" },
-                      { value: "problems", label: "🚨 مشاكل" },
-                      { value: "needs-improve", label: `⚠️ تحسين (${editor.needsImproveCount.total})` },
+                      { value: "translated", label: "✅ مترجم" }, { value: "untranslated", label: "⬜ غير مترجم" },
+                      { value: "problems", label: "🚨 مشاكل" }, { value: "needs-improve", label: `⚠️ تحسين (${editor.needsImproveCount.total})` },
                       { value: "too-short", label: `📏 قصير (${editor.needsImproveCount.tooShort})` },
                       { value: "too-long", label: `📐 طويل (${editor.needsImproveCount.tooLong})` },
                       { value: "stuck-chars", label: `🔤 ملتصق (${editor.needsImproveCount.stuck})` },
                       { value: "mixed-lang", label: `🌐 مختلط (${editor.needsImproveCount.mixed})` },
-                      { value: "has-tags", label: `🔧 رموز تقنية (${editor.tagsCount})` },
-                      { value: "no-tags", label: "✨ بدون رموز" },
+                      { value: "has-tags", label: `🔧 رموز تقنية (${editor.tagsCount})` }, { value: "no-tags", label: "✨ بدون رموز" },
                       { value: "duplicates", label: `🔁 مكرر (${editor.qualityStats.duplicateTranslations})` },
                       { value: "punctuation", label: `❓ ترقيم (${editor.qualityStats.punctuationMismatch})` },
                       { value: "unclosed-brackets", label: `🔓 أقواس (${editor.qualityStats.unclosedBrackets})` },
                     ].map(f => (
-                      <Button
-                        key={f.value}
-                        variant={editor.filterStatus.has(f.value) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => editor.toggleFilterStatus(f.value)}
-                        className="text-xs h-7 px-2 font-body"
-                      >
-                        {f.label}
-                      </Button>
+                      <Button key={f.value} variant={editor.filterStatus.has(f.value) ? "default" : "outline"} size="sm"
+                        onClick={() => editor.toggleFilterStatus(f.value)} className="text-xs h-7 px-2 font-body">{f.label}</Button>
                     ))}
                     {editor.filterStatus.size > 0 && (
-                      <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">
-                        ✕ مسح
-                      </Button>
+                      <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">✕ مسح</Button>
                     )}
                   </div>
                   <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm max-w-[200px]">
@@ -670,32 +463,18 @@ const Editor = () => {
               <div className="mt-3 space-y-2">
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { value: "translated", label: "✅ مترجم" },
-                    { value: "untranslated", label: "⬜ غير مترجم" },
-                    { value: "problems", label: "🚨 مشاكل" },
-                    { value: "needs-improve", label: "⚠️ تحسين" },
-                    { value: "stuck-chars", label: "🔤 ملتصق" },
-                    { value: "mixed-lang", label: "🌐 مختلط" },
-                    { value: "has-tags", label: "🔧 رموز تقنية" },
-                    { value: "no-tags", label: "✨ بدون رموز" },
-                    { value: "duplicates", label: "🔁 مكرر" },
-                    { value: "punctuation", label: "❓ ترقيم" },
+                    { value: "translated", label: "✅ مترجم" }, { value: "untranslated", label: "⬜ غير مترجم" },
+                    { value: "problems", label: "🚨 مشاكل" }, { value: "needs-improve", label: "⚠️ تحسين" },
+                    { value: "stuck-chars", label: "🔤 ملتصق" }, { value: "mixed-lang", label: "🌐 مختلط" },
+                    { value: "has-tags", label: "🔧 رموز تقنية" }, { value: "no-tags", label: "✨ بدون رموز" },
+                    { value: "duplicates", label: "🔁 مكرر" }, { value: "punctuation", label: "❓ ترقيم" },
                     { value: "unclosed-brackets", label: "🔓 أقواس" },
                   ].map(f => (
-                    <Button
-                      key={f.value}
-                      variant={editor.filterStatus.has(f.value) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => editor.toggleFilterStatus(f.value)}
-                      className="text-xs h-7 px-2 font-body"
-                    >
-                      {f.label}
-                    </Button>
+                    <Button key={f.value} variant={editor.filterStatus.has(f.value) ? "default" : "outline"} size="sm"
+                      onClick={() => editor.toggleFilterStatus(f.value)} className="text-xs h-7 px-2 font-body">{f.label}</Button>
                   ))}
                   {editor.filterStatus.size > 0 && (
-                    <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">
-                      ✕ مسح
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={editor.clearFilterStatus} className="text-xs h-7 px-2 font-body text-destructive">✕ مسح</Button>
                   )}
                 </div>
                 <select value={editor.filterFile} onChange={e => editor.setFilterFile(e.target.value)} className="w-full px-3 py-2 rounded bg-background border border-border font-body text-sm">
@@ -711,7 +490,7 @@ const Editor = () => {
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="text-xs font-display text-muted-foreground">⚠️ تحتاج تحسين:</span>
               {editor.needsImproveCount.tooShort > 0 && (
-                <Button variant={editor.filterStatus.has("too-short") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("too-short")} className="text-xs h-6 px-2 border-amber-500/30 text-amber-600">
+                <Button variant={editor.filterStatus.has("too-short") ? "default" : "outline"} size="sm" onClick={() => editor.toggleFilterStatus("too-short")} className="text-xs h-6 px-2 border-accent/30 text-accent">
                   📏 قصيرة: {editor.needsImproveCount.tooShort}
                 </Button>
               )}
@@ -738,47 +517,23 @@ const Editor = () => {
             <div className="mb-4 rounded-lg bg-primary/5 border border-primary/15">
               <div className="flex items-center gap-2 px-3 py-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-primary/70" />
-                <span className="text-xs text-primary/80 font-body">
-                  📖 القاموس: <strong>{editor.glossaryTermCount}</strong> مصطلح
-                </span>
-                <Button
-                  variant={editor.glossaryEnabled ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => editor.setGlossaryEnabled(!editor.glossaryEnabled)}
-                  className="mr-auto h-6 px-2 text-xs font-body"
-                >
-                   {editor.glossaryEnabled ? (
-                    <><Eye className="w-3 h-3" /> مفعّل</>
-                  ) : (
-                    <><EyeOff className="w-3 h-3" /> معطّل</>
-                  )}
+                <span className="text-xs text-primary/80 font-body">📖 القاموس: <strong>{editor.glossaryTermCount}</strong> مصطلح</span>
+                <Button variant={editor.glossaryEnabled ? "secondary" : "outline"} size="sm" onClick={() => editor.setGlossaryEnabled(!editor.glossaryEnabled)} className="mr-auto h-6 px-2 text-xs font-body">
+                  {editor.glossaryEnabled ? <><Eye className="w-3 h-3" /> مفعّل</> : <><EyeOff className="w-3 h-3" /> معطّل</>}
                 </Button>
                 {editor.glossaryEnabled && (
                   <>
                     {editor.isFilterActive && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setGlossaryApplyConfirm('filtered')}
-                        className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20"
-                        title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط"
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setGlossaryApplyConfirm('filtered')} className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20" title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط">
                         <Filter className="w-3 h-3" /> تطبيق المفلتر
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setGlossaryApplyConfirm('all')}
-                      className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
-                      title="تطبيق مصطلحات القاموس على جميع الترجمات"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setGlossaryApplyConfirm('all')} className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10" title="تطبيق مصطلحات القاموس على جميع الترجمات">
                       <Replace className="w-3 h-3" /> تطبيق الكل
                     </Button>
                   </>
                 )}
               </div>
-              {/* Coverage Stats */}
               {editor.glossaryCoverage && editor.state && (
                 <div className="px-3 pb-2 pt-1 border-t border-primary/10">
                   <div className="grid grid-cols-2 gap-2 text-xs font-body">
@@ -786,28 +541,19 @@ const Editor = () => {
                       <span className="text-muted-foreground">تغطية المصدر</span>
                       <div className="flex items-center gap-1.5">
                         <Progress value={editor.glossaryCoverage.coveragePercent} className="h-2 flex-1" />
-                        <span className="text-primary font-semibold min-w-[3ch] text-left">
-                          {editor.glossaryCoverage.coveragePercent}%
-                        </span>
+                        <span className="text-primary font-semibold min-w-[3ch] text-left">{editor.glossaryCoverage.coveragePercent}%</span>
                       </div>
-                      <span className="text-muted-foreground/70 text-[10px]">
-                        {editor.glossaryCoverage.matchedInSource} / {editor.glossaryCoverage.totalTerms} مصطلح موجود
-                      </span>
+                      <span className="text-muted-foreground/70 text-[10px]">{editor.glossaryCoverage.matchedInSource} / {editor.glossaryCoverage.totalTerms} مصطلح موجود</span>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-muted-foreground">اتساق الترجمة</span>
                       <div className="flex items-center gap-1.5">
-                        <Progress
-                          value={editor.glossaryCoverage.consistencyPercent}
-                          className={`h-2 flex-1 ${editor.glossaryCoverage.consistencyPercent < 50 ? '[&>div]:bg-destructive' : editor.glossaryCoverage.consistencyPercent < 80 ? '[&>div]:bg-yellow-500' : ''}`}
-                        />
-                        <span className={`font-semibold min-w-[3ch] text-left ${editor.glossaryCoverage.consistencyPercent < 50 ? 'text-destructive' : editor.glossaryCoverage.consistencyPercent < 80 ? 'text-yellow-600' : 'text-primary'}`}>
+                        <Progress value={editor.glossaryCoverage.consistencyPercent} className="h-2 flex-1" />
+                        <span className={`font-semibold min-w-[3ch] text-left ${editor.glossaryCoverage.consistencyPercent < 50 ? 'text-destructive' : editor.glossaryCoverage.consistencyPercent < 80 ? 'text-accent' : 'text-primary'}`}>
                           {editor.glossaryCoverage.consistencyPercent}%
                         </span>
                       </div>
-                      <span className="text-muted-foreground/70 text-[10px]">
-                        {editor.glossaryCoverage.translatedWithGlossary} / {editor.glossaryCoverage.translatedTotal} ترجمة متوافقة
-                      </span>
+                      <span className="text-muted-foreground/70 text-[10px]">{editor.glossaryCoverage.translatedWithGlossary} / {editor.glossaryCoverage.translatedTotal} ترجمة متوافقة</span>
                     </div>
                   </div>
                   {editor.glossaryCoverage.topMatched.length > 0 && (
@@ -817,26 +563,20 @@ const Editor = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-1.5 space-y-1">
                         <div className="text-[10px] text-muted-foreground">
-                          <span className="font-semibold text-green-600">✅ مصطلحات مطابقة ({editor.glossaryCoverage.matchedInSource}):</span>
+                          <span className="font-semibold text-primary">✅ مصطلحات مطابقة ({editor.glossaryCoverage.matchedInSource}):</span>
                           <div className="flex flex-wrap gap-1 mt-0.5">
                             {editor.glossaryCoverage.topMatched.map((t, i) => (
-                              <span key={i} className="bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded text-[10px]">
-                                {t.eng} → {t.arb}
-                              </span>
+                              <span key={i} className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">{t.eng} → {t.arb}</span>
                             ))}
-                            {editor.glossaryCoverage.matchedInSource > 20 && (
-                              <span className="text-muted-foreground/50">+{editor.glossaryCoverage.matchedInSource - 20} أخرى</span>
-                            )}
+                            {editor.glossaryCoverage.matchedInSource > 20 && <span className="text-muted-foreground/50">+{editor.glossaryCoverage.matchedInSource - 20} أخرى</span>}
                           </div>
                         </div>
                         {editor.glossaryCoverage.topUnmatched.length > 0 && (
                           <div className="text-[10px] text-muted-foreground">
-                            <span className="font-semibold text-orange-600">⚠️ غير موجودة في النصوص ({editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource}):</span>
+                            <span className="font-semibold text-accent">⚠️ غير موجودة في النصوص ({editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource}):</span>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {editor.glossaryCoverage.topUnmatched.map((t, i) => (
-                                <span key={i} className="bg-orange-500/10 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded text-[10px]">
-                                  {t.eng}
-                                </span>
+                                <span key={i} className="bg-accent/10 text-accent px-1.5 py-0.5 rounded text-[10px]">{t.eng}</span>
                               ))}
                               {(editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource) > 10 && (
                                 <span className="text-muted-foreground/50">+{editor.glossaryCoverage.totalTerms - editor.glossaryCoverage.matchedInSource - 10} أخرى</span>
@@ -852,149 +592,12 @@ const Editor = () => {
             </div>
           )}
 
-          {/* Cloud & Actions */}
-          {isMobile ? (
-            <div className="flex flex-wrap gap-2 mb-6">
-              <Button variant="outline" size="sm" onClick={editor.handleCloudSave} disabled={!editor.user || editor.cloudSyncing} className="font-body text-xs">
-                {editor.cloudSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
-              </Button>
-              <Button variant="outline" size="sm" onClick={editor.handleCloudLoad} disabled={!editor.user || editor.cloudSyncing} className="font-body text-xs">
-                <Cloud className="w-3 h-3" /> تحميل
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="font-body text-xs"><Download className="w-3 h-3" /> ملفات</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card border-border z-50">
-                  <DropdownMenuItem onClick={editor.handleExportTranslations}><Download className="w-4 h-4" /> تصدير JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly()}><FileText className="w-4 h-4" /> تصدير الإنجليزية كاملاً ({untranslatedCount}) 🇬🇧</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(1000)}><FileText className="w-4 h-4" /> تصدير مقسّم (1000/ملف) 🇬🇧</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(500)}><FileText className="w-4 h-4" /> تصدير مقسّم (500/ملف) 🇬🇧</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleImportTranslations}><Upload className="w-4 h-4" /> استيراد JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleExportCSV}><FileDown className="w-4 h-4" /> تصدير CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleImportCSV}><Upload className="w-4 h-4" /> استيراد CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleImportGlossary}><BookOpen className="w-4 h-4" /> تحميل قاموس مخصص</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">📖 القواميس المدمجة</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={editor.handleLoadDefaultGlossary}>🗡️ القاموس الأساسي</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadTOTKGlossary}>🌿 قاموس TOTK</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadTOTKItemsGlossary}>🎒 قاموس العناصر</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadMaterialsGlossary}>⚔️ قاموس المواد والأسلحة</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadUIGlossary}>🖥️ قاموس الواجهة والقوائم</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadLocationsGlossary}>🗺️ قاموس المواقع والشخصيات</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadCreaturesGlossary}>🐉 قاموس المخلوقات والوحوش</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadAbilitiesGlossary}>✨ قاموس القدرات والتأثيرات</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleLoadAllGlossaries}>📚 تحميل الكل ودمجهم</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="font-body text-xs" disabled={!editor.user}><Cloud className="w-3 h-3" /> سحابة</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card border-border z-50">
-                  <DropdownMenuLabel className="text-xs">المزامنة السحابية</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleSaveGlossaryToCloud} disabled={!editor.user || editor.cloudSyncing}><CloudUpload className="w-4 h-4" /> حفظ القاموس</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadGlossaryFromCloud} disabled={!editor.user || editor.cloudSyncing}><Cloud className="w-4 h-4" /> تحميل القاموس</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="font-body text-xs"><MoreVertical className="w-3 h-3" /> أدوات</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card border-border z-50">
-                  <DropdownMenuItem onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic}><Sparkles className="w-4 h-4" /> تطبيق المعالجة العربية ✨</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleFixAllReversed}><RotateCcw className="w-4 h-4" /> تصحيح الكل (معكوس)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleReviewTranslations} disabled={editor.reviewing || editor.translatedCount === 0}><ShieldCheck className="w-4 h-4" /> مراجعة ذكية 🔍</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleImproveTranslations} disabled={editor.improvingTranslations || editor.translatedCount === 0}><Sparkles className="w-4 h-4" /> تحسين الترجمات ✨</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleFixAllStuckCharacters} disabled={editor.needsImproveCount.stuck === 0}><AlertTriangle className="w-4 h-4" /> إصلاح الأحرف الملتصقة 🔤</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0}>
-                    {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">🆕 أدوات متقدمة</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0}>
-                    {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0}>
-                    <Search className="w-4 h-4" /> كشف التناقضات 🔍
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0}>
-                    <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ) : (
-            <div className="mb-6 flex gap-3 flex-wrap">
-              <Button variant="outline" onClick={editor.handleExportTranslations} className="font-body"><Download className="w-4 h-4" /> تصدير JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="font-body"><FileText className="w-4 h-4" /> تصدير الإنجليزية ({untranslatedCount}) 🇬🇧{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="bg-card border-border z-50">
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly()}>📄 تصدير كامل في ملف واحد</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs">📦 تصدير مقسّم</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(1000)}>1000 نص لكل ملف</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(500)}>500 نص لكل ملف</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(200)}>200 نص لكل ملف</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" onClick={editor.handleImportTranslations} className="font-body"><Upload className="w-4 h-4" /> استيراد JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
-              <Button variant="outline" onClick={editor.handleExportCSV} className="font-body"><FileDown className="w-4 h-4" /> تصدير CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
-              <Button variant="outline" onClick={editor.handleImportCSV} className="font-body"><Upload className="w-4 h-4" /> استيراد CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
-              <Button variant="outline" onClick={editor.handleImportGlossary} className="font-body"><BookOpen className="w-4 h-4" /> تحميل قاموس مخصص</Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="font-body border-primary/30 text-primary hover:text-primary">📖 القواميس المدمجة</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="bg-card border-border z-50">
-                  <DropdownMenuItem onClick={editor.handleLoadDefaultGlossary}>🗡️ القاموس الأساسي (زيلدا)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadTOTKGlossary}>🌿 قاموس TOTK الإضافي</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadTOTKItemsGlossary}>🎒 قاموس العناصر والأسلحة</DropdownMenuItem>
-                  <DropdownMenuItem onClick={editor.handleLoadMaterialsGlossary}>⚔️ قاموس المواد والأسلحة</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadUIGlossary}>🖥️ قاموس الواجهة والقوائم</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadLocationsGlossary}>🗺️ قاموس المواقع والشخصيات</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadCreaturesGlossary}>🐉 قاموس المخلوقات والوحوش</DropdownMenuItem>
-                   <DropdownMenuItem onClick={editor.handleLoadAbilitiesGlossary}>✨ قاموس القدرات والتأثيرات</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={editor.handleLoadAllGlossaries}>📚 تحميل الكل ودمجهم</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" onClick={editor.handleSaveGlossaryToCloud} disabled={!editor.user || editor.cloudSyncing} className="font-body border-secondary/30 text-secondary hover:text-secondary">
-                {editor.cloudSyncing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CloudUpload className="w-4 h-4 mr-2" />} حفظ القاموس ☁️
-              </Button>
-              <Button variant="outline" onClick={editor.handleLoadGlossaryFromCloud} disabled={!editor.user || editor.cloudSyncing} className="font-body border-secondary/30 text-secondary hover:text-secondary">
-                {editor.cloudSyncing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Cloud className="w-4 h-4 mr-2" />} تحميل من السحابة ☁️
-              </Button>
-              <Button variant="outline" onClick={editor.handleFixAllReversed} className="font-body border-accent/30 text-accent hover:text-accent">
-                <RotateCcw className="w-4 h-4" /> تصحيح الكل (عربي معكوس)
-              </Button>
-              <Button variant="outline" onClick={editor.handleReviewTranslations} disabled={editor.reviewing || editor.translatedCount === 0} className="font-body border-green-500/30 text-green-600 hover:text-green-700">
-                {editor.reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} مراجعة ذكية 🔍
-              </Button>
-              <Button variant="outline" onClick={editor.handleImproveTranslations} disabled={editor.improvingTranslations || editor.translatedCount === 0} className="font-body border-secondary/30 text-secondary hover:text-secondary">
-                {editor.improvingTranslations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} تحسين الترجمات ✨
-              </Button>
-              <Button variant="outline" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
-                {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
-              </Button>
-              <Button variant="outline" onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
-                {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
-              </Button>
-              <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-amber-500/30 text-amber-600 hover:text-amber-700">
-                <Search className="w-4 h-4" /> كشف التناقضات 🔍
-              </Button>
-              <Button variant="outline" onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30">
-                <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
-              </Button>
-            </div>
-          )}
+          {/* Cloud & Actions Toolbar */}
+          <EditorToolbar
+            isMobile={isMobile} editor={editor} untranslatedCount={untranslatedCount}
+            polishing={polishing} handlePolishArabic={handlePolishArabic}
+            setShowInconsistencies={setShowInconsistencies} setShowSmartImprove={setShowSmartImprove}
+          />
 
           {/* Build Options */}
           <Card className="mb-4 border-border">
@@ -1025,52 +628,30 @@ const Editor = () => {
 
           {/* Quality Stats Panel */}
           {editor.showQualityStats && (
-            <QualityStatsPanel
-              qualityStats={editor.qualityStats}
-              translatedCount={editor.translatedCount}
-              setFilterStatus={editor.setFilterStatus}
-              setShowQualityStats={editor.setShowQualityStats}
-              onExportReport={editor.exportQualityReport}
-              onFixAllPunctuation={editor.handleFixAllPunctuation}
-              onFixAllBrackets={editor.handleFixAllBrackets}
-              onFixAllDiacritics={editor.handleFixAllDiacritics}
-              onFixAllSpaces={editor.handleFixAllSpaces}
-              onFixAllHamza={editor.handleFixAllHamza}
-            />
+            <QualityStatsPanel qualityStats={editor.qualityStats} translatedCount={editor.translatedCount}
+              setFilterStatus={editor.setFilterStatus} setShowQualityStats={editor.setShowQualityStats}
+              onExportReport={editor.exportQualityReport} onFixAllPunctuation={editor.handleFixAllPunctuation}
+              onFixAllBrackets={editor.handleFixAllBrackets} onFixAllDiacritics={editor.handleFixAllDiacritics}
+              onFixAllSpaces={editor.handleFixAllSpaces} onFixAllHamza={editor.handleFixAllHamza} />
           )}
 
           {/* Quick Review Mode */}
           {editor.quickReviewMode && (
-            <QuickReviewMode
-              filteredEntries={editor.filteredEntries}
-              quickReviewIndex={editor.quickReviewIndex}
-              setQuickReviewIndex={editor.setQuickReviewIndex}
-              setQuickReviewMode={editor.setQuickReviewMode}
-              translations={editor.state.translations}
-              qualityProblemKeys={editor.qualityStats.problemKeys}
-              updateTranslation={editor.updateTranslation}
-              entries={editor.state.entries}
-              glossary={editor.state.glossary}
-            />
+            <QuickReviewMode filteredEntries={editor.filteredEntries} quickReviewIndex={editor.quickReviewIndex}
+              setQuickReviewIndex={editor.setQuickReviewIndex} setQuickReviewMode={editor.setQuickReviewMode}
+              translations={editor.state.translations} qualityProblemKeys={editor.qualityStats.problemKeys}
+              updateTranslation={editor.updateTranslation} entries={editor.state.entries} glossary={editor.state.glossary} />
           )}
 
           {/* Find & Replace */}
           {editor.showFindReplace && editor.state && (
-            <FindReplacePanel
-              entries={editor.state.entries}
-              translations={editor.state.translations}
-              onReplace={editor.handleBulkReplace}
-              onClose={() => editor.setShowFindReplace(false)}
-            />
+            <FindReplacePanel entries={editor.state.entries} translations={editor.state.translations}
+              onReplace={editor.handleBulkReplace} onClose={() => editor.setShowFindReplace(false)} />
           )}
 
           {/* Diff View */}
           {showDiffView && editor.state && (
-            <DiffView
-              entries={editor.filteredEntries}
-              translations={editor.state.translations}
-              onClose={() => setShowDiffView(false)}
-            />
+            <DiffView entries={editor.filteredEntries} translations={editor.state.translations} onClose={() => setShowDiffView(false)} />
           )}
 
           {/* Pagination Header */}
@@ -1089,105 +670,59 @@ const Editor = () => {
               <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>
             ) : (
               editor.paginatedEntries
-                .filter(entry => {
-                  if (filterDifficulty === 'all') return true;
-                  return classifyDifficulty(entry).level === filterDifficulty;
-                })
+                .filter(entry => filterDifficulty === 'all' || classifyDifficulty(entry).level === filterDifficulty)
                 .map((entry) => {
-                const key = `${entry.msbtFile}:${entry.index}`;
-                const difficulty = classifyDifficulty(entry);
-                const diffConf = DIFFICULTY_CONFIG[difficulty.level];
-                // Build small TM from same file's existing translations
-                const tm = editor.state ? editor.state.entries
-                  .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
-                  .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
-                  .filter(t => t.translation.trim())
-                  .slice(0, 5) : [];
-                // Adjacent context for inline preview
-                const sameFileEntries = editor.state ? editor.state.entries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index) : [];
-                const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
-                const adjacentContext = {
-                  prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
-                  next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
-                };
-                return (
-                  <div key={key} className="relative">
-                    {/* Difficulty + Context badges */}
-                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
-                        {diffConf.emoji} {diffConf.label}
-                      </span>
-                      <button
-                        onClick={() => openSceneContext(entry)}
-                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                        title="عرض سياق المشهد"
-                      >
-                        🎬
-                      </button>
-                      <button
-                        onClick={() => openTMPanel(entry)}
-                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                        title="ذاكرة الترجمة"
-                      >
-                        🧠
-                      </button>
-                      <button
-                        onClick={() => openScreenshots(entry)}
-                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                        title="سياق بالصور"
-                      >
-                        📸
-                      </button>
-                      <button
-                        onClick={() => openContextSuggest(entry)}
-                        className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        title="اقتراحات سياقية بالـ AI"
-                      >
-                        💡
-                      </button>
-                      <button
-                        onClick={() => openEngineCompare(entry)}
-                        className="text-[9px] px-1 py-0.5 rounded bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
-                        title="مقارنة بين المحركات"
-                      >
-                        ⚖️
-                      </button>
+                  const key = `${entry.msbtFile}:${entry.index}`;
+                  const difficulty = classifyDifficulty(entry);
+                  const diffConf = DIFFICULTY_CONFIG[difficulty.level];
+                  const tm = editor.state ? editor.state.entries
+                    .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
+                    .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
+                    .filter(t => t.translation.trim()).slice(0, 5) : [];
+                  const sameFileEntries = editor.state ? editor.state.entries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index) : [];
+                  const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
+                  const adjacentContext = {
+                    prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
+                    next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
+                  };
+                  return (
+                    <div key={key} className="relative">
+                      <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
+                          {diffConf.emoji} {diffConf.label}
+                        </span>
+                        {[
+                          { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
+                          { onClick: () => openTMPanel(entry), icon: "🧠", title: "ذاكرة الترجمة", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
+                          { onClick: () => openScreenshots(entry), icon: "📸", title: "سياق بالصور", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
+                          { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
+                          { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
+                        ].map((btn, i) => (
+                          <button key={i} onClick={btn.onClick} className={`text-[9px] px-1 py-0.5 rounded ${btn.cls} transition-colors`} title={btn.title}>{btn.icon}</button>
+                        ))}
+                      </div>
+                      <EntryCard entry={entry} translation={editor.state?.translations[key] || ''} glossary={editor.state?.glossary}
+                        adjacentContext={adjacentContext} isProtected={editor.state?.protectedEntries?.has(key) || false}
+                        hasProblem={editor.qualityStats.problemKeys.has(key)} isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
+                        isMobile={isMobile} translatingSingle={editor.translatingSingle} improvingTranslations={editor.improvingTranslations}
+                        previousTranslations={editor.previousTranslations} isTranslationTooShort={editor.isTranslationTooShort}
+                        isTranslationTooLong={editor.isTranslationTooLong} hasStuckChars={editor.hasStuckChars} isMixedLanguage={editor.isMixedLanguage}
+                        updateTranslation={editor.updateTranslation} handleTranslateSingle={editor.handleTranslateSingle}
+                        handleImproveSingleTranslation={editor.handleImproveSingleTranslation} handleUndoTranslation={editor.handleUndoTranslation}
+                        handleFixReversed={editor.handleFixReversed} handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
+                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote} />
                     </div>
-                    <EntryCard
-                      entry={entry}
-                      translation={editor.state?.translations[key] || ''}
-                      glossary={editor.state?.glossary}
-                      adjacentContext={adjacentContext}
-                      isProtected={editor.state?.protectedEntries?.has(key) || false}
-                      hasProblem={editor.qualityStats.problemKeys.has(key)}
-                      isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
-                      isMobile={isMobile}
-                      translatingSingle={editor.translatingSingle}
-                      improvingTranslations={editor.improvingTranslations}
-                      previousTranslations={editor.previousTranslations}
-                      isTranslationTooShort={editor.isTranslationTooShort}
-                      isTranslationTooLong={editor.isTranslationTooLong}
-                      hasStuckChars={editor.hasStuckChars}
-                      isMixedLanguage={editor.isMixedLanguage}
-                      updateTranslation={editor.updateTranslation}
-                      handleTranslateSingle={editor.handleTranslateSingle}
-                      handleImproveSingleTranslation={editor.handleImproveSingleTranslation}
-                      handleUndoTranslation={editor.handleUndoTranslation}
-                      handleFixReversed={editor.handleFixReversed}
-                      handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                      translationMemory={tm}
-                      translatorNotes={translatorNotes}
-                      onUpdateNote={handleUpdateNote}
-                    />
-                  </div>
-                );
-              })
+                  );
+                })
             )}
           </div>
 
           {/* Pagination Footer */}
           <PaginationControls currentPage={editor.currentPage} totalPages={editor.totalPages} totalItems={editor.filteredEntries.length} pageSize={PAGE_SIZE} setCurrentPage={editor.setCurrentPage} />
         </div>
+
+        {/* Dialogs */}
+        <BuildStatsDialog stats={editor.buildStats} onClose={() => editor.setBuildStats(null)} />
 
         <AlertDialog open={editor.showRetranslateConfirm} onOpenChange={editor.setShowRetranslateConfirm}>
           <AlertDialogContent>
@@ -1210,7 +745,6 @@ const Editor = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Filter Translate Confirmation */}
         <AlertDialog open={showFilterTranslateConfirm} onOpenChange={setShowFilterTranslateConfirm}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1222,29 +756,16 @@ const Editor = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { setShowFilterTranslateConfirm(false); editor.handleAutoTranslate(); }}>
-                ترجمة {untranslatedCount} نص 🚀
-              </AlertDialogAction>
+              <AlertDialogAction onClick={() => { setShowFilterTranslateConfirm(false); editor.handleAutoTranslate(); }}>ترجمة {untranslatedCount} نص 🚀</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        <BuildConfirmDialog
-          open={editor.showBuildConfirm}
-          onOpenChange={editor.setShowBuildConfirm}
-          preview={editor.buildPreview}
-          onConfirm={editor.handleBuild}
-          building={editor.building}
-        />
+        <BuildConfirmDialog open={editor.showBuildConfirm} onOpenChange={editor.setShowBuildConfirm} preview={editor.buildPreview} onConfirm={editor.handleBuild} building={editor.building} />
 
         {editor.fixPreview && (
-          <FixPreviewDialog
-            open={!!editor.fixPreview}
-            onClose={() => editor.setFixPreview(null)}
-            onApply={editor.handleApplyFixPreview}
-            title={editor.fixPreview.title}
-            items={editor.fixPreview.items}
-          />
+          <FixPreviewDialog open={!!editor.fixPreview} onClose={() => editor.setFixPreview(null)} onApply={editor.handleApplyFixPreview}
+            title={editor.fixPreview.title} items={editor.fixPreview.items} />
         )}
 
         {/* Glossary Apply Confirmation with Library Selection */}
@@ -1267,47 +788,26 @@ const Editor = () => {
             <div className="space-y-2 py-2">
               <p className="text-xs text-muted-foreground font-body">اختر القواميس المراد تطبيقها:</p>
               {[
-                { id: 'default', label: 'القاموس الأساسي', url: '/zelda-glossary.txt' },
-                { id: 'totk', label: 'قاموس TOTK', url: '/zelda-totk-glossary.txt' },
-                { id: 'totk-items', label: 'قاموس العناصر', url: '/zelda-totk-items-glossary.txt' },
-                { id: 'materials', label: 'المواد والأسلحة', url: '/zelda-materials-glossary.txt' },
-                { id: 'ui', label: 'الواجهة والقوائم', url: '/zelda-ui-glossary.txt' },
-                { id: 'locations', label: 'المواقع والشخصيات', url: '/zelda-locations-characters-glossary.txt' },
-                { id: 'creatures', label: 'المخلوقات والوحوش', url: '/zelda-creatures-glossary.txt' },
-                { id: 'abilities', label: 'القدرات والتأثيرات', url: '/zelda-abilities-glossary.txt' },
+                { id: 'default', label: 'القاموس الأساسي' }, { id: 'totk', label: 'قاموس TOTK' },
+                { id: 'totk-items', label: 'قاموس العناصر' }, { id: 'materials', label: 'المواد والأسلحة' },
+                { id: 'ui', label: 'الواجهة والقوائم' }, { id: 'locations', label: 'المواقع والشخصيات' },
+                { id: 'creatures', label: 'المخلوقات والوحوش' }, { id: 'abilities', label: 'القدرات والتأثيرات' },
               ].map(lib => (
                 <label key={lib.id} className="flex items-center gap-2 text-sm font-body cursor-pointer hover:bg-accent/10 rounded px-2 py-1.5 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={selectedGlossaryLibs.has(lib.id)}
-                    onChange={() => {
-                      setSelectedGlossaryLibs(prev => {
-                        const next = new Set(prev);
-                        if (next.has(lib.id)) next.delete(lib.id);
-                        else next.add(lib.id);
-                        return next;
-                      });
-                    }}
-                    className="rounded border-border accent-primary w-4 h-4"
-                  />
+                  <input type="checkbox" checked={selectedGlossaryLibs.has(lib.id)}
+                    onChange={() => { setSelectedGlossaryLibs(prev => { const next = new Set(prev); if (next.has(lib.id)) next.delete(lib.id); else next.add(lib.id); return next; }); }}
+                    className="rounded border-border accent-primary w-4 h-4" />
                   <span>{lib.label}</span>
                 </label>
               ))}
               <div className="flex gap-2 pt-1">
                 <Button variant="ghost" size="sm" className="h-6 text-xs font-body"
-                  onClick={() => setSelectedGlossaryLibs(new Set(['default','totk','totk-items','materials','ui','locations','creatures','abilities']))}>
-                  تحديد الكل
-                </Button>
-                <Button variant="ghost" size="sm" className="h-6 text-xs font-body"
-                  onClick={() => setSelectedGlossaryLibs(new Set())}>
-                  إلغاء الكل
-                </Button>
+                  onClick={() => setSelectedGlossaryLibs(new Set(['default','totk','totk-items','materials','ui','locations','creatures','abilities']))}>تحديد الكل</Button>
+                <Button variant="ghost" size="sm" className="h-6 text-xs font-body" onClick={() => setSelectedGlossaryLibs(new Set())}>إلغاء الكل</Button>
               </div>
             </div>
             <DialogFooter className="flex-row gap-2">
-              <Button variant="outline" size="sm" className="font-body" onClick={() => setGlossaryApplyConfirm(null)}>
-                إلغاء
-              </Button>
+              <Button variant="outline" size="sm" className="font-body" onClick={() => setGlossaryApplyConfirm(null)}>إلغاء</Button>
               <Button size="sm" className="font-body" disabled={selectedGlossaryLibs.size === 0} onClick={async () => {
                 const libUrls: Record<string, string> = {
                   'default': '/zelda-glossary.txt', 'totk': '/zelda-totk-glossary.txt',
@@ -1315,136 +815,60 @@ const Editor = () => {
                   'ui': '/zelda-ui-glossary.txt', 'locations': '/zelda-locations-characters-glossary.txt',
                   'creatures': '/zelda-creatures-glossary.txt', 'abilities': '/zelda-abilities-glossary.txt',
                 };
-                // If all selected and glossary is already loaded, use state.glossary
                 const useLoadedGlossary = selectedGlossaryLibs.size === 8 && editor.state?.glossary?.trim();
                 let glossaryText = '';
-                if (useLoadedGlossary) {
-                  glossaryText = editor.state!.glossary!;
-                } else {
-                  // Fetch only selected libraries
+                if (useLoadedGlossary) { glossaryText = editor.state!.glossary!; }
+                else {
                   const urls = Array.from(selectedGlossaryLibs).map(id => libUrls[id]).filter(Boolean);
                   try {
                     const responses = await Promise.all(urls.map(u => fetch(u)));
                     const texts = await Promise.all(responses.map(r => r.ok ? r.text() : Promise.resolve('')));
                     glossaryText = texts.filter(Boolean).join('\n');
-                  } catch {
-                    return;
-                  }
+                  } catch { return; }
                 }
                 const entries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
                 const changes = editor.generateGlossaryPreview(entries, glossaryText);
-                if (changes && changes.length > 0) {
-                  setGlossaryPreviewChanges(changes);
-                  setShowGlossaryPreview(true);
-                } else {
-                  // No changes found - toast handled by handleApplyGlossaryToAll/Filtered
-                }
+                if (changes && changes.length > 0) { setGlossaryPreviewChanges(changes); setShowGlossaryPreview(true); }
                 setGlossaryApplyConfirm(null);
-              }}>
-                متابعة ({selectedGlossaryLibs.size} قاموس)
-              </Button>
+              }}>متابعة ({selectedGlossaryLibs.size} قاموس)</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <GlossaryApplyPreview
-          open={showGlossaryPreview}
-          onClose={() => setShowGlossaryPreview(false)}
-          changes={glossaryPreviewChanges}
-          onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)}
-        />
+        <GlossaryApplyPreview open={showGlossaryPreview} onClose={() => setShowGlossaryPreview(false)} changes={glossaryPreviewChanges}
+          onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)} />
 
-        {/* Scene Context Panel */}
         {sceneContextEntry && editor.state && (
-          <SceneContextPanel
-            open={showSceneContext}
-            onClose={() => setShowSceneContext(false)}
-            entry={sceneContextEntry}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-          />
+          <SceneContextPanel open={showSceneContext} onClose={() => setShowSceneContext(false)} entry={sceneContextEntry}
+            entries={editor.state.entries} translations={editor.state.translations} />
         )}
-
-        {/* Inconsistency Detector */}
         {editor.state && (
-          <InconsistencyDetector
-            open={showInconsistencies}
-            onClose={() => setShowInconsistencies(false)}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-            glossary={editor.state.glossary}
-            onApplyFix={editor.updateTranslation}
-          />
+          <InconsistencyDetector open={showInconsistencies} onClose={() => setShowInconsistencies(false)} entries={editor.state.entries}
+            translations={editor.state.translations} glossary={editor.state.glossary} onApplyFix={editor.updateTranslation} />
         )}
-
-        {/* Translation Memory Panel */}
         {tmPanelEntry && editor.state && (
-          <TranslationMemoryPanel
-            open={showTMPanel}
-            onClose={() => setShowTMPanel(false)}
-            entry={tmPanelEntry}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-            onApplyTranslation={editor.updateTranslation}
-          />
+          <TranslationMemoryPanel open={showTMPanel} onClose={() => setShowTMPanel(false)} entry={tmPanelEntry}
+            entries={editor.state.entries} translations={editor.state.translations} onApplyTranslation={editor.updateTranslation} />
         )}
-
-        {/* Screenshot Context */}
         {screenshotEntry && (
-          <ScreenshotContext
-            open={showScreenshots}
-            onClose={() => setShowScreenshots(false)}
-            entry={screenshotEntry}
-            screenshots={screenshots}
-            onAddScreenshot={handleAddScreenshot}
-            onRemoveScreenshot={handleRemoveScreenshot}
-          />
+          <ScreenshotContext open={showScreenshots} onClose={() => setShowScreenshots(false)} entry={screenshotEntry}
+            screenshots={screenshots} onAddScreenshot={handleAddScreenshot} onRemoveScreenshot={handleRemoveScreenshot} />
         )}
-
-        {/* Context AI Suggestions */}
         {contextSuggestEntry && editor.state && (
-          <ContextSuggestPanel
-            open={showContextSuggest}
-            onClose={() => setShowContextSuggest(false)}
-            entry={contextSuggestEntry}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-            glossary={editor.state.glossary}
-            onApplyTranslation={editor.updateTranslation}
-          />
+          <ContextSuggestPanel open={showContextSuggest} onClose={() => setShowContextSuggest(false)} entry={contextSuggestEntry}
+            entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary} onApplyTranslation={editor.updateTranslation} />
         )}
-
-        {/* Feature Tour */}
         <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
         <KeyboardShortcutsDialog open={showKeyboardShortcuts} onClose={() => setShowKeyboardShortcuts(false)} />
-
-        {/* Engine Compare */}
         {engineCompareEntry && editor.state && (
-          <EngineComparePanel
-            open={showEngineCompare}
-            onClose={() => setShowEngineCompare(false)}
-            entry={engineCompareEntry}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-            glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey}
-            myMemoryEmail={editor.myMemoryEmail}
-            onApplyTranslation={editor.updateTranslation}
-          />
+          <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
+            entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
+            userGeminiKey={editor.userGeminiKey} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
         )}
-
-        {/* Smart Bulk Improve */}
         {editor.state && (
-          <SmartBulkImprovePanel
-            open={showSmartImprove}
-            onClose={() => setShowSmartImprove(false)}
-            entries={editor.state.entries}
-            translations={editor.state.translations}
-            glossary={editor.state.glossary}
-            isFilterActive={editor.isFilterActive}
-            filteredEntries={editor.filteredEntries}
-            onApplyImprovements={handleSmartImproveApply}
-          />
+          <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}
+            translations={editor.state.translations} glossary={editor.state.glossary} isFilterActive={editor.isFilterActive}
+            filteredEntries={editor.filteredEntries} onApplyImprovements={handleSmartImproveApply} />
         )}
       </div>
     </TooltipProvider>
