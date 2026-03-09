@@ -51,6 +51,7 @@ const Editor = () => {
   const [showFilterTranslateConfirm, setShowFilterTranslateConfirm] = React.useState(false);
   const [glossaryPreviewChanges, setGlossaryPreviewChanges] = React.useState<GlossaryChange[]>([]);
   const [showGlossaryPreview, setShowGlossaryPreview] = React.useState(false);
+  const [glossaryApplyConfirm, setGlossaryApplyConfirm] = React.useState<'all' | 'filtered' | null>(null);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
