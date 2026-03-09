@@ -151,9 +151,9 @@ const Editor = () => {
   }, []);
 
   const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
-    if (!editor.state) return;
-    editor.updateTranslation && Object.entries(updates).forEach(([k, v]) => editor.updateTranslation(k, v));
-  }, [editor.state]);
+    if (!editor.state || !editor.updateTranslation) return;
+    Object.entries(updates).forEach(([k, v]) => editor.updateTranslation(k, v));
+  }, [editor.state, editor.updateTranslation]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
