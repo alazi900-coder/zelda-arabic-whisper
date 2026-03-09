@@ -1340,6 +1340,7 @@ const Editor = () => {
             entries={editor.state.entries}
             translations={editor.state.translations}
             glossary={editor.state.glossary}
+            onApplyFix={editor.updateTranslation}
           />
         )}
 
