@@ -14,7 +14,7 @@ interface UseEditorGlossaryProps {
 }
 
 export function useEditorGlossary({
-  state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId,
+  state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId, filteredEntries, isFilterActive,
 }: UseEditorGlossaryProps) {
   const [glossaryEnabled, setGlossaryEnabled] = useState(true);
 
