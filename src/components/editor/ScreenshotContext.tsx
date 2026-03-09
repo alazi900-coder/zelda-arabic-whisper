@@ -128,7 +128,24 @@ export default function ScreenshotContext({ open, onClose, entry, screenshots, o
               >
                 <Upload className="w-3.5 h-3.5" /> رفع صورة
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAIAnalysis}
+                disabled={analyzing}
+                className="shrink-0"
+              >
+                {analyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                تحليل AI
+              </Button>
             </div>
+            {aiAnalysis && (
+              <div className="mt-2 rounded-lg bg-primary/10 border border-primary/20 p-2.5">
+                <p className="text-xs font-body text-primary/90">
+                  <strong>🧠 تحليل الذكاء الاصطناعي:</strong> {aiAnalysis}
+                </p>
+              </div>
+            )}
           </div>
 
           <ScrollArea className="flex-1 min-h-0">
