@@ -1060,7 +1060,7 @@ const Editor = () => {
                   setGlossaryPreviewChanges(changes);
                   setShowGlossaryPreview(true);
                 } else {
-                  editor.setLastSaved?.('⚠️ لم يتم العثور على مصطلحات تحتاج استبدال');
+                  // No changes found - toast handled by handleApplyGlossaryToAll/Filtered
                 }
                 setGlossaryApplyConfirm(null);
               }}>
