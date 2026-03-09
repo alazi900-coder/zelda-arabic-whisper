@@ -7,13 +7,17 @@ interface QualityReportExportProps {
   translatedCount: number;
   qualityStats: {
     total: number;
+    tooLong: number;
+    duplicateTranslations: number;
+    punctuationMismatch: number;
+    unclosedBrackets: number;
+  };
+  needsImproveCount: {
+    total: number;
     tooShort: number;
     tooLong: number;
     stuck: number;
     mixed: number;
-    duplicateTranslations: number;
-    punctuationMismatch: number;
-    unclosedBrackets: number;
   };
   categoryProgress: Record<string, { total: number; translated: number }>;
 }
