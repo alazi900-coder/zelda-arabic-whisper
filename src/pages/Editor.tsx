@@ -140,6 +140,7 @@ const Editor = () => {
   }, []);
 
   const [showFeatureTour, setShowFeatureTour] = React.useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = React.useState(false);
   const [showEngineCompare, setShowEngineCompare] = React.useState(false);
   const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
@@ -155,6 +156,18 @@ const Editor = () => {
   }, [editor.state]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSave: editor.handleCloudSave,
+    onSearch: () => { const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]'); searchInput?.focus(); },
+    onFindReplace: () => editor.setShowFindReplace(true),
+    onTranslate: () => editor.handleAutoTranslate(),
+    onBuild: () => editor.handlePreBuild(),
+    onQuickReview: () => editor.setQuickReviewMode(!editor.quickReviewMode),
+    onNextPage: () => editor.setCurrentPage(Math.min(editor.totalPages - 1, editor.currentPage + 1)),
+    onPrevPage: () => editor.setCurrentPage(Math.max(0, editor.currentPage - 1)),
+  }, !!editor.state);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
