@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Check, X, Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Check, X, Sparkles, AlertTriangle, CheckCircle2, Filter, RotateCcw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { utf16leByteLength } from "@/lib/byte-utils";
 import type { ExtractedEntry } from "./types";
 
 interface ImproveSuggestion {
@@ -16,6 +17,7 @@ interface ImproveSuggestion {
   improved: string;
   reason: string;
   severity: "low" | "medium" | "high";
+  category?: string;
   approved: boolean;
 }
 
@@ -47,6 +49,14 @@ export default function SmartBulkImprovePanel({
   const [progress, setProgress] = useState(0);
   const [analyzed, setAnalyzed] = useState(0);
   const [total, setTotal] = useState(0);
+  const [severityFilter, setSeverityFilter] = useState<"all" | "high" | "medium" | "low">("all");
+
+  // Build entry lookup for byte info
+  const entryMap = useMemo(() => {
+    const map = new Map<string, ExtractedEntry>();
+    entries.forEach(e => map.set(`${e.msbtFile}:${e.index}`, e));
+    return map;
+  }, [entries]);
 
   const analyze = useCallback(async () => {
     setLoading(true);
@@ -73,7 +83,7 @@ export default function SmartBulkImprovePanel({
     try {
       for (let b = 0; b < totalBatches; b++) {
         const batch = translatedEntries.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
-        setAnalyzed((b + 1) * BATCH_SIZE);
+        setAnalyzed(Math.min((b + 1) * BATCH_SIZE, translatedEntries.length));
         setProgress(((b + 1) / totalBatches) * 100);
 
         const batchEntries = batch.map(e => ({
@@ -95,13 +105,12 @@ export default function SmartBulkImprovePanel({
         if (data?.improvements) {
           const newSuggestions = data.improvements.map((imp: any) => ({
             ...imp,
-            approved: imp.severity === 'high', // Auto-approve high severity
+            approved: imp.severity === 'high',
           }));
           allSuggestions.push(...newSuggestions);
           setSuggestions([...allSuggestions]);
         }
 
-        // Rate limit delay
         if (b < totalBatches - 1) {
           await new Promise(r => setTimeout(r, 2000));
         }
@@ -129,7 +138,19 @@ export default function SmartBulkImprovePanel({
     ));
   };
 
+  const filteredSuggestions = useMemo(() =>
+    severityFilter === "all" ? suggestions : suggestions.filter(s => s.severity === severityFilter),
+    [suggestions, severityFilter]
+  );
+
   const approvedCount = suggestions.filter(s => s.approved).length;
+
+  // Stats summary
+  const stats = useMemo(() => ({
+    high: suggestions.filter(s => s.severity === "high").length,
+    medium: suggestions.filter(s => s.severity === "medium").length,
+    low: suggestions.filter(s => s.severity === "low").length,
+  }), [suggestions]);
 
   const handleApplyAll = () => {
     const updates: Record<string, string> = {};
@@ -158,10 +179,37 @@ export default function SmartBulkImprovePanel({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Stats & Filter bar */}
+        {suggestions.length > 0 && !loading && (
+          <div className="px-4 py-2 border-b border-border/30 bg-muted/10 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-muted-foreground ml-1">تصفية:</span>
+            {(["all", "high", "medium", "low"] as const).map(sev => {
+              const count = sev === "all" ? suggestions.length : stats[sev];
+              const isActive = severityFilter === sev;
+              const config = sev === "all" ? null : SEVERITY_CONFIG[sev];
+              return (
+                <Button
+                  key={sev}
+                  variant={isActive ? "default" : "ghost"}
+                  size="sm"
+                  className={`h-6 px-2 text-[10px] ${isActive ? '' : 'opacity-70'}`}
+                  onClick={() => setSeverityFilter(sev)}
+                >
+                  {config ? `${config.emoji} ${config.label}` : <><Filter className="w-3 h-3" /> الكل</>}
+                  <Badge variant="outline" className="text-[9px] h-4 px-1 mr-1">{count}</Badge>
+                </Button>
+              );
+            })}
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] mr-auto" onClick={() => { setSuggestions([]); analyze(); }}>
+              <RotateCcw className="w-3 h-3" /> إعادة التحليل
+            </Button>
+          </div>
+        )}
+
         {loading && (
           <div className="px-4 py-3 border-b border-border/30">
             <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-              <span>جارٍ تحليل {Math.min(analyzed, total)} / {total} نص...</span>
+              <span>جارٍ تحليل {analyzed} / {total} نص...</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
@@ -176,8 +224,13 @@ export default function SmartBulkImprovePanel({
                 <p className="text-sm text-muted-foreground">لا توجد اقتراحات بعد</p>
               </div>
             ) : (
-              suggestions.map((s) => {
+              filteredSuggestions.map((s) => {
                 const sev = SEVERITY_CONFIG[s.severity];
+                const entryData = entryMap.get(s.key);
+                const improvedBytes = utf16leByteLength(s.improved);
+                const maxBytes = entryData?.maxBytes || 0;
+                const overBytes = maxBytes > 0 && improvedBytes > maxBytes;
+
                 return (
                   <div
                     key={s.key}
@@ -185,11 +238,16 @@ export default function SmartBulkImprovePanel({
                       s.approved ? 'border-primary/30 bg-primary/5' : 'border-border/30 opacity-60'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge variant="outline" className={`text-[10px] h-5 px-2 ${sev.color}`}>
                         {sev.emoji} {sev.label}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{s.key}</span>
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{s.key.split(':')[0]}</span>
+                      {maxBytes > 0 && (
+                        <Badge variant="outline" className={`text-[9px] h-4 px-1.5 ${overBytes ? 'border-destructive/50 text-destructive' : ''}`}>
+                          {improvedBytes}/{maxBytes}B {overBytes ? '⚠️' : ''}
+                        </Badge>
+                      )}
                       <Button
                         variant={s.approved ? "default" : "ghost"}
                         size="sm"
@@ -200,6 +258,11 @@ export default function SmartBulkImprovePanel({
                         {s.approved ? 'معتمد' : 'مرفوض'}
                       </Button>
                     </div>
+
+                    {/* Original English text */}
+                    <p className="text-[10px] text-muted-foreground mb-1.5 truncate" dir="ltr">
+                      🔤 {s.original}
+                    </p>
 
                     <div className="grid grid-cols-2 gap-3 text-xs mb-2">
                       <div>
