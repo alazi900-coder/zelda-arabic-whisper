@@ -20,6 +20,7 @@ interface EntryCardProps {
   improvingTranslations: boolean;
   previousTranslations: Record<string, string>;
   glossary?: string;
+  adjacentContext?: { prev?: string; next?: string };
   isTranslationTooShort: (entry: ExtractedEntry, translation: string) => boolean;
   isTranslationTooLong: (entry: ExtractedEntry, translation: string) => boolean;
   hasStuckChars: (translation: string) => boolean;
