@@ -967,6 +967,9 @@ const Editor = () => {
               <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-amber-500/30 text-amber-600 hover:text-amber-700">
                 <Search className="w-4 h-4" /> كشف التناقضات 🔍
               </Button>
+              <Button variant="outline" onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30">
+                <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
+              </Button>
             </div>
           )}
 
