@@ -541,12 +541,23 @@ const Editor = () => {
                   onClick={() => editor.setGlossaryEnabled(!editor.glossaryEnabled)}
                   className="mr-auto h-6 px-2 text-xs font-body"
                 >
-                  {editor.glossaryEnabled ? (
+                   {editor.glossaryEnabled ? (
                     <><Eye className="w-3 h-3" /> مفعّل</>
                   ) : (
                     <><EyeOff className="w-3 h-3" /> معطّل</>
                   )}
                 </Button>
+                {editor.glossaryEnabled && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={editor.handleApplyGlossaryToAll}
+                    className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
+                    title="تطبيق مصطلحات القاموس على جميع الترجمات"
+                  >
+                    <Replace className="w-3 h-3" /> تطبيق الكل
+                  </Button>
+                )}
               </div>
               {/* Coverage Stats */}
               {editor.glossaryCoverage && editor.state && (
