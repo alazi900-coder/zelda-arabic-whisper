@@ -33,7 +33,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}
-      <header className="relative flex flex-col items-center justify-center min-h-[70vh] px-4 text-center overflow-hidden">
+      <header className="relative flex flex-col items-center justify-center min-h-[50vh] md:min-h-[70vh] px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         <div className="relative z-10 max-w-2xl mx-auto">
           <img
@@ -64,12 +64,12 @@ const Index = () => {
       </header>
 
       {/* World Banner */}
-      <section ref={parallaxRef} className="relative w-full overflow-hidden h-64 md:h-96">
+      <section ref={parallaxRef} className="relative w-full overflow-hidden h-48 md:h-96">
         <img
           src={hyruleWorld}
           alt="عالم هايرول مع أبطال اللعبة"
-          className="absolute left-0 w-full h-[140%] -top-[20%] object-cover will-change-transform"
-          style={{ transform: `translateY(${offset}px)` }}
+          className="absolute inset-x-0 top-0 w-full h-full object-cover will-change-transform"
+          style={{ transform: `translateY(${offset * 0.5}px)`, scale: '1.2' }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         <div className="absolute bottom-6 inset-x-0 text-center">
