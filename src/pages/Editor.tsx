@@ -1408,6 +1408,7 @@ const Editor = () => {
 
         {/* Feature Tour */}
         <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
+        <KeyboardShortcutsDialog open={showKeyboardShortcuts} onClose={() => setShowKeyboardShortcuts(false)} />
 
         {/* Engine Compare */}
         {engineCompareEntry && editor.state && (
