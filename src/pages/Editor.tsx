@@ -534,6 +534,12 @@ const Editor = () => {
                     <option value="exclude">بدون تقني</option>
                     <option value="only">تقني فقط</option>
                   </select>
+                  <select value={filterDifficulty} onChange={e => setFilterDifficulty(e.target.value)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm">
+                    <option value="all">كل الصعوبات</option>
+                    <option value="simple">🟢 بسيط ({difficultyStats.simple})</option>
+                    <option value="medium">🟡 متوسط ({difficultyStats.medium})</option>
+                    <option value="complex">🔴 معقد ({difficultyStats.complex})</option>
+                  </select>
                   <Button variant={editor.quickReviewMode ? "secondary" : "outline"} size="sm" onClick={() => { editor.setQuickReviewMode(!editor.quickReviewMode); editor.setQuickReviewIndex(0); }} className="font-body text-xs">
                     <Eye className="w-3 h-3" /> مراجعة سريعة
                   </Button>
