@@ -63,6 +63,13 @@ const Editor = () => {
   const [selectedGlossaryLibs, setSelectedGlossaryLibs] = React.useState<Set<string>>(() => new Set([
     'default', 'totk', 'totk-items', 'materials', 'ui', 'locations', 'creatures', 'abilities'
   ]));
+  const [showSceneContext, setShowSceneContext] = React.useState(false);
+  const [sceneContextEntry, setSceneContextEntry] = React.useState<any>(null);
+  const [showInconsistencies, setShowInconsistencies] = React.useState(false);
+  const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
+  const [polishing, setPolishing] = React.useState(false);
+
+  const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
