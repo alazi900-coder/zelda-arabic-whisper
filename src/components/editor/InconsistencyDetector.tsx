@@ -23,8 +23,58 @@ interface Props {
   onApplyFix?: (key: string, translation: string) => void;
 }
 
-export default function InconsistencyDetector({ open, onClose, entries, translations, glossary, onJumpToEntry }: Props) {
+export default function InconsistencyDetector({ open, onClose, entries, translations, glossary, onJumpToEntry, onApplyFix }: Props) {
   const [minOccurrences, setMinOccurrences] = useState(2);
+  const [unifyingTerm, setUnifyingTerm] = useState<string | null>(null);
+  const [suggestedUnification, setSuggestedUnification] = useState<{ term: string; recommended: string; keys: string[] } | null>(null);
+
+  const handleUnifyTerm = useCallback(async (group: InconsistencyGroup) => {
+    if (!onApplyFix) return;
+    setUnifyingTerm(group.englishTerm);
+
+    // If glossary has the term, use it directly
+    const glossaryRef2 = new Map<string, string>();
+    if (glossary?.trim()) {
+      for (const line of glossary.split('\n')) {
+        const t = line.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) continue;
+        const eq = t.indexOf('=');
+        if (eq < 1) continue;
+        glossaryRef2.set(t.slice(0, eq).trim().toLowerCase(), t.slice(eq + 1).trim());
+      }
+    }
+
+    const glossaryMatch = glossaryRef2.get(group.englishTerm.toLowerCase());
+    if (glossaryMatch) {
+      // Use glossary term directly - apply to all entries
+      const allKeys = group.variants.flatMap(v => v.keys);
+      setSuggestedUnification({ term: group.englishTerm, recommended: glossaryMatch, keys: allKeys });
+      setUnifyingTerm(null);
+      return;
+    }
+
+    // Use the most common variant
+    const mostCommon = group.variants[0]; // Already sorted by count
+    const allKeys = group.variants.flatMap(v => v.keys);
+    setSuggestedUnification({ term: group.englishTerm, recommended: mostCommon.arabicText, keys: allKeys });
+    setUnifyingTerm(null);
+  }, [glossary, onApplyFix]);
+
+  const applyUnification = useCallback(() => {
+    if (!suggestedUnification || !onApplyFix) return;
+    // Only apply to entries that have a DIFFERENT translation
+    for (const key of suggestedUnification.keys) {
+      const current = translations[key]?.trim();
+      if (current && current !== suggestedUnification.recommended) {
+        // For full translations, we replace the whole thing only if it's a short term
+        if (current.length <= 50) {
+          onApplyFix(key, suggestedUnification.recommended);
+        }
+      }
+    }
+    toast({ title: "✅ تم توحيد المصطلح", description: `${suggestedUnification.term} → ${suggestedUnification.recommended}` });
+    setSuggestedUnification(null);
+  }, [suggestedUnification, translations, onApplyFix]);
 
   const inconsistencies = useMemo(() => {
     if (!entries?.length) return [];
