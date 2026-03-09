@@ -47,6 +47,8 @@ import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 import SceneContextPanel from "@/components/editor/SceneContextPanel";
 import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
+import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
+import ScreenshotContext from "@/components/editor/ScreenshotContext";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -68,6 +70,43 @@ const Editor = () => {
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
+  const [showTMPanel, setShowTMPanel] = React.useState(false);
+  const [tmPanelEntry, setTmPanelEntry] = React.useState<any>(null);
+  const [showScreenshots, setShowScreenshots] = React.useState(false);
+  const [screenshotEntry, setScreenshotEntry] = React.useState<any>(null);
+  const [screenshots, setScreenshots] = React.useState<Record<string, { url: string; name: string; note?: string }[]>>(() => {
+    try {
+      const saved = localStorage.getItem('zelda-editor-screenshots');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Save screenshots to localStorage
+  const handleAddScreenshot = React.useCallback((msbtFile: string, ss: { url: string; name: string; note?: string }) => {
+    setScreenshots(prev => {
+      const next = { ...prev, [msbtFile]: [...(prev[msbtFile] || []), ss] };
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleRemoveScreenshot = React.useCallback((msbtFile: string, index: number) => {
+    setScreenshots(prev => {
+      const next = { ...prev, [msbtFile]: (prev[msbtFile] || []).filter((_, i) => i !== index) };
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const openTMPanel = React.useCallback((entry: any) => {
+    setTmPanelEntry(entry);
+    setShowTMPanel(true);
+  }, []);
+
+  const openScreenshots = React.useCallback((entry: any) => {
+    setScreenshotEntry(entry);
+    setShowScreenshots(true);
+  }, []);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
@@ -998,6 +1037,20 @@ const Editor = () => {
                       >
                         🎬
                       </button>
+                      <button
+                        onClick={() => openTMPanel(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="ذاكرة الترجمة"
+                      >
+                        🧠
+                      </button>
+                      <button
+                        onClick={() => openScreenshots(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="سياق بالصور"
+                      >
+                        📸
+                      </button>
                     </div>
                     <EntryCard
                       entry={entry}
@@ -1216,6 +1269,30 @@ const Editor = () => {
             entries={editor.state.entries}
             translations={editor.state.translations}
             glossary={editor.state.glossary}
+          />
+        )}
+
+        {/* Translation Memory Panel */}
+        {tmPanelEntry && editor.state && (
+          <TranslationMemoryPanel
+            open={showTMPanel}
+            onClose={() => setShowTMPanel(false)}
+            entry={tmPanelEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            onApplyTranslation={editor.updateTranslation}
+          />
+        )}
+
+        {/* Screenshot Context */}
+        {screenshotEntry && (
+          <ScreenshotContext
+            open={showScreenshots}
+            onClose={() => setShowScreenshots(false)}
+            entry={screenshotEntry}
+            screenshots={screenshots}
+            onAddScreenshot={handleAddScreenshot}
+            onRemoveScreenshot={handleRemoveScreenshot}
           />
         )}
       </div>
