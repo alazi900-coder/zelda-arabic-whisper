@@ -138,6 +138,19 @@ const Editor = () => {
   }, []);
 
   const [showFeatureTour, setShowFeatureTour] = React.useState(false);
+  const [showEngineCompare, setShowEngineCompare] = React.useState(false);
+  const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
+  const [showSmartImprove, setShowSmartImprove] = React.useState(false);
+
+  const openEngineCompare = React.useCallback((entry: any) => {
+    setEngineCompareEntry(entry);
+    setShowEngineCompare(true);
+  }, []);
+
+  const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
+    if (!editor.state) return;
+    editor.setState((prev: any) => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+  }, [editor.state]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
