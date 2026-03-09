@@ -548,15 +548,28 @@ const Editor = () => {
                   )}
                 </Button>
                 {editor.glossaryEnabled && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={editor.handleApplyGlossaryToAll}
-                    className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
-                    title="تطبيق مصطلحات القاموس على جميع الترجمات"
-                  >
-                    <Replace className="w-3 h-3" /> تطبيق الكل
-                  </Button>
+                  <>
+                    {editor.isFilterActive && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => editor.handleApplyGlossaryToFiltered(editor.filteredEntries)}
+                        className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20"
+                        title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط"
+                      >
+                        <Filter className="w-3 h-3" /> تطبيق المفلتر
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={editor.handleApplyGlossaryToAll}
+                      className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
+                      title="تطبيق مصطلحات القاموس على جميع الترجمات"
+                    >
+                      <Replace className="w-3 h-3" /> تطبيق الكل
+                    </Button>
+                  </>
                 )}
               </div>
               {/* Coverage Stats */}
