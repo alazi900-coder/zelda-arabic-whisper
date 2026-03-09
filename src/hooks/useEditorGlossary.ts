@@ -371,6 +371,7 @@ export function useEditorGlossary({
     handleLoadMaterialsGlossary, handleLoadUIGlossary, handleLoadLocationsGlossary,
     handleLoadCreaturesGlossary, handleLoadAbilitiesGlossary,
     handleLoadAllGlossaries, handleApplyGlossaryToAll, handleApplyGlossaryToFiltered,
+    generateGlossaryPreview, applyApprovedGlossaryChanges,
     handleSaveGlossaryToCloud, handleLoadGlossaryFromCloud,
   };
 }
