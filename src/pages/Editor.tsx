@@ -1107,6 +1107,13 @@ const Editor = () => {
                       >
                         💡
                       </button>
+                      <button
+                        onClick={() => openEngineCompare(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
+                        title="مقارنة بين المحركات"
+                      >
+                        ⚖️
+                      </button>
                     </div>
                     <EntryCard
                       entry={entry}
