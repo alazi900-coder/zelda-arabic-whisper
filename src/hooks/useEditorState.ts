@@ -107,9 +107,10 @@ export function useEditorState() {
   // Keep stateRef always in sync so we can flush on unmount
   useEffect(() => { stateRef.current = state; }, [state]);
 
-  // Glossary hook moved below after filteredEntries/isFilterActive are defined
-  // Placeholder refs for activeGlossary/parseGlossaryMap used by translation hook
-  const glossaryRef = React.useRef<ReturnType<typeof useEditorGlossary> | null>(null);
+  const glossary = useEditorGlossary({
+    state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId: user?.id,
+  });
+  const { activeGlossary, parseGlossaryMap } = glossary;
 
   const quality = useEditorQuality({ state });
   const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount, exportQualityReport } = quality;
