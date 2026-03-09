@@ -51,6 +51,7 @@ const Editor = () => {
   const [showFilterTranslateConfirm, setShowFilterTranslateConfirm] = React.useState(false);
   const [glossaryPreviewChanges, setGlossaryPreviewChanges] = React.useState<GlossaryChange[]>([]);
   const [showGlossaryPreview, setShowGlossaryPreview] = React.useState(false);
+  const [glossaryApplyConfirm, setGlossaryApplyConfirm] = React.useState<'all' | 'filtered' | null>(null);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -556,13 +557,7 @@ const Editor = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          const changes = editor.handleApplyGlossaryToFiltered(editor.filteredEntries);
-                          if (changes && changes.length > 0) {
-                            setGlossaryPreviewChanges(changes);
-                            setShowGlossaryPreview(true);
-                          }
-                        }}
+                        onClick={() => setGlossaryApplyConfirm('filtered')}
                         className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20"
                         title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط"
                       >
@@ -572,13 +567,7 @@ const Editor = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const changes = editor.handleApplyGlossaryToAll();
-                        if (changes && changes.length > 0) {
-                          setGlossaryPreviewChanges(changes);
-                          setShowGlossaryPreview(true);
-                        }
-                      }}
+                      onClick={() => setGlossaryApplyConfirm('all')}
                       className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
                       title="تطبيق مصطلحات القاموس على جميع الترجمات"
                     >
@@ -974,6 +963,47 @@ const Editor = () => {
             items={editor.fixPreview.items}
           />
         )}
+
+        {/* Glossary Apply Confirmation */}
+        <AlertDialog open={!!glossaryApplyConfirm} onOpenChange={(v) => !v && setGlossaryApplyConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-display">تطبيق مصطلحات القاموس</AlertDialogTitle>
+              <AlertDialogDescription className="font-body text-sm space-y-2" dir="rtl">
+                {(() => {
+                  const targetEntries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
+                  const translatedEntries = targetEntries.filter(e => {
+                    const key = `${e.msbtFile}:${e.index}`;
+                    const t = editor.state?.translations[key]?.trim();
+                    return t && t !== e.original;
+                  });
+                  return (
+                    <>
+                      <p>سيتم فحص <strong>{translatedEntries.length}</strong> نص مترجم {glossaryApplyConfirm === 'filtered' ? '(من المفلتر)' : '(من الكل)'} بحثاً عن مصطلحات إنجليزية قابلة للاستبدال من القاموس ({editor.glossaryTermCount} مصطلح).</p>
+                      <p className="text-muted-foreground">ستظهر لك معاينة للتغييرات قبل تطبيقها فعلياً.</p>
+                    </>
+                  );
+                })()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-body">إلغاء</AlertDialogCancel>
+              <AlertDialogAction className="font-body" onClick={() => {
+                const entries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
+                const changes = glossaryApplyConfirm === 'filtered'
+                  ? editor.handleApplyGlossaryToFiltered(entries)
+                  : editor.handleApplyGlossaryToAll();
+                if (changes && changes.length > 0) {
+                  setGlossaryPreviewChanges(changes);
+                  setShowGlossaryPreview(true);
+                }
+                setGlossaryApplyConfirm(null);
+              }}>
+                متابعة
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <GlossaryApplyPreview
           open={showGlossaryPreview}
