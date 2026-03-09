@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, FileText, Download, Sparkles } from "lucide-react";
+import linkHero from "@/assets/link-hero.png";
 
 const steps = [
   { icon: FileText, title: "ارفع الملفات", desc: "ارفع ملف اللغة (.zs) وملف القاموس" },
