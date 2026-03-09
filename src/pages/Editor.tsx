@@ -974,6 +974,13 @@ const Editor = () => {
             items={editor.fixPreview.items}
           />
         )}
+
+        <GlossaryApplyPreview
+          open={showGlossaryPreview}
+          onClose={() => setShowGlossaryPreview(false)}
+          changes={glossaryPreviewChanges}
+          onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)}
+        />
       </div>
     </TooltipProvider>
   );
