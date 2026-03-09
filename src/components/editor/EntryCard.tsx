@@ -7,6 +7,7 @@ import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTe
 import { utf8ByteLength } from "@/lib/byte-utils";
 import { toast } from "@/hooks/use-toast";
 import ZeldaDialoguePreview from "@/components/ZeldaDialoguePreview";
+import TranslatorNote from "./TranslatorNote";
 
 interface EntryCardProps {
   entry: ExtractedEntry;
