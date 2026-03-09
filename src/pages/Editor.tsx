@@ -50,6 +50,7 @@ import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
 import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
 import ScreenshotContext from "@/components/editor/ScreenshotContext";
 import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
+import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -133,6 +134,8 @@ const Editor = () => {
       return next;
     });
   }, []);
+
+  const [showFeatureTour, setShowFeatureTour] = React.useState(false);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
@@ -269,7 +272,12 @@ const Editor = () => {
             <ArrowRight className="w-4 h-4" /> العودة للمعالجة
           </Link>
 
-          <h1 className="text-2xl md:text-3xl font-display font-bold mb-1 md:mb-2">محرر الترجمة ✍️</h1>
+          <div className="flex items-center gap-3 mb-1 md:mb-2">
+            <h1 className="text-2xl md:text-3xl font-display font-bold">محرر الترجمة ✍️</h1>
+            <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">
+              ❓ دليل الأدوات
+            </Button>
+          </div>
           <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6 font-body">عدّل النصوص العربية يدوياً أو استخدم الترجمة التلقائية</p>
 
           {/* Stats Cards */}
@@ -1343,6 +1351,9 @@ const Editor = () => {
             onApplyTranslation={editor.updateTranslation}
           />
         )}
+
+        {/* Feature Tour */}
+        <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
       </div>
     </TooltipProvider>
   );
