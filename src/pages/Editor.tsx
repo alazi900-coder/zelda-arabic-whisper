@@ -52,6 +52,9 @@ const Editor = () => {
   const [glossaryPreviewChanges, setGlossaryPreviewChanges] = React.useState<GlossaryChange[]>([]);
   const [showGlossaryPreview, setShowGlossaryPreview] = React.useState(false);
   const [glossaryApplyConfirm, setGlossaryApplyConfirm] = React.useState<'all' | 'filtered' | null>(null);
+  const [selectedGlossaryLibs, setSelectedGlossaryLibs] = React.useState<Set<string>>(() => new Set([
+    'default', 'totk', 'totk-items', 'materials', 'ui', 'locations', 'creatures', 'abilities'
+  ]));
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
