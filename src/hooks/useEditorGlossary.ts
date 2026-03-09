@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { EditorState } from "@/components/editor/types";
+import type { EditorState, ExtractedEntry } from "@/components/editor/types";
 
 interface UseEditorGlossaryProps {
   state: EditorState | null;
@@ -9,6 +9,8 @@ interface UseEditorGlossaryProps {
   setCloudSyncing: (v: boolean) => void;
   setCloudStatus: (msg: string) => void;
   userId?: string;
+  filteredEntries?: ExtractedEntry[];
+  isFilterActive?: boolean;
 }
 
 export function useEditorGlossary({
