@@ -103,7 +103,70 @@ const Editor = () => {
     }).length;
   }, [editor.state, editor.filteredEntries, editor.isFilterActive]);
 
-  if (!editor.state) {
+  // Arabic polishing handler
+  const handlePolishArabic = React.useCallback(async () => {
+    if (!editor.state || polishing) return;
+    const targetEntries = editor.isFilterActive ? editor.filteredEntries : editor.state.entries;
+    const translatedEntries = targetEntries.filter(e => {
+      const key = `${e.msbtFile}:${e.index}`;
+      const t = editor.state!.translations[key]?.trim();
+      return t && t !== e.original;
+    }).slice(0, 15); // Batch of 15
+
+    if (translatedEntries.length === 0) {
+      toast({ title: "⚠️ لا توجد ترجمات لتحسينها" });
+      return;
+    }
+
+    setPolishing(true);
+    try {
+      const entries = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: editor.state!.translations[`${e.msbtFile}:${e.index}`],
+      }));
+
+      const glossaryContext = editor.activeGlossary
+        ? editor.activeGlossary.split('\n').filter(l => l.trim() && l.includes('=')).slice(0, 50).join('\n')
+        : undefined;
+
+      const { data, error } = await supabase.functions.invoke('polish-arabic', {
+        body: { entries, glossary: glossaryContext },
+      });
+
+      if (error) throw error;
+      if (!data?.results) throw new Error('No results');
+
+      const changedResults = data.results.filter((r: any) => r.changed);
+      if (changedResults.length === 0) {
+        toast({ title: "✅ الترجمات سليمة", description: "لم يتم العثور على أخطاء تحتاج تصحيح" });
+      } else {
+        // Show as fix preview
+        editor.setFixPreview({
+          title: `تحسين الصياغة العربية (${changedResults.length} نص)`,
+          items: changedResults.map((r: any) => ({
+            key: r.key,
+            original: r.original,
+            before: r.current,
+            after: r.improved,
+            reason: r.reason,
+          })),
+          updates: Object.fromEntries(changedResults.map((r: any) => [r.key, r.improved])),
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في تحسين الصياغة", description: err.message, variant: "destructive" });
+    } finally {
+      setPolishing(false);
+    }
+  }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, polishing]);
+
+  // Scene context handler
+  const openSceneContext = React.useCallback((entry: any) => {
+    setSceneContextEntry(entry);
+    setShowSceneContext(true);
+  }, []);
+
     return (
       <div className="min-h-screen py-8 px-4">
         <div className="max-w-5xl mx-auto text-center">
