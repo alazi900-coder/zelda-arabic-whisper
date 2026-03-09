@@ -203,6 +203,18 @@ export default function InconsistencyDetector({ open, onClose, entries, translat
                           📖 {glossaryTranslation}
                         </Badge>
                       )}
+                      {onApplyFix && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-auto h-5 px-2 text-[10px]"
+                          onClick={() => handleUnifyTerm(group)}
+                          disabled={unifyingTerm === group.englishTerm}
+                        >
+                          {unifyingTerm === group.englishTerm ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                          توحيد
+                        </Button>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       {group.variants.map((v, vi) => (
