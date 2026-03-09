@@ -47,6 +47,8 @@ import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 import SceneContextPanel from "@/components/editor/SceneContextPanel";
 import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
+import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
+import ScreenshotContext from "@/components/editor/ScreenshotContext";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
