@@ -1271,6 +1271,30 @@ const Editor = () => {
             glossary={editor.state.glossary}
           />
         )}
+
+        {/* Translation Memory Panel */}
+        {tmPanelEntry && editor.state && (
+          <TranslationMemoryPanel
+            open={showTMPanel}
+            onClose={() => setShowTMPanel(false)}
+            entry={tmPanelEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            onApplyTranslation={editor.updateTranslation}
+          />
+        )}
+
+        {/* Screenshot Context */}
+        {screenshotEntry && (
+          <ScreenshotContext
+            open={showScreenshots}
+            onClose={() => setShowScreenshots(false)}
+            entry={screenshotEntry}
+            screenshots={screenshots}
+            onAddScreenshot={handleAddScreenshot}
+            onRemoveScreenshot={handleRemoveScreenshot}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
