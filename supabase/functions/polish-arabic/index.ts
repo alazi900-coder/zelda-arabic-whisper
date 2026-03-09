@@ -49,12 +49,13 @@ Deno.serve(async (req) => {
 3. ضمان اتساق المصطلحات مع القاموس
 4. الحفاظ على جميع الرموز التقنية [Tags] والمتغيرات كما هي
 5. عدم تغيير المعنى الأصلي
+6. تصنيف كل تصحيح حسب نوعه: grammar (نحوي)، spelling (إملائي)، style (أسلوبي)، terminology (مصطلحي)
 
-أجب بصيغة JSON فقط. لكل نص، أعد الترجمة المحسنة وسبب التغيير.
+أجب بصيغة JSON فقط. لكل نص، أعد الترجمة المحسنة وسبب التغيير وتصنيفه.
 إذا كان النص سليماً ولا يحتاج تحسين، أعده كما هو مع سبب "سليم".${glossaryContext}`;
 
     const userPrompt = `حسّن الترجمات التالية:\n\n${entriesText}\n\nأجب بـ JSON array بالشكل:
-[{"index": 0, "improved": "النص المحسن", "reason": "سبب التغيير", "changed": true/false}]`;
+[{"index": 0, "improved": "النص المحسن", "reason": "سبب التغيير", "changed": true/false, "category": "grammar|spelling|style|terminology"}]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
           type: "function",
           function: {
             name: "return_polished",
-            description: "Return polished Arabic translations",
+            description: "Return polished Arabic translations with error categories",
             parameters: {
               type: "object",
               properties: {
@@ -85,8 +86,9 @@ Deno.serve(async (req) => {
                       improved: { type: "string" },
                       reason: { type: "string" },
                       changed: { type: "boolean" },
+                      category: { type: "string", enum: ["grammar", "spelling", "style", "terminology", "ok"] },
                     },
-                    required: ["index", "improved", "reason", "changed"],
+                    required: ["index", "improved", "reason", "changed", "category"],
                     additionalProperties: false,
                   },
                 },
@@ -127,6 +129,15 @@ Deno.serve(async (req) => {
     }
 
     const parsed = JSON.parse(toolCall.function.arguments);
+
+    const CATEGORY_LABELS: Record<string, string> = {
+      grammar: "📝 نحوي",
+      spelling: "✏️ إملائي",
+      style: "🎨 أسلوبي",
+      terminology: "📖 مصطلحي",
+      ok: "✅ سليم",
+    };
+
     const results = parsed.results.map((r: any, i: number) => ({
       key: entries[r.index ?? i]?.key,
       original: entries[r.index ?? i]?.original,
@@ -134,6 +145,8 @@ Deno.serve(async (req) => {
       improved: r.improved,
       reason: r.reason,
       changed: r.changed,
+      category: r.category || "style",
+      categoryLabel: CATEGORY_LABELS[r.category] || CATEGORY_LABELS.style,
     })).filter((r: any) => r.key);
 
     return new Response(JSON.stringify({ results }), {

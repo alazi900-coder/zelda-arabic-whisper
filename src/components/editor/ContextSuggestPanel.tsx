@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, Sparkles, Brain } from "lucide-react";
+import { Loader2, Check, Sparkles, Brain, Copy, Pencil, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { utf16leByteLength } from "@/lib/byte-utils";
 import type { ExtractedEntry } from "./types";
 
 interface Suggestion {
@@ -37,6 +38,8 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [contextNote, setContextNote] = useState("");
   const [applied, setApplied] = useState<string | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
 
   const targetKey = `${entry.msbtFile}:${entry.index}`;
 
@@ -45,9 +48,9 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
     setSuggestions([]);
     setContextNote("");
     setApplied(null);
+    setEditingIdx(null);
 
     try {
-      // Get surrounding entries from same file
       const sameFile = entries
         .filter(e => e.msbtFile === entry.msbtFile)
         .sort((a, b) => a.index - b.index);
@@ -89,17 +92,39 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
     }
   }, [entry, entries, translations, glossary, targetKey]);
 
-  // Auto-fetch on open
   React.useEffect(() => {
     if (open && suggestions.length === 0 && !loading) {
       fetchSuggestions();
     }
   }, [open]);
 
-  const handleApply = (suggestion: Suggestion) => {
-    onApplyTranslation(targetKey, suggestion.translation);
-    setApplied(suggestion.translation);
-    toast({ title: "✅ تم تطبيق الاقتراح", description: suggestion.styleLabel });
+  const handleApply = (text: string, label: string) => {
+    onApplyTranslation(targetKey, text);
+    setApplied(text);
+    toast({ title: "✅ تم تطبيق الاقتراح", description: label });
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "📋 تم النسخ" });
+  };
+
+  const startEdit = (idx: number, text: string) => {
+    setEditingIdx(idx);
+    setEditText(text);
+  };
+
+  const applyEdit = (idx: number) => {
+    setSuggestions(prev => prev.map((s, i) => i === idx ? { ...s, translation: editText } : s));
+    setEditingIdx(null);
+  };
+
+  const getByteInfo = (text: string) => {
+    const bytes = utf16leByteLength(text);
+    const max = entry.maxBytes;
+    const pct = max > 0 ? Math.round((bytes / max) * 100) : 0;
+    const over = max > 0 && bytes > max;
+    return { bytes, max, pct, over };
   };
 
   return (
@@ -122,7 +147,17 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
           {translations[targetKey] && (
             <>
               <p className="text-xs text-muted-foreground mt-2 mb-1">الترجمة الحالية:</p>
-              <p className="text-sm font-body text-primary/80" dir="rtl">{translations[targetKey]}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-body text-primary/80 flex-1" dir="rtl">{translations[targetKey]}</p>
+                {entry.maxBytes > 0 && (() => {
+                  const info = getByteInfo(translations[targetKey]);
+                  return (
+                    <Badge variant="outline" className={`text-[9px] h-4 px-1.5 shrink-0 ${info.over ? 'border-destructive/50 text-destructive' : 'border-border/30'}`}>
+                      {info.bytes}/{info.max}B
+                    </Badge>
+                  );
+                })()}
+              </div>
             </>
           )}
         </div>
@@ -154,6 +189,9 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                 {suggestions.map((s, i) => {
                   const style = STYLE_CONFIG[s.style] || STYLE_CONFIG.natural;
                   const isApplied = applied === s.translation;
+                  const byteInfo = getByteInfo(s.translation);
+                  const isEditing = editingIdx === i;
+
                   return (
                     <div
                       key={i}
@@ -161,24 +199,67 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                         isApplied ? 'border-primary/50 bg-primary/5' : 'border-border/30 hover:border-border/60'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <Badge variant="outline" className={`text-[10px] h-5 px-2 ${style.color}`}>
                           {style.emoji} {s.styleLabel}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] h-5 px-2 bg-muted/50">
                           {Math.round(s.confidence * 100)}% ثقة
                         </Badge>
-                        <Button
-                          variant={isApplied ? "default" : "outline"}
-                          size="sm"
-                          className="mr-auto h-6 px-2 text-[10px]"
-                          onClick={() => handleApply(s)}
-                        >
-                          {isApplied ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                          {isApplied ? 'مُطبّق' : 'تطبيق'}
-                        </Button>
+                        {entry.maxBytes > 0 && (
+                          <Badge variant="outline" className={`text-[9px] h-5 px-1.5 ${byteInfo.over ? 'border-destructive/50 text-destructive bg-destructive/5' : 'border-border/30'}`}>
+                            {byteInfo.bytes}/{byteInfo.max}B {byteInfo.over ? '⚠️' : '✓'}
+                          </Badge>
+                        )}
+                        <div className="mr-auto flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleCopy(s.translation)} title="نسخ">
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => startEdit(i, s.translation)} title="تعديل">
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant={isApplied ? "default" : "outline"}
+                            size="sm"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => handleApply(s.translation, s.styleLabel)}
+                          >
+                            {isApplied ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                            {isApplied ? 'مُطبّق' : 'تطبيق'}
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-sm font-body leading-relaxed mb-1.5" dir="rtl">{s.translation}</p>
+
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <textarea
+                            className="w-full text-sm font-body rounded-md border border-primary/30 bg-background p-2 min-h-[60px] resize-y focus:outline-none focus:ring-1 focus:ring-primary/50"
+                            dir="rtl"
+                            value={editText}
+                            onChange={e => setEditText(e.target.value)}
+                          />
+                          <div className="flex items-center gap-2">
+                            {entry.maxBytes > 0 && (() => {
+                              const editInfo = getByteInfo(editText);
+                              return (
+                                <Badge variant="outline" className={`text-[9px] h-4 px-1.5 ${editInfo.over ? 'border-destructive/50 text-destructive' : ''}`}>
+                                  {editInfo.bytes}/{editInfo.max}B
+                                </Badge>
+                              );
+                            })()}
+                            <div className="mr-auto flex gap-1">
+                              <Button size="sm" className="h-6 px-2 text-[10px]" onClick={() => applyEdit(i)}>
+                                <Check className="w-3 h-3" /> حفظ
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEditingIdx(null)}>
+                                <X className="w-3 h-3" /> إلغاء
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-body leading-relaxed mb-1.5" dir="rtl">{s.translation}</p>
+                      )}
                       <p className="text-[11px] text-muted-foreground">{s.reason}</p>
                     </div>
                   );
