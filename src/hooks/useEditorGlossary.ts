@@ -251,77 +251,24 @@ export function useEditorGlossary({
     } catch { alert('خطأ في تحميل القواميس'); }
   };
 
-  // === Apply glossary terms to all translations for consistency ===
-  const handleApplyGlossaryToAll = useCallback(() => {
-    if (!state?.glossary?.trim() || !state?.entries?.length) return;
+  // === Generate preview of glossary changes (without applying) ===
+  const generateGlossaryPreview = useCallback((entries: ExtractedEntry[]): GlossaryChange[] => {
+    if (!state?.glossary?.trim() || !entries?.length) return [];
 
     const glossaryMap = parseGlossaryMap(state.glossary);
-    if (glossaryMap.size === 0) return;
-
-    // Sort terms by length descending so longer terms are matched first
-    const sortedTerms = Array.from(glossaryMap.entries()).sort((a, b) => b[0].length - a[0].length);
-
-    const newTranslations = { ...state.translations };
-    let appliedCount = 0;
-    let entriesAffected = 0;
-
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = newTranslations[key]?.trim();
-      if (!translation || translation === entry.original) continue;
-
-      const origLower = entry.original.toLowerCase();
-      let updated = translation;
-
-      for (const [engTerm, arbTerm] of sortedTerms) {
-        if (!origLower.includes(engTerm)) continue;
-        // Already contains the correct Arabic term
-        if (updated.includes(arbTerm)) continue;
-
-        // Find common wrong translations of this term in the text
-        // Use word-boundary-aware replacement: find the English term if it leaked into Arabic text
-        const engRegex = new RegExp(engTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        if (engRegex.test(updated)) {
-          updated = updated.replace(engRegex, arbTerm);
-          appliedCount++;
-        }
-      }
-
-      if (updated !== translation) {
-        newTranslations[key] = updated;
-        entriesAffected++;
-      }
-    }
-
-    setState(prev => prev ? { ...prev, translations: newTranslations } : null);
-    setLastSaved(
-      appliedCount > 0
-        ? `✅ تم تطبيق ${appliedCount} مصطلح على ${entriesAffected} ترجمة`
-        : '⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال'
-    );
-    setTimeout(() => setLastSaved(""), 5000);
-  }, [state, parseGlossaryMap, setState, setLastSaved]);
-
-  // === Apply glossary terms to specific entries only ===
-  const handleApplyGlossaryToFiltered = useCallback((entries: ExtractedEntry[]) => {
-    if (!state?.glossary?.trim() || !entries?.length) return;
-
-    const glossaryMap = parseGlossaryMap(state.glossary);
-    if (glossaryMap.size === 0) return;
+    if (glossaryMap.size === 0) return [];
 
     const sortedTerms = Array.from(glossaryMap.entries()).sort((a, b) => b[0].length - a[0].length);
-
-    const newTranslations = { ...state.translations };
-    let appliedCount = 0;
-    let entriesAffected = 0;
+    const changes: GlossaryChange[] = [];
 
     for (const entry of entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = newTranslations[key]?.trim();
+      const translation = state.translations[key]?.trim();
       if (!translation || translation === entry.original) continue;
 
       const origLower = entry.original.toLowerCase();
       let updated = translation;
+      const replacedTerms: { eng: string; arb: string }[] = [];
 
       for (const [engTerm, arbTerm] of sortedTerms) {
         if (!origLower.includes(engTerm)) continue;
@@ -329,24 +276,64 @@ export function useEditorGlossary({
         const engRegex = new RegExp(engTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         if (engRegex.test(updated)) {
           updated = updated.replace(engRegex, arbTerm);
-          appliedCount++;
+          replacedTerms.push({ eng: engTerm, arb: arbTerm });
         }
       }
 
       if (updated !== translation) {
-        newTranslations[key] = updated;
-        entriesAffected++;
+        changes.push({
+          key,
+          msbtFile: entry.msbtFile,
+          index: entry.index,
+          original: entry.original,
+          oldTranslation: translation,
+          newTranslation: updated,
+          replacedTerms,
+        });
+      }
+    }
+
+    return changes;
+  }, [state, parseGlossaryMap]);
+
+  // === Apply only approved changes ===
+  const applyApprovedGlossaryChanges = useCallback((changes: GlossaryChange[], approvedKeys: Set<string>) => {
+    if (approvedKeys.size === 0) return;
+
+    const newTranslations = { ...state!.translations };
+    let count = 0;
+
+    for (const change of changes) {
+      if (approvedKeys.has(change.key)) {
+        newTranslations[change.key] = change.newTranslation;
+        count++;
       }
     }
 
     setState(prev => prev ? { ...prev, translations: newTranslations } : null);
-    setLastSaved(
-      appliedCount > 0
-        ? `✅ تم تطبيق ${appliedCount} مصطلح على ${entriesAffected} ترجمة (مفلترة)`
-        : '⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال في النصوص المفلترة'
-    );
+    setLastSaved(`✅ تم تطبيق التغييرات على ${count} ترجمة`);
     setTimeout(() => setLastSaved(""), 5000);
-  }, [state, parseGlossaryMap, setState, setLastSaved]);
+  }, [state, setState, setLastSaved]);
+
+  // === Legacy direct apply (kept for backward compat but now generates preview) ===
+  const handleApplyGlossaryToAll = useCallback(() => {
+    if (!state?.entries) return;
+    const changes = generateGlossaryPreview(state.entries);
+    if (changes.length === 0) {
+      setLastSaved('⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال');
+      setTimeout(() => setLastSaved(""), 5000);
+    }
+    return changes;
+  }, [state, generateGlossaryPreview, setLastSaved]);
+
+  const handleApplyGlossaryToFiltered = useCallback((entries: ExtractedEntry[]) => {
+    const changes = generateGlossaryPreview(entries);
+    if (changes.length === 0) {
+      setLastSaved('⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال في النصوص المفلترة');
+      setTimeout(() => setLastSaved(""), 5000);
+    }
+    return changes;
+  }, [generateGlossaryPreview, setLastSaved]);
 
   // === Cloud glossary ===
   const handleSaveGlossaryToCloud = async () => {
