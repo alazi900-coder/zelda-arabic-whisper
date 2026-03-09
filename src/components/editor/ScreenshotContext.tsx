@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Upload, X, Image as ImageIcon, ZoomIn } from "lucide-react";
+import { Upload, X, Image as ImageIcon, ZoomIn, Brain, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import type { ExtractedEntry } from "./types";
 
 interface ScreenshotData {
