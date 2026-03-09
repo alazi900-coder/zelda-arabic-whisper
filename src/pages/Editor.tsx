@@ -49,6 +49,7 @@ import SceneContextPanel from "@/components/editor/SceneContextPanel";
 import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
 import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
 import ScreenshotContext from "@/components/editor/ScreenshotContext";
+import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -106,6 +107,31 @@ const Editor = () => {
   const openScreenshots = React.useCallback((entry: any) => {
     setScreenshotEntry(entry);
     setShowScreenshots(true);
+  }, []);
+
+  const [showContextSuggest, setShowContextSuggest] = React.useState(false);
+  const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
+  const openContextSuggest = React.useCallback((entry: any) => {
+    setContextSuggestEntry(entry);
+    setShowContextSuggest(true);
+  }, []);
+
+  // Translator notes (localStorage)
+  const [translatorNotes, setTranslatorNotes] = React.useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('zelda-editor-notes');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const handleUpdateNote = React.useCallback((key: string, note: string) => {
+    setTranslatorNotes(prev => {
+      const next = { ...prev };
+      if (note) next[key] = note;
+      else delete next[key];
+      try { localStorage.setItem('zelda-editor-notes', JSON.stringify(next)); } catch {}
+      return next;
+    });
   }, []);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
@@ -1051,6 +1077,13 @@ const Editor = () => {
                       >
                         📸
                       </button>
+                      <button
+                        onClick={() => openContextSuggest(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="اقتراحات سياقية بالـ AI"
+                      >
+                        💡
+                      </button>
                     </div>
                     <EntryCard
                       entry={entry}
@@ -1074,6 +1107,8 @@ const Editor = () => {
                       handleFixReversed={editor.handleFixReversed}
                       handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
                       translationMemory={tm}
+                      translatorNotes={translatorNotes}
+                      onUpdateNote={handleUpdateNote}
                     />
                   </div>
                 );
@@ -1293,6 +1328,19 @@ const Editor = () => {
             screenshots={screenshots}
             onAddScreenshot={handleAddScreenshot}
             onRemoveScreenshot={handleRemoveScreenshot}
+          />
+        )}
+
+        {/* Context AI Suggestions */}
+        {contextSuggestEntry && editor.state && (
+          <ContextSuggestPanel
+            open={showContextSuggest}
+            onClose={() => setShowContextSuggest(false)}
+            entry={contextSuggestEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            onApplyTranslation={editor.updateTranslation}
           />
         )}
       </div>

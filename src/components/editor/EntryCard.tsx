@@ -7,6 +7,7 @@ import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTe
 import { utf8ByteLength } from "@/lib/byte-utils";
 import { toast } from "@/hooks/use-toast";
 import ZeldaDialoguePreview from "@/components/ZeldaDialoguePreview";
+import TranslatorNote from "./TranslatorNote";
 
 interface EntryCardProps {
   entry: ExtractedEntry;
@@ -30,6 +31,8 @@ interface EntryCardProps {
   handleFixReversed: (entry: ExtractedEntry) => void;
   handleLocalFixDamagedTag?: (entry: ExtractedEntry) => void;
   translationMemory?: { key: string; translation: string }[];
+  translatorNotes?: Record<string, string>;
+  onUpdateNote?: (key: string, note: string) => void;
 }
 
 // Cached parsed glossary to avoid re-parsing on every entry
@@ -91,7 +94,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
-  translationMemory,
+  translationMemory, translatorNotes, onUpdateNote,
 }) => {
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
@@ -261,6 +264,10 @@ const EntryCard: React.FC<EntryCardProps> = ({
               </div>
             );
           })()}
+          {/* Translator Note */}
+          {translatorNotes && onUpdateNote && (
+            <TranslatorNote entryKey={key} notes={translatorNotes} onUpdateNote={onUpdateNote} />
+          )}
         </div>
         {!isMobile && (
           <div className="flex flex-col gap-1 items-center">
