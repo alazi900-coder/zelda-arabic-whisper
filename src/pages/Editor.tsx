@@ -557,13 +557,7 @@ const Editor = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          const changes = editor.handleApplyGlossaryToFiltered(editor.filteredEntries);
-                          if (changes && changes.length > 0) {
-                            setGlossaryPreviewChanges(changes);
-                            setShowGlossaryPreview(true);
-                          }
-                        }}
+                        onClick={() => setGlossaryApplyConfirm('filtered')}
                         className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20"
                         title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط"
                       >
@@ -573,13 +567,7 @@ const Editor = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const changes = editor.handleApplyGlossaryToAll();
-                        if (changes && changes.length > 0) {
-                          setGlossaryPreviewChanges(changes);
-                          setShowGlossaryPreview(true);
-                        }
-                      }}
+                      onClick={() => setGlossaryApplyConfirm('all')}
                       className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
                       title="تطبيق مصطلحات القاموس على جميع الترجمات"
                     >
