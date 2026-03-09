@@ -1351,6 +1351,9 @@ const Editor = () => {
             onApplyTranslation={editor.updateTranslation}
           />
         )}
+
+        {/* Feature Tour */}
+        <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
       </div>
     </TooltipProvider>
   );
