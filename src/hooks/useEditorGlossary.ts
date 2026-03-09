@@ -9,12 +9,10 @@ interface UseEditorGlossaryProps {
   setCloudSyncing: (v: boolean) => void;
   setCloudStatus: (msg: string) => void;
   userId?: string;
-  filteredEntries?: ExtractedEntry[];
-  isFilterActive?: boolean;
 }
 
 export function useEditorGlossary({
-  state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId, filteredEntries, isFilterActive,
+  state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId,
 }: UseEditorGlossaryProps) {
   const [glossaryEnabled, setGlossaryEnabled] = useState(true);
 
