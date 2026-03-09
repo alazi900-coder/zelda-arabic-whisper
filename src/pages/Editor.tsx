@@ -41,6 +41,7 @@ import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
+import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 
 const Editor = () => {
   const editor = useEditorState();
@@ -48,6 +49,8 @@ const Editor = () => {
   const [showDiffView, setShowDiffView] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
   const [showFilterTranslateConfirm, setShowFilterTranslateConfirm] = React.useState(false);
+  const [glossaryPreviewChanges, setGlossaryPreviewChanges] = React.useState<GlossaryChange[]>([]);
+  const [showGlossaryPreview, setShowGlossaryPreview] = React.useState(false);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -553,7 +556,13 @@ const Editor = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => editor.handleApplyGlossaryToFiltered(editor.filteredEntries)}
+                        onClick={() => {
+                          const changes = editor.handleApplyGlossaryToFiltered(editor.filteredEntries);
+                          if (changes && changes.length > 0) {
+                            setGlossaryPreviewChanges(changes);
+                            setShowGlossaryPreview(true);
+                          }
+                        }}
                         className="h-6 px-2 text-xs font-body border-accent/30 text-accent-foreground hover:bg-accent/20"
                         title="تطبيق مصطلحات القاموس على الترجمات المفلترة فقط"
                       >
@@ -563,7 +572,13 @@ const Editor = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={editor.handleApplyGlossaryToAll}
+                      onClick={() => {
+                        const changes = editor.handleApplyGlossaryToAll();
+                        if (changes && changes.length > 0) {
+                          setGlossaryPreviewChanges(changes);
+                          setShowGlossaryPreview(true);
+                        }
+                      }}
                       className="h-6 px-2 text-xs font-body border-primary/20 text-primary/80 hover:bg-primary/10"
                       title="تطبيق مصطلحات القاموس على جميع الترجمات"
                     >
@@ -959,6 +974,13 @@ const Editor = () => {
             items={editor.fixPreview.items}
           />
         )}
+
+        <GlossaryApplyPreview
+          open={showGlossaryPreview}
+          onClose={() => setShowGlossaryPreview(false)}
+          changes={glossaryPreviewChanges}
+          onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)}
+        />
       </div>
     </TooltipProvider>
   );
