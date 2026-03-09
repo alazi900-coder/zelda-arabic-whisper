@@ -900,6 +900,9 @@ const Editor = () => {
                   <DropdownMenuItem onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0}>
                     <Search className="w-4 h-4" /> كشف التناقضات 🔍
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0}>
+                    <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
