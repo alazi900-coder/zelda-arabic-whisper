@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Shield, FileText, Download, Sparkles } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
+import hyruleWorld from "@/assets/hyrule-world.jpg";
 
 const steps = [
   { icon: FileText, title: "ارفع الملفات", desc: "ارفع ملف اللغة (.zs) وملف القاموس" },
@@ -42,6 +43,22 @@ const Index = () => {
           </Link>
         </div>
       </header>
+
+      {/* World Banner */}
+      <section className="relative w-full overflow-hidden">
+        <img
+          src={hyruleWorld}
+          alt="عالم هايرول مع أبطال اللعبة"
+          className="w-full h-64 md:h-96 object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="absolute bottom-6 inset-x-0 text-center">
+          <p className="text-lg md:text-2xl font-display font-bold text-foreground drop-shadow-lg">
+            🏰 استكشف عالم هايرول باللغة العربية
+          </p>
+        </div>
+      </section>
 
       {/* Steps */}
       <section className="py-20 px-4">
