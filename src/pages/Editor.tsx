@@ -302,11 +302,19 @@ const Editor = () => {
             <ArrowRight className="w-4 h-4" /> العودة للمعالجة
           </Link>
 
-          <div className="flex items-center gap-3 mb-1 md:mb-2">
+          <div className="flex items-center gap-2 mb-1 md:mb-2 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-display font-bold">محرر الترجمة ✍️</h1>
             <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">
               ❓ دليل الأدوات
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowKeyboardShortcuts(true)} className="font-body text-xs h-7 px-2">
+              ⌨️ اختصارات
+            </Button>
+            {difficultyStats.totalMinutes > 0 && !isMobile && (
+              <span className="text-[10px] text-muted-foreground font-body mr-auto">
+                ⏱️ الوقت المقدّر: {Math.round(difficultyStats.totalMinutes)} دقيقة
+              </span>
+            )}
           </div>
           <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6 font-body">عدّل النصوص العربية يدوياً أو استخدم الترجمة التلقائية</p>
 
