@@ -127,7 +127,18 @@ const EntryCard: React.FC<EntryCardProps> = ({
       <div className={`flex ${isMobile ? 'flex-col' : 'items-start'} gap-3 md:gap-4`}>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground mb-1 truncate">{entry.msbtFile} • {entry.label}</p>
+          {/* Inline adjacent context */}
+          {adjacentContext?.prev && (
+            <p className="text-[10px] text-muted-foreground/50 mb-0.5 truncate italic" dir="ltr" title="النص السابق">
+              ↑ {adjacentContext.prev}
+            </p>
+          )}
           <p className="font-body text-sm mb-2 break-words">{displayOriginal(entry.original)}</p>
+          {adjacentContext?.next && (
+            <p className="text-[10px] text-muted-foreground/50 mb-1 truncate italic" dir="ltr" title="النص التالي">
+              ↓ {adjacentContext.next}
+            </p>
+          )}
           {hasTechnicalTags(entry.original) && (
             <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
               💡 الرموز الملونة (⚙ تحكم • 🎨 تنسيق • 📌 متغير) أكواد خاصة بمحرك اللعبة — <span className="font-semibold text-accent">لا تحذفها من الترجمة</span>
