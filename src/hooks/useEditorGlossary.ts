@@ -252,10 +252,11 @@ export function useEditorGlossary({
   };
 
   // === Generate preview of glossary changes (without applying) ===
-  const generateGlossaryPreview = useCallback((entries: ExtractedEntry[]): GlossaryChange[] => {
-    if (!state?.glossary?.trim() || !entries?.length) return [];
+  const generateGlossaryPreview = useCallback((entries: ExtractedEntry[], customGlossaryText?: string): GlossaryChange[] => {
+    const glossaryText = customGlossaryText ?? state?.glossary;
+    if (!glossaryText?.trim() || !entries?.length) return [];
 
-    const glossaryMap = parseGlossaryMap(state.glossary);
+    const glossaryMap = parseGlossaryMap(glossaryText);
     if (glossaryMap.size === 0) return [];
 
     const sortedTerms = Array.from(glossaryMap.entries()).sort((a, b) => b[0].length - a[0].length);
@@ -263,7 +264,7 @@ export function useEditorGlossary({
 
     for (const entry of entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key]?.trim();
+      const translation = state?.translations[key]?.trim();
       if (!translation || translation === entry.original) continue;
 
       const origLower = entry.original.toLowerCase();
