@@ -21,7 +21,7 @@ import {
   ArrowRight, Download, FileText, Loader2, Filter, Sparkles, Save, Tag,
   Upload, FileDown, Cloud, CloudUpload, LogIn, BookOpen, AlertTriangle,
   Eye, EyeOff, RotateCcw, CheckCircle2, ShieldCheck, ChevronLeft, ChevronRight,
-  BarChart3, Menu, MoreVertical, Replace, Columns, Key,
+  BarChart3, Menu, MoreVertical, Replace, Columns, Key, Search, Wand2, Layers,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
