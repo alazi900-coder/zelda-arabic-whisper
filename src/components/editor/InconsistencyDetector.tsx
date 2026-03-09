@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, Copy } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Wand2, Loader2, Check } from "lucide-react";
 import type { ExtractedEntry } from "./types";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InconsistencyGroup {
   englishTerm: string;
