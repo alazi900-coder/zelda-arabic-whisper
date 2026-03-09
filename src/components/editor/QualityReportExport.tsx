@@ -23,7 +23,7 @@ interface QualityReportExportProps {
 }
 
 const QualityReportExport: React.FC<QualityReportExportProps> = ({
-  totalEntries, translatedCount, qualityStats, categoryProgress,
+  totalEntries, translatedCount, qualityStats, needsImproveCount, categoryProgress,
 }) => {
   const handleExport = () => {
     const percent = totalEntries > 0 ? Math.round((translatedCount / totalEntries) * 100) : 0;
