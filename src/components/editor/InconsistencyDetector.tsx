@@ -246,5 +246,32 @@ export default function InconsistencyDetector({ open, onClose, entries, translat
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Unification confirmation */}
+    {suggestedUnification && (
+      <Dialog open={!!suggestedUnification} onOpenChange={v => !v && setSuggestedUnification(null)}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-display">توحيد المصطلح</DialogTitle>
+            <DialogDescription className="text-xs">
+              سيتم توحيد ترجمة "{suggestedUnification.term}" في {suggestedUnification.keys.length} موضع
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3 space-y-2">
+            <p className="text-xs text-muted-foreground">الترجمة الموحّدة المقترحة:</p>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-sm font-body" dir="rtl">{suggestedUnification.recommended}</p>
+            </div>
+          </div>
+          <DialogFooter className="flex-row gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSuggestedUnification(null)}>إلغاء</Button>
+            <Button size="sm" onClick={applyUnification}>
+              <Check className="w-3 h-3" /> تطبيق التوحيد
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   );
 }
