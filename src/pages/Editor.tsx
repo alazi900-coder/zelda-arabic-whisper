@@ -861,6 +861,12 @@ const Editor = () => {
               <Button variant="outline" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
                 {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
               </Button>
+              <Button variant="outline" onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
+                {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
+              </Button>
+              <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-amber-500/30 text-amber-600 hover:text-amber-700">
+                <Search className="w-4 h-4" /> كشف التناقضات 🔍
+              </Button>
             </div>
           )}
 
