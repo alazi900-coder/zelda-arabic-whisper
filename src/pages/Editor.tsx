@@ -50,6 +50,8 @@ import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
 import TranslationMemoryPanel from "@/components/editor/TranslationMemoryPanel";
 import ScreenshotContext from "@/components/editor/ScreenshotContext";
 import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
+import EngineComparePanel from "@/components/editor/EngineComparePanel";
+import SmartBulkImprovePanel from "@/components/editor/SmartBulkImprovePanel";
 import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { supabase } from "@/integrations/supabase/client";
