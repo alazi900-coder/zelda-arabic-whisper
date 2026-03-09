@@ -20,6 +20,7 @@ interface Props {
   translations: Record<string, string>;
   glossary?: string;
   onJumpToEntry?: (key: string) => void;
+  onApplyFix?: (key: string, translation: string) => void;
 }
 
 export default function InconsistencyDetector({ open, onClose, entries, translations, glossary, onJumpToEntry }: Props) {
