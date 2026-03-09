@@ -1193,6 +1193,28 @@ const Editor = () => {
           changes={glossaryPreviewChanges}
           onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)}
         />
+
+        {/* Scene Context Panel */}
+        {sceneContextEntry && editor.state && (
+          <SceneContextPanel
+            open={showSceneContext}
+            onClose={() => setShowSceneContext(false)}
+            entry={sceneContextEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+          />
+        )}
+
+        {/* Inconsistency Detector */}
+        {editor.state && (
+          <InconsistencyDetector
+            open={showInconsistencies}
+            onClose={() => setShowInconsistencies(false)}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
