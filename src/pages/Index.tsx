@@ -12,6 +12,24 @@ const steps = [
 ];
 
 const Index = () => {
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (parallaxRef.current) {
+        const rect = parallaxRef.current.getBoundingClientRect();
+        const windowH = window.innerHeight;
+        if (rect.bottom > 0 && rect.top < windowH) {
+          setOffset((rect.top - windowH) * -0.35);
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}
