@@ -53,7 +53,9 @@ import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
 import EngineComparePanel from "@/components/editor/EngineComparePanel";
 import SmartBulkImprovePanel from "@/components/editor/SmartBulkImprovePanel";
 import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
+import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -138,6 +140,7 @@ const Editor = () => {
   }, []);
 
   const [showFeatureTour, setShowFeatureTour] = React.useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = React.useState(false);
   const [showEngineCompare, setShowEngineCompare] = React.useState(false);
   const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
@@ -153,6 +156,18 @@ const Editor = () => {
   }, [editor.state]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSave: editor.handleCloudSave,
+    onSearch: () => { const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]'); searchInput?.focus(); },
+    onFindReplace: () => editor.setShowFindReplace(true),
+    onTranslate: () => editor.handleAutoTranslate(),
+    onBuild: () => editor.handlePreBuild(),
+    onQuickReview: () => editor.setQuickReviewMode(!editor.quickReviewMode),
+    onNextPage: () => editor.setCurrentPage(Math.min(editor.totalPages - 1, editor.currentPage + 1)),
+    onPrevPage: () => editor.setCurrentPage(Math.max(0, editor.currentPage - 1)),
+  }, !!editor.state);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -287,11 +302,19 @@ const Editor = () => {
             <ArrowRight className="w-4 h-4" /> العودة للمعالجة
           </Link>
 
-          <div className="flex items-center gap-3 mb-1 md:mb-2">
+          <div className="flex items-center gap-2 mb-1 md:mb-2 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-display font-bold">محرر الترجمة ✍️</h1>
             <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">
               ❓ دليل الأدوات
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowKeyboardShortcuts(true)} className="font-body text-xs h-7 px-2">
+              ⌨️ اختصارات
+            </Button>
+            {difficultyStats.totalMinutes > 0 && !isMobile && (
+              <span className="text-[10px] text-muted-foreground font-body mr-auto">
+                ⏱️ الوقت المقدّر: {Math.round(difficultyStats.totalMinutes)} دقيقة
+              </span>
+            )}
           </div>
           <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6 font-body">عدّل النصوص العربية يدوياً أو استخدم الترجمة التلقائية</p>
 
@@ -1026,6 +1049,8 @@ const Editor = () => {
               translations={editor.state.translations}
               qualityProblemKeys={editor.qualityStats.problemKeys}
               updateTranslation={editor.updateTranslation}
+              entries={editor.state.entries}
+              glossary={editor.state.glossary}
             />
           )}
 
@@ -1078,11 +1103,18 @@ const Editor = () => {
                   .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
                   .filter(t => t.translation.trim())
                   .slice(0, 5) : [];
+                // Adjacent context for inline preview
+                const sameFileEntries = editor.state ? editor.state.entries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index) : [];
+                const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
+                const adjacentContext = {
+                  prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
+                  next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
+                };
                 return (
                   <div key={key} className="relative">
                     {/* Difficulty + Context badges */}
                     <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
-                      <span className={`text-[9px] px-1 py-0.5 rounded ${diffConf.color}`} title={difficulty.reasons.join('، ')}>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
                         {diffConf.emoji} {diffConf.label}
                       </span>
                       <button
@@ -1125,6 +1157,7 @@ const Editor = () => {
                       entry={entry}
                       translation={editor.state?.translations[key] || ''}
                       glossary={editor.state?.glossary}
+                      adjacentContext={adjacentContext}
                       isProtected={editor.state?.protectedEntries?.has(key) || false}
                       hasProblem={editor.qualityStats.problemKeys.has(key)}
                       isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
@@ -1383,6 +1416,7 @@ const Editor = () => {
 
         {/* Feature Tour */}
         <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
+        <KeyboardShortcutsDialog open={showKeyboardShortcuts} onClose={() => setShowKeyboardShortcuts(false)} />
 
         {/* Engine Compare */}
         {engineCompareEntry && editor.state && (

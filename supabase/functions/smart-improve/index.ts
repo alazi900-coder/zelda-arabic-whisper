@@ -10,6 +10,8 @@ interface EntryInput {
   original: string;
   translation: string;
   maxBytes?: number;
+  context?: { prev?: string; next?: string };
+  category?: string;
 }
 
 Deno.serve(async (req) => {
@@ -18,9 +20,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary } = await req.json() as {
+    const { entries, glossary, mode } = await req.json() as {
       entries: EntryInput[];
       glossary?: string;
+      mode?: 'quality' | 'style' | 'consistency';
     };
 
     if (!entries?.length) {
@@ -38,24 +41,44 @@ Deno.serve(async (req) => {
 
     const glossaryContext = glossary ? `\nمصطلحات القاموس:\n${glossary}` : '';
 
-    const entriesText = entries.map((e, i) =>
-      `[${i}] Key: ${e.key}\nEN: ${e.original}\nAR: ${e.translation}${e.maxBytes ? `\nMax: ${e.maxBytes} bytes` : ''}`
-    ).join('\n\n');
+    const entriesText = entries.map((e, i) => {
+      let text = `[${i}] Key: ${e.key}\nEN: ${e.original}\nAR: ${e.translation}`;
+      if (e.maxBytes) text += `\nMax: ${e.maxBytes} bytes`;
+      if (e.context?.prev) text += `\nContext Before: ${e.context.prev}`;
+      if (e.context?.next) text += `\nContext After: ${e.context.next}`;
+      if (e.category) text += `\nCategory: ${e.category}`;
+      return text;
+    }).join('\n\n');
 
-    const systemPrompt = `أنت مراجع جودة ترجمة ألعاب فيديو متخصص. حلّل الترجمات التالية وحدد فقط النصوص التي تحتاج تحسيناً فعلاً.
-
-معايير الكشف:
+    const modeInstructions = {
+      quality: `ركز على:
 1. أخطاء نحوية أو إملائية واضحة (severity: high)
 2. ترجمة حرفية غير طبيعية (severity: medium)
 3. مصطلحات غير متسقة مع القاموس (severity: high)
-4. صياغة ركيكة يمكن تحسينها (severity: low)
-5. فقدان المعنى أو السياق (severity: high)
-6. ترجمة قصيرة جداً لا تعكس المعنى (severity: medium)
+4. فقدان المعنى أو السياق (severity: high)`,
+      style: `ركز على:
+1. صياغة ركيكة يمكن تحسينها (severity: low)
+2. أسلوب غير متسق مع نبرة اللعبة (severity: medium)
+3. ترجمات قصيرة لا تعكس المعنى الكامل (severity: medium)
+4. تكرار في الصياغة يمكن تنويعه (severity: low)`,
+      consistency: `ركز على:
+1. مصطلحات مترجمة بطرق مختلفة في أماكن متعددة (severity: high)
+2. أسلوب متباين بين نصوص نفس المشهد (severity: medium)
+3. عدم تطابق مع القاموس الرسمي (severity: high)
+4. تناقض في تسميات العناصر والشخصيات (severity: high)`,
+    };
+
+    const systemPrompt = `أنت مراجع جودة ترجمة ألعاب فيديو متخصص في سلسلة زيلدا. حلّل الترجمات التالية واقترح تحسينات ذكية.
+
+${modeInstructions[mode || 'quality']}
 
 قواعد مهمة:
 - لا تقترح تحسينات إذا كانت الترجمة جيدة بالفعل
-- لا تغيّر الرموز التقنية [Tags] والمتغيرات
-- التزم بمصطلحات القاموس${glossaryContext}`;
+- لا تغيّر الرموز التقنية [Tags] والمتغيرات والرموز الخاصة (U+E000-U+F8FF, U+FFF9-U+FFFC)
+- التزم بمصطلحات القاموس إن وُجدت
+- راعِ السياق المحيط (النص السابق والتالي) عند تحسين الصياغة
+- حافظ على نبرة اللعبة (ملحمية للقصة، بسيطة للواجهة، ودّية للحوارات)
+- لا تتجاوز حد البايت المحدد لكل نص${glossaryContext}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -88,6 +111,7 @@ Deno.serve(async (req) => {
                       improved: { type: "string" },
                       reason: { type: "string" },
                       severity: { type: "string", enum: ["low", "medium", "high"] },
+                      category: { type: "string", enum: ["grammar", "style", "consistency", "meaning", "context"] },
                     },
                     required: ["key", "original", "current", "improved", "reason", "severity"],
                     additionalProperties: false,
