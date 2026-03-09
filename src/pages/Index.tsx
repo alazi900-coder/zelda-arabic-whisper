@@ -33,7 +33,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}
-      <header className="relative flex flex-col items-center justify-center min-h-[70vh] px-4 text-center overflow-hidden">
+      <header className="relative flex flex-col items-center justify-center min-h-[50vh] md:min-h-[70vh] px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         <div className="relative z-10 max-w-2xl mx-auto">
           <img
