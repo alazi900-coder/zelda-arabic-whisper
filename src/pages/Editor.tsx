@@ -1114,7 +1114,7 @@ const Editor = () => {
                   <div key={key} className="relative">
                     {/* Difficulty + Context badges */}
                     <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
-                      <span className={`text-[9px] px-1 py-0.5 rounded ${diffConf.color}`} title={difficulty.reasons.join('، ')}>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
                         {diffConf.emoji} {diffConf.label}
                       </span>
                       <button
