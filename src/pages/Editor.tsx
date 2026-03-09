@@ -1077,6 +1077,13 @@ const Editor = () => {
                       >
                         📸
                       </button>
+                      <button
+                        onClick={() => openContextSuggest(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="اقتراحات سياقية بالـ AI"
+                      >
+                        💡
+                      </button>
                     </div>
                     <EntryCard
                       entry={entry}
@@ -1100,6 +1107,8 @@ const Editor = () => {
                       handleFixReversed={editor.handleFixReversed}
                       handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
                       translationMemory={tm}
+                      translatorNotes={translatorNotes}
+                      onUpdateNote={handleUpdateNote}
                     />
                   </div>
                 );
