@@ -966,8 +966,15 @@ const Editor = () => {
             {editor.filteredEntries.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>
             ) : (
-              editor.paginatedEntries.map((entry) => {
+              editor.paginatedEntries
+                .filter(entry => {
+                  if (filterDifficulty === 'all') return true;
+                  return classifyDifficulty(entry).level === filterDifficulty;
+                })
+                .map((entry) => {
                 const key = `${entry.msbtFile}:${entry.index}`;
+                const difficulty = classifyDifficulty(entry);
+                const diffConf = DIFFICULTY_CONFIG[difficulty.level];
                 // Build small TM from same file's existing translations
                 const tm = editor.state ? editor.state.entries
                   .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
@@ -975,30 +982,44 @@ const Editor = () => {
                   .filter(t => t.translation.trim())
                   .slice(0, 5) : [];
                 return (
-                  <EntryCard
-                    key={key}
-                    entry={entry}
-                    translation={editor.state?.translations[key] || ''}
-                    glossary={editor.state?.glossary}
-                    isProtected={editor.state?.protectedEntries?.has(key) || false}
-                    hasProblem={editor.qualityStats.problemKeys.has(key)}
-                    isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
-                    isMobile={isMobile}
-                    translatingSingle={editor.translatingSingle}
-                    improvingTranslations={editor.improvingTranslations}
-                    previousTranslations={editor.previousTranslations}
-                    isTranslationTooShort={editor.isTranslationTooShort}
-                    isTranslationTooLong={editor.isTranslationTooLong}
-                    hasStuckChars={editor.hasStuckChars}
-                    isMixedLanguage={editor.isMixedLanguage}
-                    updateTranslation={editor.updateTranslation}
-                    handleTranslateSingle={editor.handleTranslateSingle}
-                    handleImproveSingleTranslation={editor.handleImproveSingleTranslation}
-                    handleUndoTranslation={editor.handleUndoTranslation}
-                    handleFixReversed={editor.handleFixReversed}
-                    handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                    translationMemory={tm}
-                  />
+                  <div key={key} className="relative">
+                    {/* Difficulty + Context badges */}
+                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+                      <span className={`text-[9px] px-1 py-0.5 rounded ${diffConf.color}`} title={difficulty.reasons.join('، ')}>
+                        {diffConf.emoji} {diffConf.label}
+                      </span>
+                      <button
+                        onClick={() => openSceneContext(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="عرض سياق المشهد"
+                      >
+                        🎬
+                      </button>
+                    </div>
+                    <EntryCard
+                      entry={entry}
+                      translation={editor.state?.translations[key] || ''}
+                      glossary={editor.state?.glossary}
+                      isProtected={editor.state?.protectedEntries?.has(key) || false}
+                      hasProblem={editor.qualityStats.problemKeys.has(key)}
+                      isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
+                      isMobile={isMobile}
+                      translatingSingle={editor.translatingSingle}
+                      improvingTranslations={editor.improvingTranslations}
+                      previousTranslations={editor.previousTranslations}
+                      isTranslationTooShort={editor.isTranslationTooShort}
+                      isTranslationTooLong={editor.isTranslationTooLong}
+                      hasStuckChars={editor.hasStuckChars}
+                      isMixedLanguage={editor.isMixedLanguage}
+                      updateTranslation={editor.updateTranslation}
+                      handleTranslateSingle={editor.handleTranslateSingle}
+                      handleImproveSingleTranslation={editor.handleImproveSingleTranslation}
+                      handleUndoTranslation={editor.handleUndoTranslation}
+                      handleFixReversed={editor.handleFixReversed}
+                      handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
+                      translationMemory={tm}
+                    />
+                  </div>
                 );
               })
             )}
