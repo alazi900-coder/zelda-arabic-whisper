@@ -135,6 +135,8 @@ const Editor = () => {
     });
   }, []);
 
+  const [showFeatureTour, setShowFeatureTour] = React.useState(false);
+
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
   // Drag & Drop handlers
