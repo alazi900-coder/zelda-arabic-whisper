@@ -92,6 +92,7 @@ function findGlossaryMatches(original: string, glossary?: string): { term: strin
 const EntryCard: React.FC<EntryCardProps> = ({
   entry, translation, isProtected, hasProblem, isDamagedTag, isMobile,
   translatingSingle, improvingTranslations, previousTranslations, glossary,
+  adjacentContext,
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
