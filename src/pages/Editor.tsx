@@ -1330,6 +1330,19 @@ const Editor = () => {
             onRemoveScreenshot={handleRemoveScreenshot}
           />
         )}
+
+        {/* Context AI Suggestions */}
+        {contextSuggestEntry && editor.state && (
+          <ContextSuggestPanel
+            open={showContextSuggest}
+            onClose={() => setShowContextSuggest(false)}
+            entry={contextSuggestEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            onApplyTranslation={editor.updateTranslation}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
