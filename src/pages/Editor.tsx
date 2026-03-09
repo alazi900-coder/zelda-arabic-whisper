@@ -70,6 +70,43 @@ const Editor = () => {
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
+  const [showTMPanel, setShowTMPanel] = React.useState(false);
+  const [tmPanelEntry, setTmPanelEntry] = React.useState<any>(null);
+  const [showScreenshots, setShowScreenshots] = React.useState(false);
+  const [screenshotEntry, setScreenshotEntry] = React.useState<any>(null);
+  const [screenshots, setScreenshots] = React.useState<Record<string, { url: string; name: string; note?: string }[]>>(() => {
+    try {
+      const saved = localStorage.getItem('zelda-editor-screenshots');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Save screenshots to localStorage
+  const handleAddScreenshot = React.useCallback((msbtFile: string, ss: { url: string; name: string; note?: string }) => {
+    setScreenshots(prev => {
+      const next = { ...prev, [msbtFile]: [...(prev[msbtFile] || []), ss] };
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleRemoveScreenshot = React.useCallback((msbtFile: string, index: number) => {
+    setScreenshots(prev => {
+      const next = { ...prev, [msbtFile]: (prev[msbtFile] || []).filter((_, i) => i !== index) };
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const openTMPanel = React.useCallback((entry: any) => {
+    setTmPanelEntry(entry);
+    setShowTMPanel(true);
+  }, []);
+
+  const openScreenshots = React.useCallback((entry: any) => {
+    setScreenshotEntry(entry);
+    setShowScreenshots(true);
+  }, []);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
