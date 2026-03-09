@@ -1037,6 +1037,20 @@ const Editor = () => {
                       >
                         🎬
                       </button>
+                      <button
+                        onClick={() => openTMPanel(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="ذاكرة الترجمة"
+                      >
+                        🧠
+                      </button>
+                      <button
+                        onClick={() => openScreenshots(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="سياق بالصور"
+                      >
+                        📸
+                      </button>
                     </div>
                     <EntryCard
                       entry={entry}
