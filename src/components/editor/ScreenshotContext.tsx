@@ -27,6 +27,34 @@ export default function ScreenshotContext({ open, onClose, entry, screenshots, o
   const [zoomedUrl, setZoomedUrl] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const handleAIAnalysis = useCallback(async () => {
+    const fileScreenshots = screenshots[entry.msbtFile] || [];
+    if (fileScreenshots.length === 0) {
+      toast({ title: "⚠️ أضف صورة أولاً للتحليل" });
+      return;
+    }
+    setAnalyzing(true);
+    setAiAnalysis(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('context-suggest', {
+        body: {
+          target: { original: entry.original },
+          context: [],
+          file: entry.msbtFile,
+          visualContext: `الملف: ${entry.msbtFile}, التسمية: ${entry.label}, عدد الصور: ${fileScreenshots.length}, ملاحظات الصور: ${fileScreenshots.map(s => s.note || 'بدون').join(', ')}`,
+        },
+      });
+      if (error) throw error;
+      setAiAnalysis(data?.contextNote || "تم تحليل السياق البصري بنجاح");
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في التحليل", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [entry, screenshots]);
 
   const fileScreenshots = screenshots[entry.msbtFile] || [];
 
