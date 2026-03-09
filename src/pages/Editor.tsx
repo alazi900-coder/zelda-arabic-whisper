@@ -967,12 +967,12 @@ const Editor = () => {
           />
         )}
 
-        {/* Glossary Apply Confirmation */}
-        <AlertDialog open={!!glossaryApplyConfirm} onOpenChange={(v) => !v && setGlossaryApplyConfirm(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-display">تطبيق مصطلحات القاموس</AlertDialogTitle>
-              <AlertDialogDescription className="font-body text-sm space-y-2" dir="rtl">
+        {/* Glossary Apply Confirmation with Library Selection */}
+        <Dialog open={!!glossaryApplyConfirm} onOpenChange={(v) => !v && setGlossaryApplyConfirm(null)}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="font-display text-base">تطبيق مصطلحات القاموس</DialogTitle>
+              <DialogDescription className="font-body text-sm">
                 {(() => {
                   const targetEntries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
                   const translatedEntries = targetEntries.filter(e => {
@@ -980,33 +980,92 @@ const Editor = () => {
                     const t = editor.state?.translations[key]?.trim();
                     return t && t !== e.original;
                   });
-                  return (
-                    <>
-                      <p>سيتم فحص <strong>{translatedEntries.length}</strong> نص مترجم {glossaryApplyConfirm === 'filtered' ? '(من المفلتر)' : '(من الكل)'} بحثاً عن مصطلحات إنجليزية قابلة للاستبدال من القاموس ({editor.glossaryTermCount} مصطلح).</p>
-                      <p className="text-muted-foreground">ستظهر لك معاينة للتغييرات قبل تطبيقها فعلياً.</p>
-                    </>
-                  );
+                  return `سيتم فحص ${translatedEntries.length} نص مترجم ${glossaryApplyConfirm === 'filtered' ? '(من المفلتر)' : '(من الكل)'}`;
                 })()}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="font-body">إلغاء</AlertDialogCancel>
-              <AlertDialogAction className="font-body" onClick={() => {
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <p className="text-xs text-muted-foreground font-body">اختر القواميس المراد تطبيقها:</p>
+              {[
+                { id: 'default', label: 'القاموس الأساسي', url: '/zelda-glossary.txt' },
+                { id: 'totk', label: 'قاموس TOTK', url: '/zelda-totk-glossary.txt' },
+                { id: 'totk-items', label: 'قاموس العناصر', url: '/zelda-totk-items-glossary.txt' },
+                { id: 'materials', label: 'المواد والأسلحة', url: '/zelda-materials-glossary.txt' },
+                { id: 'ui', label: 'الواجهة والقوائم', url: '/zelda-ui-glossary.txt' },
+                { id: 'locations', label: 'المواقع والشخصيات', url: '/zelda-locations-characters-glossary.txt' },
+                { id: 'creatures', label: 'المخلوقات والوحوش', url: '/zelda-creatures-glossary.txt' },
+                { id: 'abilities', label: 'القدرات والتأثيرات', url: '/zelda-abilities-glossary.txt' },
+              ].map(lib => (
+                <label key={lib.id} className="flex items-center gap-2 text-sm font-body cursor-pointer hover:bg-accent/10 rounded px-2 py-1.5 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedGlossaryLibs.has(lib.id)}
+                    onChange={() => {
+                      setSelectedGlossaryLibs(prev => {
+                        const next = new Set(prev);
+                        if (next.has(lib.id)) next.delete(lib.id);
+                        else next.add(lib.id);
+                        return next;
+                      });
+                    }}
+                    className="rounded border-border accent-primary w-4 h-4"
+                  />
+                  <span>{lib.label}</span>
+                </label>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <Button variant="ghost" size="sm" className="h-6 text-xs font-body"
+                  onClick={() => setSelectedGlossaryLibs(new Set(['default','totk','totk-items','materials','ui','locations','creatures','abilities']))}>
+                  تحديد الكل
+                </Button>
+                <Button variant="ghost" size="sm" className="h-6 text-xs font-body"
+                  onClick={() => setSelectedGlossaryLibs(new Set())}>
+                  إلغاء الكل
+                </Button>
+              </div>
+            </div>
+            <DialogFooter className="flex-row gap-2">
+              <Button variant="outline" size="sm" className="font-body" onClick={() => setGlossaryApplyConfirm(null)}>
+                إلغاء
+              </Button>
+              <Button size="sm" className="font-body" disabled={selectedGlossaryLibs.size === 0} onClick={async () => {
+                const libUrls: Record<string, string> = {
+                  'default': '/zelda-glossary.txt', 'totk': '/zelda-totk-glossary.txt',
+                  'totk-items': '/zelda-totk-items-glossary.txt', 'materials': '/zelda-materials-glossary.txt',
+                  'ui': '/zelda-ui-glossary.txt', 'locations': '/zelda-locations-characters-glossary.txt',
+                  'creatures': '/zelda-creatures-glossary.txt', 'abilities': '/zelda-abilities-glossary.txt',
+                };
+                // If all selected and glossary is already loaded, use state.glossary
+                const useLoadedGlossary = selectedGlossaryLibs.size === 8 && editor.state?.glossary?.trim();
+                let glossaryText = '';
+                if (useLoadedGlossary) {
+                  glossaryText = editor.state!.glossary!;
+                } else {
+                  // Fetch only selected libraries
+                  const urls = Array.from(selectedGlossaryLibs).map(id => libUrls[id]).filter(Boolean);
+                  try {
+                    const responses = await Promise.all(urls.map(u => fetch(u)));
+                    const texts = await Promise.all(responses.map(r => r.ok ? r.text() : Promise.resolve('')));
+                    glossaryText = texts.filter(Boolean).join('\n');
+                  } catch {
+                    return;
+                  }
+                }
                 const entries = glossaryApplyConfirm === 'filtered' ? editor.filteredEntries : (editor.state?.entries || []);
-                const changes = glossaryApplyConfirm === 'filtered'
-                  ? editor.handleApplyGlossaryToFiltered(entries)
-                  : editor.handleApplyGlossaryToAll();
+                const changes = editor.generateGlossaryPreview(entries, glossaryText);
                 if (changes && changes.length > 0) {
                   setGlossaryPreviewChanges(changes);
                   setShowGlossaryPreview(true);
+                } else {
+                  editor.setLastSaved?.('⚠️ لم يتم العثور على مصطلحات تحتاج استبدال');
                 }
                 setGlossaryApplyConfirm(null);
               }}>
-                متابعة
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                متابعة ({selectedGlossaryLibs.size} قاموس)
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <GlossaryApplyPreview
           open={showGlossaryPreview}
