@@ -68,9 +68,8 @@ const Index = () => {
         <img
           src={hyruleWorld}
           alt="عالم هايرول مع أبطال اللعبة"
-          className="absolute inset-0 w-full h-[130%] object-cover will-change-transform"
+          className="absolute left-0 w-full h-[140%] -top-[20%] object-cover will-change-transform"
           style={{ transform: `translateY(${offset}px)` }}
-          loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
         <div className="absolute bottom-6 inset-x-0 text-center">
