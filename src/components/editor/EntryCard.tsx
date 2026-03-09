@@ -31,6 +31,8 @@ interface EntryCardProps {
   handleFixReversed: (entry: ExtractedEntry) => void;
   handleLocalFixDamagedTag?: (entry: ExtractedEntry) => void;
   translationMemory?: { key: string; translation: string }[];
+  translatorNotes?: Record<string, string>;
+  onUpdateNote?: (key: string, note: string) => void;
 }
 
 // Cached parsed glossary to avoid re-parsing on every entry
