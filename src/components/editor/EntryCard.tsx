@@ -264,6 +264,10 @@ const EntryCard: React.FC<EntryCardProps> = ({
               </div>
             );
           })()}
+          {/* Translator Note */}
+          {translatorNotes && onUpdateNote && (
+            <TranslatorNote entryKey={key} notes={translatorNotes} onUpdateNote={onUpdateNote} />
+          )}
         </div>
         {!isMobile && (
           <div className="flex flex-col gap-1 items-center">
