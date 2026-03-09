@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Shield, FileText, Download, Sparkles } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
