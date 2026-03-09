@@ -1383,6 +1383,35 @@ const Editor = () => {
 
         {/* Feature Tour */}
         <FeatureTourDialog open={showFeatureTour} onClose={() => setShowFeatureTour(false)} />
+
+        {/* Engine Compare */}
+        {engineCompareEntry && editor.state && (
+          <EngineComparePanel
+            open={showEngineCompare}
+            onClose={() => setShowEngineCompare(false)}
+            entry={engineCompareEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            userGeminiKey={editor.userGeminiKey}
+            myMemoryEmail={editor.myMemoryEmail}
+            onApplyTranslation={editor.updateTranslation}
+          />
+        )}
+
+        {/* Smart Bulk Improve */}
+        {editor.state && (
+          <SmartBulkImprovePanel
+            open={showSmartImprove}
+            onClose={() => setShowSmartImprove(false)}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+            isFilterActive={editor.isFilterActive}
+            filteredEntries={editor.filteredEntries}
+            onApplyImprovements={handleSmartImproveApply}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
