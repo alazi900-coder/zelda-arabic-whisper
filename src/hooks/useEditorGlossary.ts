@@ -250,6 +250,57 @@ export function useEditorGlossary({
     } catch { alert('خطأ في تحميل القواميس'); }
   };
 
+  // === Apply glossary terms to all translations for consistency ===
+  const handleApplyGlossaryToAll = useCallback(() => {
+    if (!state?.glossary?.trim() || !state?.entries?.length) return;
+
+    const glossaryMap = parseGlossaryMap(state.glossary);
+    if (glossaryMap.size === 0) return;
+
+    // Sort terms by length descending so longer terms are matched first
+    const sortedTerms = Array.from(glossaryMap.entries()).sort((a, b) => b[0].length - a[0].length);
+
+    const newTranslations = { ...state.translations };
+    let appliedCount = 0;
+    let entriesAffected = 0;
+
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = newTranslations[key]?.trim();
+      if (!translation || translation === entry.original) continue;
+
+      const origLower = entry.original.toLowerCase();
+      let updated = translation;
+
+      for (const [engTerm, arbTerm] of sortedTerms) {
+        if (!origLower.includes(engTerm)) continue;
+        // Already contains the correct Arabic term
+        if (updated.includes(arbTerm)) continue;
+
+        // Find common wrong translations of this term in the text
+        // Use word-boundary-aware replacement: find the English term if it leaked into Arabic text
+        const engRegex = new RegExp(engTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        if (engRegex.test(updated)) {
+          updated = updated.replace(engRegex, arbTerm);
+          appliedCount++;
+        }
+      }
+
+      if (updated !== translation) {
+        newTranslations[key] = updated;
+        entriesAffected++;
+      }
+    }
+
+    setState(prev => prev ? { ...prev, translations: newTranslations } : null);
+    setLastSaved(
+      appliedCount > 0
+        ? `✅ تم تطبيق ${appliedCount} مصطلح على ${entriesAffected} ترجمة`
+        : '⚠️ لم يتم العثور على مصطلحات إنجليزية تحتاج استبدال'
+    );
+    setTimeout(() => setLastSaved(""), 5000);
+  }, [state, parseGlossaryMap, setState, setLastSaved]);
+
   // === Cloud glossary ===
   const handleSaveGlossaryToCloud = async () => {
     if (!state || !userId || !state.glossary) { setCloudStatus('❌ لا يوجد قاموس لحفظه'); setTimeout(() => setCloudStatus(""), 3000); return; }
