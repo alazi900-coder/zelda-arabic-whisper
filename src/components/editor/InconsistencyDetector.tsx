@@ -164,6 +164,7 @@ export default function InconsistencyDetector({ open, onClose, entries, translat
   }, [glossary]);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0" dir="rtl">
         <DialogHeader className="p-4 pb-2 border-b border-border/50">
