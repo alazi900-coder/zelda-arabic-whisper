@@ -21,7 +21,7 @@ import {
   ArrowRight, Download, FileText, Loader2, Filter, Sparkles, Save, Tag,
   Upload, FileDown, Cloud, CloudUpload, LogIn, BookOpen, AlertTriangle,
   Eye, EyeOff, RotateCcw, CheckCircle2, ShieldCheck, ChevronLeft, ChevronRight,
-  BarChart3, Menu, MoreVertical, Replace, Columns, Key,
+  BarChart3, Menu, MoreVertical, Replace, Columns, Key, Search, Wand2, Layers,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -45,6 +45,11 @@ import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
+import SceneContextPanel from "@/components/editor/SceneContextPanel";
+import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
+import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const Editor = () => {
   const editor = useEditorState();
@@ -58,6 +63,13 @@ const Editor = () => {
   const [selectedGlossaryLibs, setSelectedGlossaryLibs] = React.useState<Set<string>>(() => new Set([
     'default', 'totk', 'totk-items', 'materials', 'ui', 'locations', 'creatures', 'abilities'
   ]));
+  const [showSceneContext, setShowSceneContext] = React.useState(false);
+  const [sceneContextEntry, setSceneContextEntry] = React.useState<any>(null);
+  const [showInconsistencies, setShowInconsistencies] = React.useState(false);
+  const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
+  const [polishing, setPolishing] = React.useState(false);
+
+  const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
   // Drag & Drop handlers
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
@@ -90,6 +102,73 @@ const Editor = () => {
       return !t || t === e.original || t === e.original.trim();
     }).length;
   }, [editor.state, editor.filteredEntries, editor.isFilterActive]);
+
+  // Arabic polishing handler
+  const handlePolishArabic = React.useCallback(async () => {
+    if (!editor.state || polishing) return;
+    const targetEntries = editor.isFilterActive ? editor.filteredEntries : editor.state.entries;
+    const translatedEntries = targetEntries.filter(e => {
+      const key = `${e.msbtFile}:${e.index}`;
+      const t = editor.state!.translations[key]?.trim();
+      return t && t !== e.original;
+    }).slice(0, 15); // Batch of 15
+
+    if (translatedEntries.length === 0) {
+      toast({ title: "⚠️ لا توجد ترجمات لتحسينها" });
+      return;
+    }
+
+    setPolishing(true);
+    try {
+      const entries = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: editor.state!.translations[`${e.msbtFile}:${e.index}`],
+      }));
+
+      const glossaryContext = editor.activeGlossary
+        ? editor.activeGlossary.split('\n').filter(l => l.trim() && l.includes('=')).slice(0, 50).join('\n')
+        : undefined;
+
+      const { data, error } = await supabase.functions.invoke('polish-arabic', {
+        body: { entries, glossary: glossaryContext },
+      });
+
+      if (error) throw error;
+      if (!data?.results) throw new Error('No results');
+
+      const changedResults = data.results.filter((r: any) => r.changed);
+      if (changedResults.length === 0) {
+        toast({ title: "✅ الترجمات سليمة", description: "لم يتم العثور على أخطاء تحتاج تصحيح" });
+      } else {
+        // Show as fix preview
+        editor.setFixPreview({
+          title: `تحسين الصياغة العربية (${changedResults.length} نص)`,
+          items: changedResults.map((r: any) => {
+            const parts = r.key.split(':');
+            return {
+              key: r.key,
+              label: r.reason || 'تحسين الصياغة',
+              file: parts[0] || '',
+              oldText: r.current,
+              newText: r.improved,
+            };
+          }),
+          updates: Object.fromEntries(changedResults.map((r: any) => [r.key, r.improved])),
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في تحسين الصياغة", description: err.message, variant: "destructive" });
+    } finally {
+      setPolishing(false);
+    }
+  }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, polishing]);
+
+  // Scene context handler
+  const openSceneContext = React.useCallback((entry: any) => {
+    setSceneContextEntry(entry);
+    setShowSceneContext(true);
+  }, []);
 
   if (!editor.state) {
     return (
@@ -458,6 +537,12 @@ const Editor = () => {
                     <option value="exclude">بدون تقني</option>
                     <option value="only">تقني فقط</option>
                   </select>
+                  <select value={filterDifficulty} onChange={e => setFilterDifficulty(e.target.value)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm">
+                    <option value="all">كل الصعوبات</option>
+                    <option value="simple">🟢 بسيط ({difficultyStats.simple})</option>
+                    <option value="medium">🟡 متوسط ({difficultyStats.medium})</option>
+                    <option value="complex">🔴 معقد ({difficultyStats.complex})</option>
+                  </select>
                   <Button variant={editor.quickReviewMode ? "secondary" : "outline"} size="sm" onClick={() => { editor.setQuickReviewMode(!editor.quickReviewMode); editor.setQuickReviewIndex(0); }} className="font-body text-xs">
                     <Eye className="w-3 h-3" /> مراجعة سريعة
                   </Button>
@@ -719,6 +804,14 @@ const Editor = () => {
                   <DropdownMenuItem onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0}>
                     {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">🆕 أدوات متقدمة</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0}>
+                    {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0}>
+                    <Search className="w-4 h-4" /> كشف التناقضات 🔍
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -776,6 +869,12 @@ const Editor = () => {
               </Button>
               <Button variant="outline" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
                 {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
+              </Button>
+              <Button variant="outline" onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
+                {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
+              </Button>
+              <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-amber-500/30 text-amber-600 hover:text-amber-700">
+                <Search className="w-4 h-4" /> كشف التناقضات 🔍
               </Button>
             </div>
           )}
@@ -870,8 +969,15 @@ const Editor = () => {
             {editor.filteredEntries.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>
             ) : (
-              editor.paginatedEntries.map((entry) => {
+              editor.paginatedEntries
+                .filter(entry => {
+                  if (filterDifficulty === 'all') return true;
+                  return classifyDifficulty(entry).level === filterDifficulty;
+                })
+                .map((entry) => {
                 const key = `${entry.msbtFile}:${entry.index}`;
+                const difficulty = classifyDifficulty(entry);
+                const diffConf = DIFFICULTY_CONFIG[difficulty.level];
                 // Build small TM from same file's existing translations
                 const tm = editor.state ? editor.state.entries
                   .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
@@ -879,30 +985,44 @@ const Editor = () => {
                   .filter(t => t.translation.trim())
                   .slice(0, 5) : [];
                 return (
-                  <EntryCard
-                    key={key}
-                    entry={entry}
-                    translation={editor.state?.translations[key] || ''}
-                    glossary={editor.state?.glossary}
-                    isProtected={editor.state?.protectedEntries?.has(key) || false}
-                    hasProblem={editor.qualityStats.problemKeys.has(key)}
-                    isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
-                    isMobile={isMobile}
-                    translatingSingle={editor.translatingSingle}
-                    improvingTranslations={editor.improvingTranslations}
-                    previousTranslations={editor.previousTranslations}
-                    isTranslationTooShort={editor.isTranslationTooShort}
-                    isTranslationTooLong={editor.isTranslationTooLong}
-                    hasStuckChars={editor.hasStuckChars}
-                    isMixedLanguage={editor.isMixedLanguage}
-                    updateTranslation={editor.updateTranslation}
-                    handleTranslateSingle={editor.handleTranslateSingle}
-                    handleImproveSingleTranslation={editor.handleImproveSingleTranslation}
-                    handleUndoTranslation={editor.handleUndoTranslation}
-                    handleFixReversed={editor.handleFixReversed}
-                    handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                    translationMemory={tm}
-                  />
+                  <div key={key} className="relative">
+                    {/* Difficulty + Context badges */}
+                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+                      <span className={`text-[9px] px-1 py-0.5 rounded ${diffConf.color}`} title={difficulty.reasons.join('، ')}>
+                        {diffConf.emoji} {diffConf.label}
+                      </span>
+                      <button
+                        onClick={() => openSceneContext(entry)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        title="عرض سياق المشهد"
+                      >
+                        🎬
+                      </button>
+                    </div>
+                    <EntryCard
+                      entry={entry}
+                      translation={editor.state?.translations[key] || ''}
+                      glossary={editor.state?.glossary}
+                      isProtected={editor.state?.protectedEntries?.has(key) || false}
+                      hasProblem={editor.qualityStats.problemKeys.has(key)}
+                      isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
+                      isMobile={isMobile}
+                      translatingSingle={editor.translatingSingle}
+                      improvingTranslations={editor.improvingTranslations}
+                      previousTranslations={editor.previousTranslations}
+                      isTranslationTooShort={editor.isTranslationTooShort}
+                      isTranslationTooLong={editor.isTranslationTooLong}
+                      hasStuckChars={editor.hasStuckChars}
+                      isMixedLanguage={editor.isMixedLanguage}
+                      updateTranslation={editor.updateTranslation}
+                      handleTranslateSingle={editor.handleTranslateSingle}
+                      handleImproveSingleTranslation={editor.handleImproveSingleTranslation}
+                      handleUndoTranslation={editor.handleUndoTranslation}
+                      handleFixReversed={editor.handleFixReversed}
+                      handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
+                      translationMemory={tm}
+                    />
+                  </div>
                 );
               })
             )}
@@ -1076,6 +1196,28 @@ const Editor = () => {
           changes={glossaryPreviewChanges}
           onApply={(approvedKeys) => editor.applyApprovedGlossaryChanges(glossaryPreviewChanges, approvedKeys)}
         />
+
+        {/* Scene Context Panel */}
+        {sceneContextEntry && editor.state && (
+          <SceneContextPanel
+            open={showSceneContext}
+            onClose={() => setShowSceneContext(false)}
+            entry={sceneContextEntry}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+          />
+        )}
+
+        {/* Inconsistency Detector */}
+        {editor.state && (
+          <InconsistencyDetector
+            open={showInconsistencies}
+            onClose={() => setShowInconsistencies(false)}
+            entries={editor.state.entries}
+            translations={editor.state.translations}
+            glossary={editor.state.glossary}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
