@@ -53,7 +53,9 @@ import ContextSuggestPanel from "@/components/editor/ContextSuggestPanel";
 import EngineComparePanel from "@/components/editor/EngineComparePanel";
 import SmartBulkImprovePanel from "@/components/editor/SmartBulkImprovePanel";
 import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
+import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
