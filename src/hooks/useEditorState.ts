@@ -109,6 +109,7 @@ export function useEditorState() {
 
   const glossary = useEditorGlossary({
     state, setState, setLastSaved, setCloudSyncing, setCloudStatus, userId: user?.id,
+    filteredEntries, isFilterActive,
   });
   const { activeGlossary, parseGlossaryMap } = glossary;
 

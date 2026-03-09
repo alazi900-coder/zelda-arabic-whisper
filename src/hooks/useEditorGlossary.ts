@@ -384,7 +384,7 @@ export function useEditorGlossary({
     handleLoadDefaultGlossary, handleLoadTOTKGlossary, handleLoadTOTKItemsGlossary,
     handleLoadMaterialsGlossary, handleLoadUIGlossary, handleLoadLocationsGlossary,
     handleLoadCreaturesGlossary, handleLoadAbilitiesGlossary,
-    handleLoadAllGlossaries, handleApplyGlossaryToAll,
+    handleLoadAllGlossaries, handleApplyGlossaryToAll, handleApplyGlossaryToFiltered,
     handleSaveGlossaryToCloud, handleLoadGlossaryFromCloud,
   };
 }
