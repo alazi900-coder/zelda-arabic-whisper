@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { EditorState, ExtractedEntry } from "@/components/editor/types";
+import type { GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 
 interface UseEditorGlossaryProps {
   state: EditorState | null;
