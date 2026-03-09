@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Shield, FileText, Download, Sparkles } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
@@ -11,6 +12,24 @@ const steps = [
 ];
 
 const Index = () => {
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (parallaxRef.current) {
+        const rect = parallaxRef.current.getBoundingClientRect();
+        const windowH = window.innerHeight;
+        if (rect.bottom > 0 && rect.top < windowH) {
+          setOffset((rect.top - windowH) * -0.35);
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}
@@ -45,11 +64,12 @@ const Index = () => {
       </header>
 
       {/* World Banner */}
-      <section className="relative w-full overflow-hidden">
+      <section ref={parallaxRef} className="relative w-full overflow-hidden h-64 md:h-96">
         <img
           src={hyruleWorld}
           alt="عالم هايرول مع أبطال اللعبة"
-          className="w-full h-64 md:h-96 object-cover"
+          className="absolute inset-0 w-full h-[130%] object-cover will-change-transform"
+          style={{ transform: `translateY(${offset}px)` }}
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
