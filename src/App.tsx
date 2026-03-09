@@ -23,7 +23,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ErrorBoundary fallbackTitle="حدث خطأ في التطبيق">
             <Routes>
               <Route path="/" element={<Index />} />
