@@ -64,11 +64,12 @@ const Index = () => {
       </header>
 
       {/* World Banner */}
-      <section className="relative w-full overflow-hidden">
+      <section ref={parallaxRef} className="relative w-full overflow-hidden h-64 md:h-96">
         <img
           src={hyruleWorld}
           alt="عالم هايرول مع أبطال اللعبة"
-          className="w-full h-64 md:h-96 object-cover"
+          className="absolute inset-0 w-full h-[130%] object-cover will-change-transform"
+          style={{ transform: `translateY(${offset}px)` }}
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
