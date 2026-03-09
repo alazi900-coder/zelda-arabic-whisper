@@ -109,6 +109,31 @@ const Editor = () => {
     setShowScreenshots(true);
   }, []);
 
+  const [showContextSuggest, setShowContextSuggest] = React.useState(false);
+  const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
+  const openContextSuggest = React.useCallback((entry: any) => {
+    setContextSuggestEntry(entry);
+    setShowContextSuggest(true);
+  }, []);
+
+  // Translator notes (localStorage)
+  const [translatorNotes, setTranslatorNotes] = React.useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('zelda-editor-notes');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const handleUpdateNote = React.useCallback((key: string, note: string) => {
+    setTranslatorNotes(prev => {
+      const next = { ...prev };
+      if (note) next[key] = note;
+      else delete next[key];
+      try { localStorage.setItem('zelda-editor-notes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
 
   // Drag & Drop handlers
