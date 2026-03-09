@@ -1049,6 +1049,8 @@ const Editor = () => {
               translations={editor.state.translations}
               qualityProblemKeys={editor.qualityStats.problemKeys}
               updateTranslation={editor.updateTranslation}
+              entries={editor.state.entries}
+              glossary={editor.state.glossary}
             />
           )}
 
