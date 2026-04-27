@@ -141,13 +141,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, myMemoryEmail, category, filePath, labels } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, userClaudeKey, myMemoryEmail, category, filePath, labels } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'lovable' | 'mymemory';
+      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude';
       translationQuality?: 'fast' | 'quality';
+      userClaudeKey?: string;
       myMemoryEmail?: string;
       category?: string;
       filePath?: string;
@@ -216,6 +217,38 @@ ${relevant.join('\n')}`;
 النصوص للترجمة:
 ${textsBlock}`;
 
+    // === Google Translate engine (free, no API key) ===
+    if (translationEngine === 'google') {
+      const result: Record<string, string> = {};
+      const CONCURRENT = 5;
+      for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
+        const batch = protectedEntries.slice(i, i + CONCURRENT);
+        const promises = batch.map(async (entry) => {
+          const text = encodeURIComponent(entry.cleaned);
+          const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${text}`;
+          try {
+            const gtResponse = await fetch(url);
+            if (!gtResponse.ok) return;
+            const gtData = await gtResponse.json();
+            const translated = (gtData?.[0] as [string, string][] | undefined)
+              ?.map((seg: [string, string]) => seg[0])
+              .join('') || '';
+            if (translated.trim()) {
+              const restored = restoreTags(translated, entry.tags);
+              result[entry.key] = postProcess(restored, entry.original);
+            }
+          } catch { /* skip */ }
+        });
+        await Promise.all(promises);
+        if (i + CONCURRENT < protectedEntries.length) {
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+      return new Response(JSON.stringify({ translations: result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // === MyMemory translation engine ===
     if (translationEngine === 'mymemory') {
       const result: Record<string, string> = {};
@@ -245,6 +278,51 @@ ${textsBlock}`;
         }
       }
       return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === Claude/Anthropic translation engine ===
+    if (translationEngine === 'claude' && userClaudeKey?.trim()) {
+      const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': userClaudeKey.trim(),
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: translationQuality === 'quality' ? 'claude-sonnet-4-20250514' : 'claude-haiku-35-20241022',
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          temperature: 0.2,
+        }),
+      });
+
+      if (!claudeResponse.ok) {
+        const err = await claudeResponse.text();
+        console.error('Claude error:', err);
+        throw new Error(`Claude API error: ${claudeResponse.status}`);
+      }
+
+      const claudeData = await claudeResponse.json();
+      const content = claudeData?.content?.[0]?.text || '';
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('Failed to parse Claude response');
+
+      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+      const translations: string[] = JSON.parse(sanitized);
+
+      const result: Record<string, string> = {};
+      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
+        if (translations[i]?.trim()) {
+          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
+        }
+      }
+
+      return new Response(JSON.stringify({ translations: result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -27,13 +27,14 @@ interface Props {
   translations: Record<string, string>;
   glossary?: string;
   userGeminiKey: string;
+  userClaudeKey: string;
   myMemoryEmail: string;
   onApplyTranslation: (key: string, translation: string) => void;
 }
 
 export default function EngineComparePanel({
   open, onClose, entry, entries, translations, glossary,
-  userGeminiKey, myMemoryEmail, onApplyTranslation,
+  userGeminiKey, userClaudeKey, myMemoryEmail, onApplyTranslation,
 }: Props) {
   const [results, setResults] = useState<EngineResult[]>([]);
   const [applied, setApplied] = useState<string | null>(null);
@@ -57,10 +58,14 @@ export default function EngineComparePanel({
 
     const engines: { id: string; label: string; emoji: string }[] = [
       { id: "lovable", label: "Lovable AI", emoji: "🤖" },
+      { id: "google", label: "Google Translate", emoji: "🔤" },
       { id: "mymemory", label: "MyMemory", emoji: "🌐" },
     ];
     if (userGeminiKey) {
       engines.push({ id: "gemini", label: "Gemini (شخصي)", emoji: "✨" });
+    }
+    if (userClaudeKey) {
+      engines.push({ id: "claude", label: "Claude (شخصي)", emoji: "🧠" });
     }
 
     const initialResults: EngineResult[] = engines.map(e => ({
@@ -94,6 +99,7 @@ export default function EngineComparePanel({
             glossary: glossary || undefined,
             context: contextEntries.length > 0 ? contextEntries : undefined,
             userApiKey: eng.id === 'gemini' ? userGeminiKey : undefined,
+            userClaudeKey: eng.id === 'claude' ? userClaudeKey : undefined,
             translationEngine: eng.id,
             translationQuality: 'quality',
             myMemoryEmail: eng.id === 'mymemory' ? myMemoryEmail : undefined,
