@@ -12,13 +12,13 @@ export interface DifficultyInfo {
 }
 
 // Common Zelda proper nouns that need cultural context
-const ZELDA_CULTURAL_TERMS = /\b(Triforce|Master Sword|Sheikah|Gerudo|Zonai|Korok|Goron|Zora|Rito|Purah|Impa|Ganondorf|Malice|Gloom|Calamity|Divine Beast|Ancient|Guardian|Lynel|Hinox|Molduga|Talus)\b/gi;
+const ZELDA_CULTURAL_TERMS = /\b(Triforce|Master Sword|Sheikah|Gerudo|Zonai|Korok|Goron|Zora|Rito|Purah|Impa|Ganondorf|Malice|Gloom|Calamity|Divine Beast|Ancient|Guardian|Lynel|Hinox|Molduga|Talus)\b/i;
 
 // Idiomatic expressions that are hard to translate
-const IDIOMATIC_PATTERNS = /\b(it's time to|once upon a|in the blink of|at the end of the day|the last straw|bite the bullet|break a leg|by the skin of)\b/gi;
+const IDIOMATIC_PATTERNS = /\b(it's time to|once upon a|in the blink of|at the end of the day|the last straw|bite the bullet|break a leg|by the skin of)\b/i;
 
 // Emotional/poetic language markers
-const EMOTIONAL_MARKERS = /\b(alas|behold|forsooth|thy|thou|hark|o mighty|brave hero|ancient prophecy|eternal|destiny|fate|legend)\b/gi;
+const EMOTIONAL_MARKERS = /\b(alas|behold|forsooth|thy|thou|hark|o mighty|brave hero|ancient prophecy|eternal|destiny|fate|legend)\b/i;
 
 export function classifyDifficulty(entry: ExtractedEntry): DifficultyInfo {
   let score = 0;
@@ -61,7 +61,7 @@ export function classifyDifficulty(entry: ExtractedEntry): DifficultyInfo {
   else if (lineBreaks > 0) { score += 1; }
 
   // Cultural/Zelda terms requiring localization knowledge
-  const culturalMatches = text.match(ZELDA_CULTURAL_TERMS);
+  const culturalMatches = text.match(new RegExp(ZELDA_CULTURAL_TERMS.source, 'gi'));
   if (culturalMatches && culturalMatches.length > 2) { score += 2; reasons.push('مصطلحات ثقافية'); }
   else if (culturalMatches && culturalMatches.length > 0) { score += 1; reasons.push('اسم خاص بالعالم'); }
 
@@ -69,7 +69,7 @@ export function classifyDifficulty(entry: ExtractedEntry): DifficultyInfo {
   if (IDIOMATIC_PATTERNS.test(text)) { score += 2; reasons.push('تعبير اصطلاحي'); }
 
   // Emotional/poetic language
-  const emotionalMatches = text.match(EMOTIONAL_MARKERS);
+  const emotionalMatches = text.match(new RegExp(EMOTIONAL_MARKERS.source, 'gi'));
   if (emotionalMatches && emotionalMatches.length > 1) { score += 2; reasons.push('أسلوب أدبي'); }
 
   // Byte constraint tightness

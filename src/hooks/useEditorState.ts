@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
-import { idbSet, idbGet } from "@/lib/idb-storage";
+import { idbSet, idbGet, idbSetSync } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,9 @@ import { useEditorFileIO } from "@/hooks/useEditorFileIO";
 import { useEditorQuality } from "@/hooks/useEditorQuality";
 import { useEditorBuild } from "@/hooks/useEditorBuild";
 import { useEditorTranslation } from "@/hooks/useEditorTranslation";
+import { useEditorFixes } from "@/hooks/useEditorFixes";
+import { useEditorCloud } from "@/hooks/useEditorCloud";
+import { useTimedMessage } from "@/hooks/useTimedMessage";
 import {
   ExtractedEntry, EditorState, AUTOSAVE_DELAY, AI_BATCH_SIZE, PAGE_SIZE,
   categorizeFile, hasArabicChars, unReverseBidi, isTechnicalText, hasTechnicalTags,
@@ -34,6 +37,7 @@ export function useEditorState() {
   const [filterTechnical, setFilterTechnical] = useState<"all" | "only" | "exclude">("all");
   const [translateProgress, setTranslateProgress] = useState("");
   const [lastSaved, setLastSaved] = useState<string>("");
+  const showLastSaved = useTimedMessage(setLastSaved);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
   const [technicalEditingMode, setTechnicalEditingMode] = useState<string | null>(null);
@@ -53,7 +57,6 @@ export function useEditorState() {
   const [mirrorPunctuation, setMirrorPunctuation] = useState(false);
   const [improvingTranslations, setImprovingTranslations] = useState(false);
   const [improveResults, setImproveResults] = useState<ImproveResult[] | null>(null);
-  const [fixingMixed, setFixingMixed] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
@@ -118,6 +121,21 @@ export function useEditorState() {
   const build = useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation });
   const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, handleApplyArabicProcessing, handlePreBuild, handleBuild } = build;
 
+  const showTimedMessage = useCallback((setter: (msg: string) => void, msg: string, duration = 3000) => {
+    setter(msg);
+    setTimeout(() => setter(""), duration);
+  }, []);
+
+  const fixes = useEditorFixes({
+    state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations,
+    setFixPreview, isMixedLanguage, activeGlossary, showTimedMessage,
+  });
+  const { fixingMixed, handleFixAllStuckCharacters, handleFixAllPunctuation, handleFixAllBrackets,
+    handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza, handleFixMixedLanguage } = fixes;
+
+  const cloud = useEditorCloud({ state, setState, user, setCloudSyncing, setCloudStatus });
+  const { handleCloudSave, handleCloudLoad } = cloud;
+
 
   // === Protection handlers ===
   const toggleProtection = (key: string) => {
@@ -149,8 +167,7 @@ export function useEditorState() {
       }
     }
     setState(prev => prev ? { ...prev, protectedEntries: newProtected } : null);
-    setLastSaved(`✅ تم حماية ${count} نص معرّب من العكس`);
-    setTimeout(() => setLastSaved(""), 3000);
+    showLastSaved(`✅ تم حماية ${count} نص معرّب من العكس`);
   };
 
   const handleFixReversed = (entry: ExtractedEntry) => {
@@ -195,8 +212,7 @@ export function useEditorState() {
     if (skippedProtected > 0) parts.push("محمية: " + skippedProtected);
     if (skippedTranslated > 0) parts.push("مترجمة: " + skippedTranslated);
     if (skippedSame > 0) parts.push("بلا تغيير: " + skippedSame);
-    setLastSaved((count > 0 ? "✅ " : "⚠️ ") + parts.join(" | "));
-    setTimeout(() => setLastSaved(""), 5000);
+    showLastSaved((count > 0 ? "✅ " : "⚠️ ") + parts.join(" | "), 5000);
   };
 
   // === Load / Save ===
@@ -359,19 +375,30 @@ export function useEditorState() {
     };
   }, [state?.translations, saveToIDB]);
 
-  // Save before browser/tab close
+  // Save before browser/tab close or hide
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const flushPendingSave = () => {
       if (saveTimerRef.current && stateRef.current) {
         clearTimeout(saveTimerRef.current);
-        // Synchronous-safe: use navigator.sendBeacon as fallback isn't needed
-        // because idbSet is fire-and-forget here (IDB transactions survive page unload briefly)
-        saveToIDB(stateRef.current);
+        saveTimerRef.current = undefined;
+        idbSetSync("editorState", {
+          entries: stateRef.current.entries,
+          translations: stateRef.current.translations,
+          protectedEntries: Array.from(stateRef.current.protectedEntries || []),
+          technicalBypass: Array.from(stateRef.current.technicalBypass || []),
+        });
       }
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [saveToIDB]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushPendingSave();
+    };
+    window.addEventListener('beforeunload', flushPendingSave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', flushPendingSave);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // === Computed values ===
   const msbtFiles = useMemo(() => {
@@ -510,15 +537,13 @@ export function useEditorState() {
     }
     const fixedCount = Object.keys(updates).length;
     if (fixedCount === 0) {
-      setLastSaved("لا توجد رموز تالفة يمكن إصلاحها محلياً");
-      setTimeout(() => setLastSaved(""), 3000);
+      showLastSaved("لا توجد رموز تالفة يمكن إصلاحها محلياً");
       return;
     }
     setPreviousTranslations(old => ({ ...old, ...prevTrans }));
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     toast({ title: "✅ تم الإصلاح المحلي", description: `تم استعادة الرموز في ${fixedCount} نص بدون ذكاء اصطناعي` });
-    setLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`);
-    setTimeout(() => setLastSaved(""), 4000);
+    showLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`, 4000);
   }, [state, setState, setPreviousTranslations, setLastSaved]);
 
   // === Redistribute tags at word boundaries for already-fixed translations ===
@@ -550,8 +575,7 @@ export function useEditorState() {
     setPreviousTranslations(old => ({ ...old, ...prevTrans }));
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     toast({ title: "✅ تم إعادة التوزيع", description: `تم إعادة توزيع الرموز في ${count} نص عند حدود الكلمات` });
-    setLastSaved(`✅ إعادة توزيع ${count} نص`);
-    setTimeout(() => setLastSaved(""), 4000);
+    showLastSaved(`✅ إعادة توزيع ${count} نص`, 4000);
   }, [state, setState, setPreviousTranslations, setLastSaved]);
 
   // === Review handlers ===
@@ -611,194 +635,7 @@ export function useEditorState() {
     shortSuggestions.forEach((s) => { updates[s.key] = s.suggested; });
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     setShortSuggestions(null);
-    setLastSaved(`✅ تم تطبيق ${Object.keys(updates).length} اقتراح قصير`);
-    setTimeout(() => setLastSaved(""), 3000);
-  };
-
-  // === Fix handlers ===
-  const handleFixAllStuckCharacters = () => {
-    if (!state) return;
-    let fixedCount = 0;
-    const updates: Record<string, string> = {};
-    for (const [key, translation] of Object.entries(state.translations)) {
-      if (translation?.trim() && hasArabicPresentationForms(translation)) {
-        const fixed = removeArabicPresentationForms(translation);
-        if (fixed !== translation) { updates[key] = fixed; fixedCount++; }
-      }
-    }
-    if (fixedCount === 0) { setLastSaved("لا توجد ترجمات بها أحرف ملتصقة"); setTimeout(() => setLastSaved(""), 3000); return; }
-    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    setLastSaved(`✅ تم إصلاح ${fixedCount} ترجمة من الأحرف الملتصقة`);
-    setTimeout(() => setLastSaved(""), 3000);
-  };
-
-  const handleFixAllPunctuation = useCallback(() => {
-    if (!state) return;
-    const updates: Record<string, string> = {};
-    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key];
-      if (!translation?.trim()) continue;
-      const origEnd = entry.original.trim();
-      let fixed = translation;
-      if (origEnd.endsWith('?') && !fixed.trimEnd().endsWith('؟') && !fixed.trimEnd().endsWith('?')) {
-        fixed = fixed.replace(/[.。،]+\s*$/, '') + '؟';
-      } else if (origEnd.endsWith('!') && !fixed.trimEnd().endsWith('!')) {
-        fixed = fixed.replace(/[.。،]+\s*$/, '') + '!';
-      } else { continue; }
-      if (fixed !== translation) {
-        updates[key] = fixed;
-        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
-      }
-    }
-    if (items.length === 0) { toast({ title: "لا توجد علامات ترقيم مفقودة للإصلاح" }); return; }
-    setFixPreview({ title: "إصلاح الترقيم", items, updates });
-  }, [state]);
-
-  const handleFixAllBrackets = useCallback(() => {
-    if (!state) return;
-    const updates: Record<string, string> = {};
-    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key];
-      if (!translation?.trim()) continue;
-      const orig = entry.original;
-      const origTags = orig.match(/\[[^\]]*\]/g) || [];
-      let depth = 0;
-      let broken = false;
-      for (const ch of translation) {
-        if (ch === '[') depth++;
-        else if (ch === ']') { depth--; if (depth < 0) { broken = true; break; } }
-      }
-      if (depth !== 0) broken = true;
-      if (!broken) continue;
-      let fixed = translation;
-      depth = 0;
-      for (const ch of fixed) { if (ch === '[') depth++; else if (ch === ']') depth--; }
-      if (depth > 0) fixed = fixed + ']'.repeat(depth);
-      else if (depth < 0) fixed = '['.repeat(-depth) + fixed;
-      for (const tag of origTags) { if (!fixed.includes(tag)) fixed = fixed.trimEnd() + ' ' + tag; }
-      fixed = fixed.replace(/ {2,}/g, ' ');
-      if (fixed !== translation) {
-        updates[key] = fixed;
-        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
-      }
-    }
-    if (items.length === 0) { toast({ title: "لا توجد أقواس مكسورة للإصلاح" }); return; }
-    setFixPreview({ title: "إصلاح الأقواس", items, updates });
-  }, [state]);
-
-  // === Fix diacritics (harakat) ===
-  const handleFixAllDiacritics = useCallback(() => {
-    if (!state) return;
-    const updates: Record<string, string> = {};
-    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
-    const diacriticsRegex = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g;
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key];
-      if (!translation?.trim()) continue;
-      const fixed = translation.replace(diacriticsRegex, '');
-      if (fixed !== translation) {
-        updates[key] = fixed;
-        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
-      }
-    }
-    if (items.length === 0) { toast({ title: "لا توجد تشكيلات زائدة للإزالة" }); return; }
-    setFixPreview({ title: "إزالة التشكيل", items, updates });
-  }, [state]);
-
-  // === Fix double/extra spaces ===
-  const handleFixAllSpaces = useCallback(() => {
-    if (!state) return;
-    const updates: Record<string, string> = {};
-    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key];
-      if (!translation?.trim()) continue;
-      let fixed = translation;
-      const tagPlaceholders: string[] = [];
-      fixed = fixed.replace(/\[[^\]]*\]/g, (match) => { tagPlaceholders.push(match); return `\uFFFE${tagPlaceholders.length - 1}\uFFFE`; });
-      fixed = fixed.replace(/ {2,}/g, ' ');
-      fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
-      fixed = fixed.replace(/([،؛؟!.,;?])([^\s\uFFFE،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
-      fixed = fixed.replace(/\uFFFE(\d+)\uFFFE/g, (_, idx) => tagPlaceholders[parseInt(idx)]);
-      fixed = fixed.trim();
-      if (fixed !== translation) {
-        updates[key] = fixed;
-        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
-      }
-    }
-    if (items.length === 0) { toast({ title: "لا توجد مسافات مزدوجة للإصلاح" }); return; }
-    setFixPreview({ title: "إصلاح المسافات", items, updates });
-  }, [state]);
-
-  // === Normalize hamza/alef ===
-  const handleFixAllHamza = useCallback(() => {
-    if (!state) return;
-    const updates: Record<string, string> = {};
-    const items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[] = [];
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const translation = state.translations[key];
-      if (!translation?.trim()) continue;
-      let fixed = translation;
-      fixed = fixed.replace(/[أإآ]/g, 'ا');
-      fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉\u0000-\u001F]|$)/g, 'ي');
-      if (fixed !== translation) {
-        updates[key] = fixed;
-        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
-      }
-    }
-    if (items.length === 0) { toast({ title: "لا توجد همزات أو ألفات تحتاج توحيد" }); return; }
-    setFixPreview({ title: "توحيد الهمزات", items, updates });
-  }, [state]);
-
-  const handleFixMixedLanguage = async () => {
-    if (!state) return;
-    setFixingMixed(true);
-    setTranslateProgress("🌐 جاري إصلاح النصوص المختلطة...");
-    try {
-      const mixedEntries = state.entries
-        .filter(e => { const key = `${e.msbtFile}:${e.index}`; const t = state.translations[key]; return t?.trim() && isMixedLanguage(t); })
-        .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`] }));
-      if (mixedEntries.length === 0) { setTranslateProgress("لا توجد نصوص مختلطة للإصلاح"); setTimeout(() => setTranslateProgress(""), 3000); return; }
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const BATCH = 20;
-      const allUpdates: Record<string, string> = {};
-      let processed = 0;
-      for (let i = 0; i < mixedEntries.length; i += BATCH) {
-        const batch = mixedEntries.slice(i, i + BATCH);
-        setTranslateProgress(`🌐 إصلاح النصوص المختلطة... ${processed}/${mixedEntries.length}`);
-        const response = await fetch(`${supabaseUrl}/functions/v1/fix-mixed-language`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entries: batch, glossary: activeGlossary }),
-        });
-        if (!response.ok) { const errData = await response.json().catch(() => ({})); throw new Error(errData.error || `خطأ ${response.status}`); }
-        const data = await response.json();
-        if (data.translations) {
-          for (const [key, val] of Object.entries(data.translations)) {
-            if (state.translations[key] !== val) {
-              setPreviousTranslations(prev => ({ ...prev, [key]: state.translations[key] || '' }));
-              allUpdates[key] = val as string;
-            }
-          }
-        }
-        processed += batch.length;
-      }
-      const fixedCount = Object.keys(allUpdates).length;
-      if (fixedCount > 0) setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...allUpdates } } : null);
-      setTranslateProgress(`✅ تم إصلاح ${fixedCount} ترجمة مختلطة اللغة`);
-      setTimeout(() => setTranslateProgress(""), 4000);
-    } catch (err) {
-      setTranslateProgress(`❌ خطأ: ${err instanceof Error ? err.message : 'غير معروف'}`);
-      setTimeout(() => setTranslateProgress(""), 4000);
-    } finally { setFixingMixed(false); }
+    showLastSaved(`✅ تم تطبيق ${Object.keys(updates).length} اقتراح قصير`);
   };
 
   // === File IO (extracted to useEditorFileIO) ===
@@ -847,8 +684,7 @@ export function useEditorState() {
     improveResults.forEach((item) => { if (item.improvedBytes <= item.maxBytes || item.maxBytes === 0) updates[item.key] = item.improved; });
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     setImproveResults(null);
-    setLastSaved(`✅ تم تطبيق ${Object.keys(updates).length} تحسين`);
-    setTimeout(() => setLastSaved(""), 3000);
+    showLastSaved(`✅ تم تطبيق ${Object.keys(updates).length} تحسين`);
   };
 
   const handleImproveSingleTranslation = async (entry: ExtractedEntry) => {
@@ -876,38 +712,6 @@ export function useEditorState() {
     finally { setImprovingTranslations(false); }
   };
 
-  // === Cloud save/load ===
-  const handleCloudSave = async () => {
-    if (!state || !user) return;
-    setCloudSyncing(true); setCloudStatus("جاري الحفظ في السحابة...");
-    try {
-      const translated = Object.values(state.translations).filter(v => v.trim() !== '').length;
-      const { data: existing } = await supabase.from('translation_projects').select('id').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(1);
-      if (existing && existing.length > 0) {
-        await supabase.from('translation_projects').update({ translations: state.translations, entry_count: state.entries.length, translated_count: translated }).eq('id', existing[0].id);
-      } else {
-        await supabase.from('translation_projects').insert({ user_id: user.id, translations: state.translations, entry_count: state.entries.length, translated_count: translated });
-      }
-      setCloudStatus("☁️ تم الحفظ في السحابة بنجاح!");
-    } catch (err) { setCloudStatus(`❌ ${err instanceof Error ? err.message : 'خطأ في الحفظ'}`); }
-    finally { setCloudSyncing(false); setTimeout(() => setCloudStatus(""), 4000); }
-  };
-
-  const handleCloudLoad = async () => {
-    if (!user) return;
-    setCloudSyncing(true); setCloudStatus("جاري التحميل من السحابة...");
-    try {
-      const { data, error } = await supabase.from('translation_projects').select('translations').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(1).maybeSingle();
-      if (error) throw error;
-      if (!data) { setCloudStatus("لا توجد ترجمات محفوظة في السحابة"); setTimeout(() => setCloudStatus(""), 3000); return; }
-      const cloudTranslations = data.translations as Record<string, string>;
-      setState(prev => { if (!prev) return null; return { ...prev, translations: { ...prev.translations, ...cloudTranslations } }; });
-      setCloudStatus(`☁️ تم تحميل ${Object.keys(cloudTranslations).length} ترجمة من السحابة`);
-    } catch (err) { setCloudStatus(`❌ ${err instanceof Error ? err.message : 'خطأ في التحميل'}`); }
-    finally { setCloudSyncing(false); setTimeout(() => setCloudStatus(""), 4000); }
-  };
-
-
   const handleApplyFixPreview = useCallback(() => {
     if (!state || !fixPreview) return;
     const prev: Record<string, string> = {};
@@ -928,8 +732,7 @@ export function useEditorState() {
     }
     setPreviousTranslations(p => ({ ...p, ...prev }));
     setState(s => s ? { ...s, translations: { ...s.translations, ...replacements } } : null);
-    setLastSaved(`✅ تم استبدال ${Object.keys(replacements).length} نص`);
-    setTimeout(() => setLastSaved(""), 3000);
+    showLastSaved(`✅ تم استبدال ${Object.keys(replacements).length} نص`);
   }, [state]);
 
 
