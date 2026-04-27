@@ -287,7 +287,9 @@ const Editor = () => {
                   {[
                     { key: 'lovable', label: '🤖 Lovable AI', disabled: false },
                     { key: 'gemini', label: '✨ Gemini (شخصي)', disabled: !editor.userGeminiKey },
-                    { key: 'mymemory', label: '🌐 MyMemory (مجاني)', disabled: false },
+                    { key: 'claude', label: '🧠 Claude (شخصي)', disabled: !editor.userClaudeKey },
+                    { key: 'google', label: '🔤 Google Translate', disabled: false },
+                    { key: 'mymemory', label: '🌐 MyMemory', disabled: false },
                   ].map(eng => (
                     <Button key={eng.key} variant={editor.translationEngine === eng.key ? 'default' : 'outline'} size="sm"
                       onClick={() => editor.setTranslationEngine(eng.key as any)} className="text-xs font-body" disabled={eng.disabled}>
@@ -296,7 +298,7 @@ const Editor = () => {
                   ))}
                 </div>
               </div>
-              {editor.translationEngine !== 'mymemory' && (
+              {!['mymemory', 'google'].includes(editor.translationEngine) && (
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex items-center gap-2 shrink-0">
                     <BarChart3 className="w-4 h-4 text-primary" />
@@ -307,7 +309,9 @@ const Editor = () => {
                     <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Pro)</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
-                    {editor.translationQuality === 'quality' ? 'أدق لكن أبطأ — يستخدم Gemini Pro' : 'أسرع وأخف — يستخدم Gemini Flash'}
+                    {editor.translationQuality === 'quality'
+                      ? (editor.translationEngine === 'claude' ? 'أدق لكن أبطأ — يستخدم Claude Sonnet' : 'أدق لكن أبطأ — يستخدم Gemini Pro')
+                      : (editor.translationEngine === 'claude' ? 'أسرع وأخف — يستخدم Claude Haiku' : 'أسرع وأخف — يستخدم Gemini Flash')}
                   </span>
                 </div>
               )}
@@ -326,7 +330,23 @@ const Editor = () => {
                 </div>
                 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح مجاني ↗</a>
               </div>
-              {editor.userGeminiKey && <p className="text-xs text-secondary font-body">✅ مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              {editor.userGeminiKey && <p className="text-xs text-secondary font-body">مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Key className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-display font-bold">🔑 مفتاح Claude API</span>
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <input type="password" placeholder="الصق مفتاح Anthropic API هنا..." value={editor.userClaudeKey}
+                    onChange={(e) => { editor.setUserClaudeKey(e.target.value); if (e.target.value) editor.setTranslationEngine('claude'); }}
+                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
+                  {editor.userClaudeKey && (
+                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserClaudeKey(''); if (editor.translationEngine === 'claude') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                  )}
+                </div>
+                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
+              </div>
+              {editor.userClaudeKey && <p className="text-xs text-secondary font-body">مفتاح Claude مفعّل{editor.translationEngine === 'claude' ? ' — سيُستخدم للترجمة' : ''}</p>}
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
@@ -588,6 +608,32 @@ const Editor = () => {
                     </Collapsible>
                   )}
                 </div>
+              )}
+              {/* Glossary Export Buttons */}
+              <div className="flex items-center gap-2 px-3 py-1.5 border-t border-primary/10">
+                <span className="text-[10px] text-muted-foreground">تصدير القاموس:</span>
+                <Button variant="outline" size="sm" onClick={() => editor.handleExportGlossary('csv')} className="h-5 px-2 text-[10px] font-body">CSV</Button>
+                <Button variant="outline" size="sm" onClick={() => editor.handleExportGlossary('json')} className="h-5 px-2 text-[10px] font-body">JSON</Button>
+              </div>
+              {/* Smart Glossary Suggestions */}
+              {editor.smartGlossarySuggestions.length > 0 && (
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center gap-1 px-3 py-1.5 border-t border-primary/10 text-[10px] text-amber-600 hover:text-amber-700 cursor-pointer w-full">
+                    <Sparkles className="w-3 h-3" /> اقتراحات ذكية ({editor.smartGlossarySuggestions.length} مصطلح متكرر غير مضاف)
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-3 pb-2 space-y-1">
+                    {editor.smartGlossarySuggestions.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[10px]">
+                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{s.term}</span>
+                        <span className="text-muted-foreground">({s.count}x)</span>
+                        <input type="text" placeholder="الترجمة..." className="flex-1 px-2 py-0.5 rounded border border-border text-[10px] bg-background" dir="rtl"
+                          onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) { editor.handleAddToGlossary(s.term, (e.target as HTMLInputElement).value.trim()); (e.target as HTMLInputElement).value = ''; } }}
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">اكتب الترجمة واضغط Enter لإضافتها للقاموس</p>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
           )}
@@ -863,7 +909,7 @@ const Editor = () => {
         {engineCompareEntry && editor.state && (
           <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
             entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
+            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
         )}
         {editor.state && (
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}

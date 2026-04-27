@@ -5,6 +5,8 @@ import { AlertTriangle, RotateCcw, Sparkles, Loader2, Tag, BookOpen, Wrench, Cop
 import AutocompleteInput from "./AutocompleteInput";
 import { ExtractedEntry, displayOriginal, hasArabicChars, isTechnicalText, hasTechnicalTags, previewTagRestore } from "./types";
 import { utf8ByteLength } from "@/lib/byte-utils";
+import { calcConfidence, confidenceColor, confidenceLabel } from "@/lib/confidence-score";
+import { backTranslate, textSimilarity } from "@/lib/back-translate";
 import { toast } from "@/hooks/use-toast";
 import ZeldaDialoguePreview from "@/components/ZeldaDialoguePreview";
 import TranslatorNote from "./TranslatorNote";
@@ -102,6 +104,22 @@ const EntryCard: React.FC<EntryCardProps> = ({
   const isTech = isTechnicalText(entry.original);
   const [showTagPreview, setShowTagPreview] = useState(false);
   const [showGamePreview, setShowGamePreview] = useState(false);
+  const [backTransResult, setBackTransResult] = useState<{ text: string; similarity: number } | null>(null);
+  const [backTransLoading, setBackTransLoading] = useState(false);
+
+  const handleBackTranslate = async () => {
+    if (!translation?.trim()) return;
+    setBackTransLoading(true);
+    try {
+      const result = await backTranslate(translation);
+      const sim = textSimilarity(entry.original, result);
+      setBackTransResult({ text: result, similarity: sim });
+    } catch {
+      toast({ title: "خطأ في الترجمة العكسية", variant: "destructive" });
+    } finally {
+      setBackTransLoading(false);
+    }
+  };
   const tagPreview = useMemo(() => {
     if (!isDamagedTag || !translation?.trim()) return null;
     return previewTagRestore(entry.original, translation);
@@ -121,6 +139,23 @@ const EntryCard: React.FC<EntryCardProps> = ({
     () => findGlossaryMatches(entry.original, glossary),
     [entry.original, glossary]
   );
+
+  // Real-time consistency check: warn when glossary terms are in the original but their translations are missing from the translation
+  const glossaryWarnings = useMemo(() => {
+    if (!translation?.trim() || glossaryMatches.length === 0) return [];
+    return glossaryMatches.filter(m => !translation.includes(m.translation));
+  }, [translation, glossaryMatches]);
+
+  const confidence = useMemo(() => {
+    if (!translation?.trim()) return 0;
+    return calcConfidence({
+      original: entry.original,
+      translation,
+      maxBytes: entry.maxBytes,
+      glossaryMatches,
+      hasTMMatch: (translationMemory?.length ?? 0) > 0,
+    });
+  }, [entry.original, entry.maxBytes, translation, glossaryMatches, translationMemory]);
 
   return (
     <Card className={`p-3 md:p-4 border-border/50 hover:border-border transition-colors ${hasProblem ? 'border-destructive/30 bg-destructive/5' : ''}`}>
@@ -161,6 +196,18 @@ const EntryCard: React.FC<EntryCardProps> = ({
               ))}
             </div>
           )}
+          {glossaryWarnings.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 mb-2">
+              <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+              <span className="text-[10px] text-amber-600">مصطلحات المسرد غير مستخدمة:</span>
+              {glossaryWarnings.map((w, i) => (
+                <button key={i} onClick={() => { const cur = translation.trim(); updateTranslation(key, cur ? `${cur} ${w.translation}` : w.translation); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20 hover:bg-amber-500/20 cursor-pointer" title={`اضغط لإضافة: ${w.translation}`}>
+                  {w.term} → {w.translation}
+                </button>
+              ))}
+            </div>
+          )}
           {translation?.trim() && (
             <div className="flex flex-wrap gap-1 mb-2">
               {isTranslationTooShort(entry, translation) && (
@@ -178,6 +225,24 @@ const EntryCard: React.FC<EntryCardProps> = ({
               {isDamagedTag && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20">⚠️ رموز تالفة</span>
               )}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceColor(confidence)}`} title={`درجة ثقة الترجمة: ${confidence}%`}>
+                {confidence}% {confidenceLabel(confidence)}
+              </span>
+              <button onClick={handleBackTranslate} disabled={backTransLoading} className="text-[10px] px-1.5 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 disabled:opacity-50" title="ترجمة عكسية للتحقق">
+                {backTransLoading ? '...' : '🔄 تحقق'}
+              </button>
+            </div>
+          )}
+          {backTransResult && (
+            <div className="flex items-start gap-2 mb-2 p-2 rounded bg-muted/30 border border-border/50">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-muted-foreground mb-0.5">الترجمة العكسية:</p>
+                <p className="text-xs font-body" dir="ltr">{backTransResult.text}</p>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${backTransResult.similarity >= 60 ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-red-500 bg-red-500/10 border-red-500/20'}`}>
+                {backTransResult.similarity}% تطابق
+              </span>
+              <button onClick={() => setBackTransResult(null)} className="text-muted-foreground hover:text-foreground shrink-0"><X className="w-3 h-3" /></button>
             </div>
           )}
           {hasArabicChars(entry.original) && (!translation || translation === entry.original) && (

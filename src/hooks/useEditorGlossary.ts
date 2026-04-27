@@ -363,6 +363,87 @@ export function useEditorGlossary({
     finally { setCloudSyncing(false); }
   };
 
+  // Smart Glossary Suggestions: find repeated English terms (2+ words, appearing 3+ times) not in glossary
+  const smartGlossarySuggestions = useMemo(() => {
+    if (!state?.entries?.length) return [];
+    const glossaryTerms = new Set<string>();
+    if (state.glossary) {
+      for (const line of state.glossary.split('\n')) {
+        const t = line.trim();
+        if (!t || t.startsWith('#') || t.startsWith('//')) continue;
+        const eq = t.indexOf('=');
+        if (eq < 1) continue;
+        glossaryTerms.add(t.slice(0, eq).trim().toLowerCase());
+      }
+    }
+    // Count multi-word phrases (2-4 words) appearing in originals
+    const phraseCount = new Map<string, number>();
+    const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but', 'not', 'it', 'this', 'that', 'with', 'from', 'by', 'as', 'be', 'has', 'have', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'i', 'you', 'he', 'she', 'we', 'they', 'my', 'your', 'his', 'her', 'our', 'its']);
+    for (const entry of state.entries) {
+      const words = entry.original.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      // Single meaningful words
+      for (const w of words) {
+        if (!glossaryTerms.has(w) && w.length > 3) {
+          phraseCount.set(w, (phraseCount.get(w) || 0) + 1);
+        }
+      }
+      // Two-word phrases
+      for (let i = 0; i < words.length - 1; i++) {
+        const phrase = `${words[i]} ${words[i + 1]}`;
+        if (!glossaryTerms.has(phrase)) {
+          phraseCount.set(phrase, (phraseCount.get(phrase) || 0) + 1);
+        }
+      }
+    }
+    // Return terms appearing 3+ times, sorted by frequency
+    return Array.from(phraseCount.entries())
+      .filter(([, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([term, count]) => ({ term, count }));
+  }, [state?.entries, state?.glossary]);
+
+  const handleAddToGlossary = useCallback((term: string, translation: string) => {
+    setState(prev => {
+      if (!prev) return null;
+      const newLine = `${term}=${translation}`;
+      const currentGlossary = prev.glossary || '';
+      return { ...prev, glossary: currentGlossary ? `${currentGlossary}\n${newLine}` : newLine };
+    });
+  }, [setState]);
+
+  // Glossary Export as CSV or JSON
+  const handleExportGlossary = useCallback((format: 'csv' | 'json') => {
+    if (!state?.glossary?.trim()) return;
+    const entries: { english: string; arabic: string }[] = [];
+    for (const line of state.glossary.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#') || t.startsWith('//')) continue;
+      const eq = t.indexOf('=');
+      if (eq < 1) continue;
+      entries.push({ english: t.slice(0, eq).trim(), arabic: t.slice(eq + 1).trim() });
+    }
+    let content: string;
+    let mimeType: string;
+    let ext: string;
+    if (format === 'json') {
+      content = JSON.stringify(entries, null, 2);
+      mimeType = 'application/json';
+      ext = 'json';
+    } else {
+      content = 'English,Arabic\n' + entries.map(e => `"${e.english.replace(/"/g, '""')}","${e.arabic.replace(/"/g, '""')}"`).join('\n');
+      mimeType = 'text/csv';
+      ext = 'csv';
+    }
+    const blob = new Blob(['\uFEFF' + content], { type: `${mimeType};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `glossary.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [state?.glossary]);
+
   return {
     glossaryEnabled, setGlossaryEnabled,
     glossaryTermCount, activeGlossary, glossaryCoverage,
@@ -374,5 +455,6 @@ export function useEditorGlossary({
     handleLoadAllGlossaries, handleApplyGlossaryToAll, handleApplyGlossaryToFiltered,
     generateGlossaryPreview, applyApprovedGlossaryChanges,
     handleSaveGlossaryToCloud, handleLoadGlossaryFromCloud,
+    smartGlossarySuggestions, handleAddToGlossary, handleExportGlossary,
   };
 }
