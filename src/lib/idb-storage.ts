@@ -23,6 +23,23 @@ export async function idbSet(key: string, value: unknown): Promise<void> {
   });
 }
 
+/** Fire-and-forget IDB write — suitable for beforeunload / visibilitychange.
+ *  Opens the DB synchronously (if cached) and starts a write transaction
+ *  without awaiting completion. IDB transactions survive brief page unloads. */
+let _cachedDB: IDBDatabase | null = null;
+openDB().then(db => { _cachedDB = db; }).catch(() => {});
+
+export function idbSetSync(key: string, value: unknown): void {
+  try {
+    const db = _cachedDB;
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(value, key);
+  } catch {
+    // Best-effort — ignore errors during page teardown
+  }
+}
+
 export async function idbGet<T = unknown>(key: string): Promise<T | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {

@@ -52,7 +52,7 @@ const QuickReviewMode: React.FC<QuickReviewModeProps> = ({
   const byteUsed = entry && entry.maxBytes > 0 ? utf8ByteLength(translation) : 0;
   const difficulty = entry ? classifyDifficulty(entry) : { level: 'simple' as const, score: 0, reasons: [], estimatedMinutes: 0 };
   const diffConf = DIFFICULTY_CONFIG[difficulty.level];
-  const glossaryHints = useMemo(() => entry ? findGlossaryHints(entry.original, glossary) : [], [entry?.original, glossary]);
+  const glossaryHints = useMemo(() => entry ? findGlossaryHints(entry.original, glossary) : [], [entry, glossary]);
 
   // Adjacent entries for context
   const adjacentContext = useMemo(() => {

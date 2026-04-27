@@ -127,8 +127,10 @@ export function useTranslationMemory(
   allEntries: ExtractedEntry[],
   translations: Record<string, string>,
 ): TMMatch[] {
+  const translationCount = Object.keys(translations).length;
   return useMemo(() => {
     if (!targetEntry) return [];
     return findSimilarTranslations(targetEntry, allEntries, translations);
-  }, [targetEntry?.msbtFile, targetEntry?.index, allEntries.length, Object.keys(translations).length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetEntry, allEntries, translationCount]);
 }
