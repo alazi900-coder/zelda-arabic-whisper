@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { utf8ByteLength } from "@/lib/byte-utils";
-import { hasArabicPresentationForms } from "@/lib/arabic-processing";
+import { ARABIC_REGEX, hasArabicPresentationForms } from "@/lib/arabic-processing";
 import { ExtractedEntry, EditorState, categorizeFile, hasTechnicalTags } from "@/components/editor/types";
 
 export interface QualityStats {
@@ -73,7 +73,7 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
     if (!translation?.trim()) return false;
     const stripped = translation.replace(/\[[^\]]*\]/g, '').replace(/\uFFFC/g, '').trim();
     if (!stripped) return false;
-    const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(stripped);
+    const hasArabic = ARABIC_REGEX.test(stripped);
     const englishWords = stripped.match(/[a-zA-Z]{2,}/g) || [];
     const whitelist = new Set(['HP', 'MP', 'ATK', 'DEF', 'NPC', 'HUD', 'FPS', 'XP', 'DLC', 'UI', 'OK']);
     const realEnglish = englishWords.filter(w => !whitelist.has(w.toUpperCase()));

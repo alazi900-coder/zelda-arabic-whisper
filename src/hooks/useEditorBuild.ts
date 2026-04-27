@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { idbGet } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms } from "@/lib/arabic-processing";
 import { EditorState, hasTechnicalTags, restoreTagsLocally } from "@/components/editor/types";
@@ -103,7 +104,6 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
 
       // Auto-fix damaged tags before build
       let tagFixCount = 0;
-      let tagSkipCount = 0;
       let tagOkCount = 0;
       for (const entry of state.entries) {
         if (!hasTechnicalTags(entry.original)) continue;
@@ -127,7 +127,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
           tagOkCount++;
         }
       }
-      console.log(`[BUILD-TAGS] Fixed: ${tagFixCount}, Already OK: ${tagOkCount}, Skipped(no tags): ${tagSkipCount}`);
+      console.log(`[BUILD-TAGS] Fixed: ${tagFixCount}, Already OK: ${tagOkCount}`);
       
       // Validate translations size
       const translationsJson = JSON.stringify(nonEmptyTranslations);
@@ -148,7 +148,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       setBuildProgress("إرسال للمعالجة...");
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/arabize?mode=build`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/arabize?mode=build`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
         body: formData,
@@ -169,7 +169,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       console.log('[BUILD] Response headers - Modified:', response.headers.get('X-Modified-Count'), 'Expanded:', response.headers.get('X-Expanded-Count'));
       
       let buildStatsData: BuildStats | null = null;
-      try { buildStatsData = JSON.parse(decodeURIComponent(response.headers.get('X-Build-Stats') || '{}')); } catch {}
+      try { buildStatsData = JSON.parse(decodeURIComponent(response.headers.get('X-Build-Stats') || '{}')); } catch (e) { console.warn('Failed to parse build stats header', e); }
       const a = document.createElement("a");
       a.href = blobUrl;
       a.download = `arabized_${langFileName}`;

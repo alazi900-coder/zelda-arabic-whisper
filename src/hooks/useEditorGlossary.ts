@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 import type { EditorState, ExtractedEntry } from "@/components/editor/types";
 import type { GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
@@ -43,14 +44,13 @@ export function useEditorGlossary({
     }
     if (terms.length === 0) return null;
 
-    // Build a combined text from all original entries for fast lookup
-    const allOriginals = state.entries.map(e => e.original.toLowerCase()).join(' \n ');
-
+    // Check each glossary term against entry originals
+    const lowerOriginals = state.entries.map(e => e.original.toLowerCase());
     let matched = 0;
     const matchedTerms: { eng: string; arb: string }[] = [];
     const unmatchedTerms: { eng: string; arb: string }[] = [];
     for (const term of terms) {
-      if (allOriginals.includes(term.eng)) {
+      if (lowerOriginals.some(orig => orig.includes(term.eng))) {
         matched++;
         if (matchedTerms.length < 20) matchedTerms.push(term);
       } else {
@@ -192,7 +192,7 @@ export function useEditorGlossary({
   // === Load from URL ===
   const loadGlossary = useCallback(async (url: string, name: string, replace = false) => {
     try {
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       if (!response.ok) throw new Error('فشل تحميل القاموس');
       const text = await response.text();
       const validCount = text.split('\n').filter(l => {

@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { ARABIC_REGEX } from "@/lib/arabic-processing";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -78,7 +80,7 @@ export function useEditorTranslation({
         .map(n => ({ key: `${n.msbtFile}:${n.index}`, original: n.original, translation: state.translations[`${n.msbtFile}:${n.index}`] }));
       const entryCategory = categorizeFile(entry.msbtFile, entry.label);
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,8 +113,8 @@ export function useEditorTranslation({
 
   const handleAutoTranslate = async () => {
     if (!state) return;
-    const arabicRegex = /[\u0600-\u06FF]/;
-    let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0, skipCategory = 0, skipFiltered = 0;
+    const arabicRegex = ARABIC_REGEX;
+    let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0;
     
     // Use filtered entries when a filter is active, otherwise use all entries
     const sourceEntries = isFilterActive ? filteredEntries : state.entries;
@@ -229,7 +231,7 @@ export function useEditorTranslation({
         let retries = 0;
         const maxRetries = 3;
         while (true) {
-          response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
+          response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
             signal: abortControllerRef.current.signal,
@@ -352,7 +354,7 @@ export function useEditorTranslation({
         const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
+        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
@@ -416,7 +418,7 @@ export function useEditorTranslation({
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original }));
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetch(`${supabaseUrl}/functions/v1/translate-entries`, {
+        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
