@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ExtractedEntry } from "@/components/editor/types";
 import { hasTechnicalTags, isTechnicalText } from "@/components/editor/types";
+import { ARABIC_REGEX } from "@/lib/arabic-processing";
 
 export type DifficultyLevel = 'simple' | 'medium' | 'complex';
 
@@ -81,7 +82,7 @@ export function classifyDifficulty(entry: ExtractedEntry): DifficultyInfo {
 
   // Numbers and mixed content
   const hasNumbers = /\d+/.test(text);
-  const hasMixedScript = /[\u0600-\u06FF]/.test(text) && /[a-zA-Z]/.test(text);
+  const hasMixedScript = ARABIC_REGEX.test(text) && /[a-zA-Z]/.test(text);
   if (hasMixedScript) { score += 1; reasons.push('محتوى مختلط'); }
   if (hasNumbers && text.length > 50) { score += 1; }
 

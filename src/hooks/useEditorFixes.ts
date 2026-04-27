@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
+import { fixBrackets } from "@/lib/fix-brackets";
 import type { EditorState, ExtractedEntry } from "@/components/editor/types";
 import type { FixPreviewItem } from "@/components/editor/FixPreviewDialog";
 
@@ -69,8 +71,7 @@ export function useEditorFixes({
       const key = `${entry.msbtFile}:${entry.index}`;
       const translation = state.translations[key];
       if (!translation?.trim()) continue;
-      const orig = entry.original;
-      const origTags = orig.match(/\[[^\]]*\]/g) || [];
+      // Check if brackets are broken
       let depth = 0;
       let broken = false;
       for (const ch of translation) {
@@ -79,13 +80,7 @@ export function useEditorFixes({
       }
       if (depth !== 0) broken = true;
       if (!broken) continue;
-      let fixed = translation;
-      depth = 0;
-      for (const ch of fixed) { if (ch === '[') depth++; else if (ch === ']') depth--; }
-      if (depth > 0) fixed = fixed + ']'.repeat(depth);
-      else if (depth < 0) fixed = '['.repeat(-depth) + fixed;
-      for (const tag of origTags) { if (!fixed.includes(tag)) fixed = fixed.trimEnd() + ' ' + tag; }
-      fixed = fixed.replace(/ {2,}/g, ' ');
+      const fixed = fixBrackets(entry.original, translation);
       if (fixed !== translation) {
         updates[key] = fixed;
         items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
@@ -178,7 +173,7 @@ export function useEditorFixes({
       for (let i = 0; i < mixedEntries.length; i += BATCH) {
         const batch = mixedEntries.slice(i, i + BATCH);
         setTranslateProgress(`🌐 إصلاح النصوص المختلطة... ${processed}/${mixedEntries.length}`);
-        const response = await fetch(`${supabaseUrl}/functions/v1/fix-mixed-language`, {
+        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/fix-mixed-language`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({ entries: batch, glossary: activeGlossary }),

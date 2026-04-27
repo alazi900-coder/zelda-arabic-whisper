@@ -1,5 +1,7 @@
 // Client-side Arabic text processing (ported from arabize edge function)
 
+export const ARABIC_REGEX = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\u0750-\u077F\u08A0-\u08FF]/;
+
 export function isArabicChar(ch: string): boolean {
   const code = ch.charCodeAt(0);
   return (code >= 0x0600 && code <= 0x06FF) || (code >= 0xFB50 && code <= 0xFDFF) || (code >= 0xFE70 && code <= 0xFEFF);

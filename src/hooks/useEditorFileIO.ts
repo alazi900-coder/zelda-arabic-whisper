@@ -11,11 +11,7 @@ function repairSingleChunk(raw: string): Record<string, string> | null {
   if (!text.startsWith('{')) text = '{' + text;
   if (!text.endsWith('}')) {
     // ابحث عن آخر سطر مكتمل
-    const lines = text.split('\n');
-    const goodLines: string[] = [];
-    for (const line of lines) {
-      goodLines.push(line);
-    }
+    const goodLines = text.split('\n');
     // أزل الأسطر غير المكتملة من النهاية
     while (goodLines.length > 1) {
       const last = goodLines[goodLines.length - 1].trim();
@@ -292,7 +288,7 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
   const processJsonImport = useCallback(async (rawText: string, sourceName?: string) => {
     const repaired = repairJson(rawText);
     const imported = repaired.parsed;
-    let cleanedImported: Record<string, string> = {};
+    const cleanedImported: Record<string, string> = {};
 
     if (isFilterActive && filteredEntries.length < (state?.entries.length || 0)) {
       const allowedKeys = new Set(filteredEntries.map(e => `${e.msbtFile}:${e.index}`));

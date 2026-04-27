@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -110,7 +111,7 @@ const Process = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      const response = await fetch(`${supabaseUrl}/functions/v1/arabize`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/arabize`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseKey}`,
@@ -242,7 +243,7 @@ const Process = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/arabize?mode=extract`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/arabize?mode=extract`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
         body: formData,
@@ -310,7 +311,7 @@ const Process = () => {
       setAutoDetectedCount(Object.keys(autoTranslations).length);
 
       // Merge or start fresh based on user choice
-      let finalTranslations: Record<string, string> = { ...autoTranslations };
+      const finalTranslations: Record<string, string> = { ...autoTranslations };
       
       if (mergeMode === "merge") {
         const existing = await idbGet<{ translations?: Record<string, string> }>("editorState");

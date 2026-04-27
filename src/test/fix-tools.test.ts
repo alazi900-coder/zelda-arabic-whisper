@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { fixBrackets } from "@/lib/fix-brackets";
 
 // ==========================================
 // Pure function extractions for testing
@@ -45,27 +46,7 @@ function fixPunctuation(original: string, translation: string): string {
   return fixed;
 }
 
-function fixBrackets(original: string, translation: string): string {
-  const origTags = original.match(/\[[^\]]*\]/g) || [];
-  let depth = 0;
-  for (const ch of translation) {
-    if (ch === '[') depth++;
-    else if (ch === ']') depth--;
-  }
-  let fixed = translation;
-  if (depth > 0) {
-    fixed = fixed + ']'.repeat(depth);
-  } else if (depth < 0) {
-    fixed = '['.repeat(-depth) + fixed;
-  }
-  for (const tag of origTags) {
-    if (!fixed.includes(tag)) {
-      fixed = fixed.trimEnd() + ' ' + tag;
-    }
-  }
-  fixed = fixed.replace(/ {2,}/g, ' ');
-  return fixed;
-}
+// fixBrackets imported from @/lib/fix-brackets
 
 // ==========================================
 // Tests

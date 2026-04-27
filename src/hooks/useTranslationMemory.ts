@@ -95,6 +95,7 @@ export function findSimilarTranslations(
   if (!targetText || targetText.length < 3) return [];
 
   const matches: TMMatch[] = [];
+  const targetLen = targetText.length;
 
   for (const entry of allEntries) {
     const key = `${entry.msbtFile}:${entry.index}`;
@@ -102,6 +103,10 @@ export function findSimilarTranslations(
 
     const translation = translations[key]?.trim();
     if (!translation || translation === entry.original) continue;
+
+    // Skip entries with very different lengths (unlikely to match)
+    const lenRatio = entry.original.length / targetLen;
+    if (lenRatio < 0.3 || lenRatio > 3) continue;
 
     const { score, matchType, matchedWords } = combinedSimilarity(targetText, entry.original);
     if (score >= minSimilarity) {

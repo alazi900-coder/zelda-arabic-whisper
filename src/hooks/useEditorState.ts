@@ -1,7 +1,8 @@
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { idbSet, idbGet, idbSetSync } from "@/lib/idb-storage";
-import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
+import { ARABIC_REGEX, processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { utf8ByteLength } from "@/lib/byte-utils";
@@ -156,7 +157,7 @@ export function useEditorState() {
 
   const handleProtectAllArabic = () => {
     if (!state) return;
-    const arabicRegex = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\u0750-\u077F\u08A0-\u08FF]/;
+    const arabicRegex = ARABIC_REGEX;
     const newProtected = new Set(state.protectedEntries || []);
     let count = 0;
     for (const entry of state.entries) {
@@ -217,7 +218,7 @@ export function useEditorState() {
 
   // === Load / Save ===
   const detectPreTranslated = useCallback((editorState: EditorState): Record<string, string> => {
-    const arabicRegex = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\u0750-\u077F\u08A0-\u08FF]/;
+    const arabicRegex = ARABIC_REGEX;
     const autoTranslations: Record<string, string> = {};
     for (const entry of editorState.entries) {
       const key = `${entry.msbtFile}:${entry.index}`;
@@ -246,10 +247,11 @@ export function useEditorState() {
         const protectedSet = new Set<string>(
           Array.isArray(stored.protectedEntries) ? (stored.protectedEntries as string[]) : []
         );
+        const storedBypass = (stored as EditorState & { technicalBypass?: string[] | Set<string> }).technicalBypass;
         const bypassSet = new Set<string>(
-          Array.isArray((stored as any).technicalBypass) ? ((stored as any).technicalBypass as string[]) : []
+          Array.isArray(storedBypass) ? storedBypass : []
         );
-        const arabicRegex = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\u0750-\u077F\u08A0-\u08FF]/;
+        const arabicRegex = ARABIC_REGEX;
         for (const entry of stored.entries) {
           const key = `${entry.msbtFile}:${entry.index}`;
           if (arabicRegex.test(entry.original)) {
@@ -590,7 +592,7 @@ export function useEditorState() {
       if (reviewEntries.length === 0) { setReviewResults({ issues: [], summary: { total: 0, errors: 0, warnings: 0, checked: 0 } }); return; }
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/review-translations`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries: reviewEntries, glossary: activeGlossary }),
@@ -613,7 +615,7 @@ export function useEditorState() {
         .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`], maxBytes: e.maxBytes || 0 }));
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/review-translations`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries: reviewEntries, glossary: activeGlossary, action: 'suggest-short' }),
@@ -621,7 +623,7 @@ export function useEditorState() {
       if (!response.ok) throw new Error(`خطأ ${response.status}`);
       const data = await response.json();
       setShortSuggestions(data.suggestions || []);
-    } catch { setShortSuggestions([]); }
+    } catch (e) { console.warn('Short suggestions failed', e); setShortSuggestions([]); }
     finally { setSuggestingShort(false); }
   };
 
@@ -659,7 +661,7 @@ export function useEditorState() {
       setTranslateProgress(`جاري تحسين ${translatedEntries.length} ترجمة...`);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/review-translations`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries: translatedEntries, glossary: activeGlossary, action: 'improve' }),
@@ -697,7 +699,7 @@ export function useEditorState() {
       setTranslateProgress(`جاري تحسين الترجمة...`);
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetch(`${supabaseUrl}/functions/v1/review-translations`, {
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ entries: [{ key, original: entry.original, translation, maxBytes: entry.maxBytes || 0 }], glossary: activeGlossary, action: 'improve' }),
