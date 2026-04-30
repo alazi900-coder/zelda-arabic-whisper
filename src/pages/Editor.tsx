@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
   Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
+  FileText, BookMarked,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -44,6 +45,7 @@ import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog";
 import EditorStatsCards from "@/components/editor/EditorStatsCards";
 import EditorToolbar from "@/components/editor/EditorToolbar";
+import PageTranslationCompare from "@/components/editor/PageTranslationCompare";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -338,7 +340,26 @@ const Editor = () => {
             <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.setShowRetranslateConfirm(true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6 border-accent/30 text-accent hover:text-accent">
               <RotateCcw className="w-4 h-4" /> إعادة ترجمة الصفحة 🔄
             </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, false)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <FileText className="w-4 h-4" /> ترجمة الصفحة 📄
+            </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <Sparkles className="w-4 h-4" /> من الذاكرة فقط 🧠
+            </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslateFromGlossaryOnly()} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <BookMarked className="w-4 h-4" /> من القاموس 📖
+            </Button>
           </div>
+
+          {/* Page Translation Compare Dialog (ported from Xenoblade) */}
+          <PageTranslationCompare
+            open={editor.showPageCompare}
+            originals={editor.pageTranslationOriginals}
+            oldTranslations={editor.oldPageTranslations}
+            newTranslations={editor.pendingPageTranslations}
+            onApply={editor.applyPageTranslations}
+            onDiscard={editor.discardPageTranslations}
+          />
 
           {/* Translation Engine Selector */}
           <Card className="mb-6 border-primary/20 bg-primary/5">
