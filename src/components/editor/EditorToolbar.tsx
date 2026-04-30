@@ -170,6 +170,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Button variant="outline" onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
         {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
       </Button>
+      {handleEnhanceWithContext && (
+        <Button variant="outline" onClick={handleEnhanceWithContext} disabled={enhancing || editor.translatedCount === 0} className="font-body border-primary/30 text-primary hover:text-primary">
+          {enhancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />} تحسين بالسياق 💡
+        </Button>
+      )}
       <Button variant="outline" onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
         <Search className="w-4 h-4" /> كشف التناقضات 🔍
       </Button>
