@@ -271,19 +271,10 @@ const Editor = () => {
 
   const openSceneContext = React.useCallback((entry: any) => { setSceneContextEntry(entry); setShowSceneContext(true); }, []);
 
-  if (!editor.state) {
-    return (
-      <div className="min-h-screen py-8 px-4">
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="text-muted-foreground mb-4">لا توجد بيانات للتحرير. يرجى استخراج النصوص أولاً.</p>
-          <Link to="/process"><Button className="font-display">اذهب لصفحة المعالجة</Button></Link>
-        </div>
-      </div>
-    );
-  }
-
   // Perf fix (C1): pre-build per-file entry maps once instead of filtering+sorting
   // state.entries (~5000) inside the entries .map() loop (was 50× per render).
+  // IMPORTANT: this hook MUST be called before any early return to keep hook
+  // order stable across renders (Rules of Hooks).
   const entriesByFile = React.useMemo(() => {
     const map = new Map<string, ExtractedEntry[]>();
     if (!editor.state) return map;
@@ -296,6 +287,17 @@ const Editor = () => {
     for (const arr of map.values()) arr.sort((a, b) => a.index - b.index);
     return map;
   }, [editor.state?.entries]);
+
+  if (!editor.state) {
+    return (
+      <div className="min-h-screen py-8 px-4">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="text-muted-foreground mb-4">لا توجد بيانات للتحرير. يرجى استخراج النصوص أولاً.</p>
+          <Link to="/process"><Button className="font-display">اذهب لصفحة المعالجة</Button></Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
