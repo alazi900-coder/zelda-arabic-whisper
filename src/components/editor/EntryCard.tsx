@@ -365,4 +365,5 @@ const EntryCard: React.FC<EntryCardProps> = ({
   );
 };
 
-export default EntryCard;
+// C5 fix: memoize so editing one entry doesn't re-render all 50 cards on the page.
+export default React.memo(EntryCard);

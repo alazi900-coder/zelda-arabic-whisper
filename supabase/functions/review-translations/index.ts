@@ -35,6 +35,21 @@ function getUtf16ByteLength(text: string): number {
   return text.length * 2;
 }
 
+/**
+ * C3 fix: AI gateways sometimes return JSON with raw \n / \r inside string
+ * values (technically invalid JSON, but common in practice). The previous
+ * implementation replaced ALL control chars with a space, which destroyed
+ * legitimate line breaks in NPC dialogue translations.
+ *
+ * This helper escapes \n and \r into JSON-valid \\n and \\r so JSON.parse
+ * preserves them, then strips remaining control chars (which are noise).
+ */
+function sanitizeJsonText(raw: string): string {
+  return raw
+    .replace(/\r\n|\n|\r/g, m => m === '\r' ? '\\r' : '\\n')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' '); // eslint-disable-line no-control-regex
+}
+
 Deno.serve(async (req) => {
    if (req.method === 'OPTIONS') {
      return new Response(null, { headers: corsHeaders });
@@ -122,7 +137,7 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'naturalness', issue: f.issue || '', fix: f.fix || '' });
@@ -176,7 +191,7 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'spelling', issue: f.issue || '', fix: f.fix || '' });
@@ -231,7 +246,7 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'improvement', issue: f.issue || '', fix: f.fix || '' });
@@ -279,7 +294,7 @@ ${glossary ? `القاموس:\n${glossary.slice(0, 1500)}\n` : ''}${contextBlock
        const data = await response.json();
        const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
        if (!m) throw new Error('Failed to parse AI response');
-       const alternatives = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+       const alternatives = JSON.parse(sanitizeJsonText(m[0]));
        return new Response(JSON.stringify({ alternatives }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
      }
 
@@ -317,7 +332,7 @@ ${chunk.map((e, i) => `[${i}] "${e.translation}"`).join('\n')}
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const corrected: string[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const corrected: string[] = JSON.parse(sanitizeJsonText(m[0]));
            for (let i = 0; i < Math.min(chunk.length, corrected.length); i++) {
              const e = chunk[i];
              const t = corrected[i]?.trim();
@@ -363,7 +378,7 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allWeak.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, score: f.score || 5, reason: f.reason || '', suggestion: f.suggestion || '' });
@@ -413,7 +428,7 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nالترجمة الحالية
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const results: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           const results: any[] = JSON.parse(sanitizeJsonText(m[0]));
            for (let i = 0; i < Math.min(chunk.length, results.length); i++) {
              const e = chunk[i];
              const nt = results[i]?.text?.trim();
@@ -488,7 +503,7 @@ ${tooLongEntries.map((e, i) => {
        const jsonMatch = content.match(/\[[\s\S]*\]/);
        if (!jsonMatch) throw new Error('Failed to parse AI response');
 
-       const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+       const sanitized = sanitizeJsonText(jsonMatch[0]);
        const suggestions: string[] = JSON.parse(sanitized);
 
        const result = tooLongEntries.map((entry, i) => ({
@@ -575,7 +590,7 @@ ${chunk.map((e, i) => `[${i}] الأصلي: "${e.original}"
           const jsonMatch = content.match(/\[[\s\S]*\]/);
           if (!jsonMatch) throw new Error('Failed to parse AI response');
 
-          const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+          const sanitized = sanitizeJsonText(jsonMatch[0]);
           const improved: string[] = JSON.parse(sanitized);
 
           for (let i = 0; i < Math.min(chunk.length, improved.length); i++) {

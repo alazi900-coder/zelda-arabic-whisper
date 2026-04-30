@@ -71,28 +71,28 @@ export function useEditorState() {
   });
   const setUserGeminiKey = useCallback((key: string) => {
     _setUserGeminiKey(key);
-    try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch {}
+    try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch (e) { console.warn('localStorage userGeminiKey:', e); }
   }, []);
   const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude'>(() => {
     try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude') || 'lovable'; } catch { return 'lovable'; }
   });
   const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude') => {
     _setTranslationEngine(engine);
-    try { localStorage.setItem('translationEngine', engine); } catch {}
+    try { localStorage.setItem('translationEngine', engine); } catch (e) { console.warn('localStorage translationEngine:', e); }
   }, []);
   const [userClaudeKey, _setUserClaudeKey] = useState(() => {
     try { return localStorage.getItem('userClaudeKey') || ''; } catch { return ''; }
   });
   const setUserClaudeKey = useCallback((key: string) => {
     _setUserClaudeKey(key);
-    try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch {}
+    try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch (e) { console.warn('localStorage userClaudeKey:', e); }
   }, []);
   const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
     try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
   });
   const setTranslationQuality = useCallback((q: 'fast' | 'quality') => {
     _setTranslationQuality(q);
-    try { localStorage.setItem('translationQuality', q); } catch {}
+    try { localStorage.setItem('translationQuality', q); } catch (e) { console.warn('localStorage translationQuality:', e); }
   }, []);
   // Specific Gemini model selector (overrides translationQuality when engine is gemini/lovable)
   const [geminiModel, _setGeminiModel] = useState<'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro'>(() => {
@@ -103,14 +103,14 @@ export function useEditorState() {
   });
   const setGeminiModel = useCallback((m: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro') => {
     _setGeminiModel(m);
-    try { localStorage.setItem('geminiModel', m); } catch {}
+    try { localStorage.setItem('geminiModel', m); } catch (e) { console.warn('localStorage geminiModel:', e); }
   }, []);
   const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
     try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
   });
   const setMyMemoryEmail = useCallback((email: string) => {
     _setMyMemoryEmail(email);
-    try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch {}
+    try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch (e) { console.warn('localStorage myMemoryEmail:', e); }
   }, []);
   const [myMemoryCharsUsed, setMyMemoryCharsUsed] = useState(() => {
     try {
@@ -391,12 +391,12 @@ export function useEditorState() {
     if (!state) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => saveToIDB(state), AUTOSAVE_DELAY);
+    // C2 fix: do NOT flush in cleanup. The cleanup runs on every translations
+    // change, which previously caused saveToIDB to fire on every keystroke
+    // (defeating AUTOSAVE_DELAY). Real flush still happens via the
+    // beforeunload + visibilitychange listener below.
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        // Flush pending save immediately on unmount / dependency change
-        if (stateRef.current) saveToIDB(stateRef.current);
-      }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [state?.translations, saveToIDB]);
 

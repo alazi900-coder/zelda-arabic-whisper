@@ -20,7 +20,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useEditorState } from "@/hooks/useEditorState";
-import { PAGE_SIZE, isTechnicalText } from "@/components/editor/types";
+import { PAGE_SIZE, isTechnicalText, type ExtractedEntry } from "@/components/editor/types";
 import DebouncedInput from "@/components/editor/DebouncedInput";
 import CategoryProgress from "@/components/editor/CategoryProgress";
 import QualityStatsPanel from "@/components/editor/QualityStatsPanel";
@@ -86,7 +86,7 @@ const Editor = () => {
   const handleAddScreenshot = React.useCallback((msbtFile: string, ss: { url: string; name: string; note?: string }) => {
     setScreenshots(prev => {
       const next = { ...prev, [msbtFile]: [...(prev[msbtFile] || []), ss] };
-      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch (e) { console.warn('localStorage screenshots:', e); }
       return next;
     });
   }, []);
@@ -94,7 +94,7 @@ const Editor = () => {
   const handleRemoveScreenshot = React.useCallback((msbtFile: string, index: number) => {
     setScreenshots(prev => {
       const next = { ...prev, [msbtFile]: (prev[msbtFile] || []).filter((_, i) => i !== index) };
-      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('zelda-editor-screenshots', JSON.stringify(next)); } catch (e) { console.warn('localStorage screenshots:', e); }
       return next;
     });
   }, []);
@@ -117,7 +117,7 @@ const Editor = () => {
     setTranslatorNotes(prev => {
       const next = { ...prev };
       if (note) next[key] = note; else delete next[key];
-      try { localStorage.setItem('zelda-editor-notes', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('zelda-editor-notes', JSON.stringify(next)); } catch (e) { console.warn('localStorage notes:', e); }
       return next;
     });
   }, []);
@@ -281,6 +281,21 @@ const Editor = () => {
       </div>
     );
   }
+
+  // Perf fix (C1): pre-build per-file entry maps once instead of filtering+sorting
+  // state.entries (~5000) inside the entries .map() loop (was 50× per render).
+  const entriesByFile = React.useMemo(() => {
+    const map = new Map<string, ExtractedEntry[]>();
+    if (!editor.state) return map;
+    for (const e of editor.state.entries) {
+      const arr = map.get(e.msbtFile);
+      if (arr) arr.push(e);
+      else map.set(e.msbtFile, [e]);
+    }
+    // Sort each file's entries once by index
+    for (const arr of map.values()) arr.sort((a, b) => a.index - b.index);
+    return map;
+  }, [editor.state?.entries]);
 
   return (
     <TooltipProvider>
@@ -852,11 +867,19 @@ const Editor = () => {
                   const key = `${entry.msbtFile}:${entry.index}`;
                   const difficulty = classifyDifficulty(entry);
                   const diffConf = DIFFICULTY_CONFIG[difficulty.level];
-                  const tm = editor.state ? editor.state.entries
-                    .filter(e => e.msbtFile === entry.msbtFile && e.index !== entry.index)
-                    .map(e => ({ key: `${e.msbtFile}:${e.index}`, translation: editor.state!.translations[`${e.msbtFile}:${e.index}`] || '' }))
-                    .filter(t => t.translation.trim()).slice(0, 5) : [];
-                  const sameFileEntries = editor.state ? editor.state.entries.filter(e => e.msbtFile === entry.msbtFile).sort((a, b) => a.index - b.index) : [];
+                  // Use pre-built per-file map (C1 fix): O(1) lookup vs O(N) filter+sort
+                  const sameFileEntries = entriesByFile.get(entry.msbtFile) || [];
+                  const tm: { key: string; translation: string }[] = [];
+                  if (editor.state) {
+                    for (const e of sameFileEntries) {
+                      if (e.index === entry.index) continue;
+                      const t = editor.state.translations[`${e.msbtFile}:${e.index}`] || '';
+                      if (t.trim()) {
+                        tm.push({ key: `${e.msbtFile}:${e.index}`, translation: t });
+                        if (tm.length >= 5) break;
+                      }
+                    }
+                  }
                   const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
                   const adjacentContext = {
                     prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
