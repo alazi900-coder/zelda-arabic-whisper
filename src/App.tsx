@@ -11,7 +11,6 @@ import { AnimatePresence } from "framer-motion";
 
 import Index from "./pages/Index";
 import Process from "./pages/Process";
-import Results from "./pages/Results";
 import Editor from "./pages/Editor";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -26,7 +25,6 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Index /></PageTransition>} />
         <Route path="/process" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في المعالجة"><Process /></ErrorBoundary></PageTransition>} />
-        <Route path="/results" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في النتائج"><Results /></ErrorBoundary></PageTransition>} />
         <Route path="/editor" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في المحرر"><Editor /></ErrorBoundary></PageTransition>} />
         <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
         <Route path="/install" element={<PageTransition><Install /></PageTransition>} />
