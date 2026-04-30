@@ -7,7 +7,7 @@ import {
 import {
   Download, Upload, FileText, FileDown, BookOpen, Cloud, CloudUpload,
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
-  Layers, MoreVertical, Save,
+  Layers, MoreVertical, Save, Lightbulb,
 } from "lucide-react";
 
 interface EditorToolbarProps {
@@ -18,11 +18,14 @@ interface EditorToolbarProps {
   handlePolishArabic: () => void;
   setShowInconsistencies: (v: boolean) => void;
   setShowSmartImprove: (v: boolean) => void;
+  enhancing?: boolean;
+  handleEnhanceWithContext?: () => void;
 }
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   isMobile, editor, untranslatedCount, polishing,
   handlePolishArabic, setShowInconsistencies, setShowSmartImprove,
+  enhancing, handleEnhanceWithContext,
 }) => {
   if (isMobile) {
     return (
