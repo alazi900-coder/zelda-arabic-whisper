@@ -45,6 +45,7 @@ import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog
 import EditorStatsCards from "@/components/editor/EditorStatsCards";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import QualityReportExport from "@/components/editor/QualityReportExport";
+import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,8 +123,72 @@ const Editor = () => {
   const [showEngineCompare, setShowEngineCompare] = React.useState(false);
   const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
+  const [enhanceResults, setEnhanceResults] = React.useState<EnhanceResult[]>([]);
+  const [enhancing, setEnhancing] = React.useState(false);
 
   const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
+
+  const handleEnhanceWithContext = React.useCallback(async () => {
+    if (!editor.state || enhancing) return;
+    const targetEntries = editor.isFilterActive ? editor.filteredEntries : editor.state.entries;
+    const translatedEntries = targetEntries.filter(e => {
+      const key = `${e.msbtFile}:${e.index}`;
+      const t = editor.state!.translations[key]?.trim();
+      return t && t !== e.original;
+    }).slice(0, 15);
+
+    if (translatedEntries.length === 0) {
+      toast({ title: "⚠️ لا توجد ترجمات لتحسينها" });
+      return;
+    }
+    setEnhancing(true);
+    setEnhanceResults([]);
+    try {
+      const entries = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: editor.state!.translations[`${e.msbtFile}:${e.index}`],
+        fileName: e.msbtFile,
+      }));
+      const glossaryContext = editor.activeGlossary
+        ? editor.activeGlossary.split('\n').filter(l => l.trim() && l.includes('=')).slice(0, 80).join('\n')
+        : undefined;
+      const { data, error } = await supabase.functions.invoke('enhance-translations', {
+        body: { entries, mode: 'enhance', glossary: glossaryContext },
+      });
+      if (error) throw error;
+      const results: EnhanceResult[] = data?.results || [];
+      setEnhanceResults(results);
+      if (results.length === 0) {
+        toast({ title: "✅ الترجمات سليمة", description: "لم يُكتشف فرص تحسين واضحة" });
+      } else {
+        toast({ title: `✨ تم تحليل ${translatedEntries.length} نص`, description: `${results.length} اقتراح تحسين متاح` });
+      }
+    } catch (err: any) {
+      toast({ title: "❌ خطأ في التحليل", description: err.message, variant: "destructive" });
+    } finally {
+      setEnhancing(false);
+    }
+  }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, enhancing]);
+
+  const handleApplyEnhanceSuggestion = React.useCallback((key: string, newText: string) => {
+    editor.updateTranslation(key, newText);
+    setEnhanceResults(prev => prev.filter(r => r.key !== key));
+    toast({ title: "✅ تم تطبيق الاقتراح" });
+  }, [editor]);
+
+  const handleApplyAllEnhanceSuggestions = React.useCallback(() => {
+    let applied = 0;
+    for (const r of enhanceResults) {
+      const best = r.preferredSuggestion || r.suggestions[0]?.text;
+      if (best) {
+        editor.updateTranslation(r.key, best);
+        applied++;
+      }
+    }
+    setEnhanceResults([]);
+    toast({ title: `✅ تم تطبيق ${applied} اقتراح` });
+  }, [enhanceResults, editor]);
 
   const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
     if (!editor.state || !editor.updateTranslation) return;
@@ -415,6 +480,16 @@ const Editor = () => {
             setShortSuggestions={editor.setShortSuggestions} setImproveResults={editor.setImproveResults}
           />
 
+          {(enhanceResults.length > 0 || enhancing) && (
+            <TranslationEnhancePanel
+              results={enhanceResults}
+              analyzing={enhancing}
+              onApplySuggestion={handleApplyEnhanceSuggestion}
+              onApplyAll={handleApplyAllEnhanceSuggestions}
+              onClose={() => setEnhanceResults([])}
+            />
+          )}
+
           {!editor.user && (
             <Card className="mb-4 border-primary/30 bg-primary/5">
               <CardContent className="flex items-center gap-3 p-4"><LogIn className="w-4 h-4" /> سجّل دخولك للمزامنة</CardContent>
@@ -643,6 +718,7 @@ const Editor = () => {
             isMobile={isMobile} editor={editor} untranslatedCount={untranslatedCount}
             polishing={polishing} handlePolishArabic={handlePolishArabic}
             setShowInconsistencies={setShowInconsistencies} setShowSmartImprove={setShowSmartImprove}
+            enhancing={enhancing} handleEnhanceWithContext={handleEnhanceWithContext}
           />
 
           {/* Build Options */}
