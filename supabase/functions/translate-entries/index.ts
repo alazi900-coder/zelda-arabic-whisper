@@ -284,10 +284,22 @@ ${textsBlock}`;
 
     // === Claude/Anthropic translation engine ===
     if (translationEngine === 'claude' && userClaudeKey?.trim()) {
+      const claudeKey = userClaudeKey.trim();
+
+      // Detect wrong key type — Claude keys start with "sk-ant-", Gemini keys start with "AIza"
+      if (claudeKey.startsWith('AIza')) {
+        return new Response(JSON.stringify({
+          error: 'يبدو أنك أدخلت مفتاح Gemini في حقل Claude. مفاتيح Claude تبدأ بـ "sk-ant-". غيّر المحرك إلى Gemini أو أدخل مفتاح Anthropic صحيح.'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'x-api-key': userClaudeKey.trim(),
+          'x-api-key': claudeKey,
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
@@ -303,7 +315,28 @@ ${textsBlock}`;
       if (!claudeResponse.ok) {
         const err = await claudeResponse.text();
         console.error('Claude error:', err);
-        throw new Error(`Claude API error: ${claudeResponse.status}`);
+        if (claudeResponse.status === 401) {
+          return new Response(JSON.stringify({
+            error: 'مفتاح Claude API غير صالح. تأكد من المفتاح من console.anthropic.com (يبدأ بـ sk-ant-).'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (claudeResponse.status === 429) {
+          return new Response(JSON.stringify({
+            error: 'تم تجاوز حد طلبات Claude، حاول لاحقاً.'
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({
+          error: `خطأ Claude: ${claudeResponse.status}`
+        }), {
+          status: claudeResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       const claudeData = await claudeResponse.json();
