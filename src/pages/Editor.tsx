@@ -480,6 +480,16 @@ const Editor = () => {
             setShortSuggestions={editor.setShortSuggestions} setImproveResults={editor.setImproveResults}
           />
 
+          {(enhanceResults.length > 0 || enhancing) && (
+            <TranslationEnhancePanel
+              results={enhanceResults}
+              analyzing={enhancing}
+              onApplySuggestion={handleApplyEnhanceSuggestion}
+              onApplyAll={handleApplyAllEnhanceSuggestions}
+              onClose={() => setEnhanceResults([])}
+            />
+          )}
+
           {!editor.user && (
             <Card className="mb-4 border-primary/30 bg-primary/5">
               <CardContent className="flex items-center gap-3 p-4"><LogIn className="w-4 h-4" /> سجّل دخولك للمزامنة</CardContent>
