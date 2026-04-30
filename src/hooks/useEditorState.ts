@@ -58,6 +58,11 @@ export function useEditorState() {
   const [mirrorPunctuation, setMirrorPunctuation] = useState(false);
   const [improvingTranslations, setImprovingTranslations] = useState(false);
   const [improveResults, setImproveResults] = useState<ImproveResult[] | null>(null);
+  // === Advanced review state (ported from Xenoblade: 7 new AI actions) ===
+  const [advancedBusy, setAdvancedBusy] = useState<null | 'smart-review' | 'grammar-check' | 'context-review' | 'auto-correct' | 'detect-weak' | 'context-retranslate' | 'quick-alternatives'>(null);
+  const [advancedAction, setAdvancedAction] = useState<null | 'smart-review' | 'grammar-check' | 'context-review' | 'auto-correct' | 'detect-weak' | 'context-retranslate'>(null);
+  const [advancedFindings, setAdvancedFindings] = useState<Array<{ key: string; original: string; current: string; fix: string; issue: string; type?: string; score?: number }>>([]);
+  const [quickAlternatives, setQuickAlternatives] = useState<null | { key: string; original: string; current: string; alternatives: Array<{ style: string; text: string; reason: string }> }>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
@@ -88,6 +93,17 @@ export function useEditorState() {
   const setTranslationQuality = useCallback((q: 'fast' | 'quality') => {
     _setTranslationQuality(q);
     try { localStorage.setItem('translationQuality', q); } catch {}
+  }, []);
+  // Specific Gemini model selector (overrides translationQuality when engine is gemini/lovable)
+  const [geminiModel, _setGeminiModel] = useState<'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro'>(() => {
+    try {
+      const v = localStorage.getItem('geminiModel') as 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | null;
+      return v || 'gemini-2.5-flash';
+    } catch { return 'gemini-2.5-flash'; }
+  });
+  const setGeminiModel = useCallback((m: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro') => {
+    _setGeminiModel(m);
+    try { localStorage.setItem('geminiModel', m); } catch {}
   }, []);
   const [myMemoryEmail, _setMyMemoryEmail] = useState(() => {
     try { return localStorage.getItem('myMemoryEmail') || ''; } catch { return ''; }
@@ -512,9 +528,17 @@ export function useEditorState() {
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
     filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
+    geminiModel,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   });
-  const { translating, translatingSingle, tmStats, handleTranslateSingle, handleAutoTranslate, handleStopTranslate, handleRetranslatePage, handleFixDamagedTags } = translation;
+  const {
+    translating, translatingSingle, tmStats,
+    handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
+    handleRetranslatePage, handleFixDamagedTags,
+    handleTranslatePage, handleTranslateFromGlossaryOnly,
+    showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,
+    applyPageTranslations, discardPageTranslations,
+  } = translation;
 
   // === Local (offline) fix for damaged tags — no AI needed ===
   const handleLocalFixDamagedTag = useCallback((entry: ExtractedEntry) => {
@@ -647,6 +671,208 @@ export function useEditorState() {
     showLastSaved(`✅ تم تطبيق ${Object.keys(updates).length} اقتراح قصير`);
   };
 
+  // === Advanced AI review actions (ported from Xenoblade) ===
+  // Helper to call review-translations edge function with action
+  const callAdvancedReview = async (
+    action: 'smart-review' | 'grammar-check' | 'context-review' | 'auto-correct' | 'detect-weak' | 'context-retranslate',
+    extraBody: Record<string, unknown> = {}
+  ): Promise<any> => {
+    if (!state) return null;
+    const reviewEntries = filteredEntries
+      .filter(e => { const k = `${e.msbtFile}:${e.index}`; return state.translations[k]?.trim(); })
+      .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`], maxBytes: e.maxBytes || 0 }));
+    if (reviewEntries.length === 0) {
+      toast({ title: 'ℹ️ لا توجد ترجمات', description: 'لا توجد ترجمات في النطاق الحالي لتحليلها' });
+      return null;
+    }
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: reviewEntries, glossary: activeGlossary, action, geminiModel, ...extraBody }),
+    }, 120000);
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.error || `خطأ ${response.status}`);
+    }
+    return await response.json();
+  };
+
+  // Run any of the 4 findings-producing actions (smart/grammar/context/detect-weak) and show unified panel
+  const runFindingsAction = async (
+    action: 'smart-review' | 'grammar-check' | 'context-review' | 'detect-weak',
+    withContext = false
+  ) => {
+    setAdvancedBusy(action);
+    setAdvancedAction(null);
+    setAdvancedFindings([]);
+    try {
+      const extraBody: Record<string, unknown> = {};
+      if (withContext && state) {
+        // Include surrounding entries from same file as context (up to 30)
+        const contextSrc = state.entries
+          .filter(e => { const k = `${e.msbtFile}:${e.index}`; return state.translations[k]?.trim(); })
+          .slice(0, 30)
+          .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`] }));
+        extraBody.contextEntries = contextSrc;
+      }
+      const data = await callAdvancedReview(action, extraBody);
+      if (!data) return;
+      // Normalize shapes: smart/grammar/context return `findings`; detect-weak returns `weakEntries`
+      const raw: any[] = data.findings || data.weakEntries || [];
+      const normalized = raw.map((f: any) => ({
+        key: f.key,
+        original: f.original,
+        current: f.current,
+        fix: f.fix || f.suggestion || '',
+        issue: f.issue || f.reason || '',
+        type: f.type,
+        score: f.score,
+      })).filter((f: any) => f.fix);
+      setAdvancedAction(action);
+      setAdvancedFindings(normalized);
+      if (normalized.length === 0) toast({ title: '✅ لا توجد مشاكل', description: 'جميع الترجمات في النطاق الحالي سليمة' });
+    } catch (err) {
+      toast({ title: '❌ فشل', description: err instanceof Error ? err.message : 'خطأ غير معروف', variant: 'destructive' });
+    } finally { setAdvancedBusy(null); }
+  };
+
+  const handleSmartReview = () => runFindingsAction('smart-review');
+  const handleGrammarCheck = () => runFindingsAction('grammar-check');
+  const handleContextReview = () => runFindingsAction('context-review', true);
+  const handleDetectWeak = () => runFindingsAction('detect-weak');
+
+  // auto-correct: returns {corrections: [{key, original, current, corrected}]}
+  const handleAutoCorrect = async () => {
+    setAdvancedBusy('auto-correct');
+    setAdvancedAction(null);
+    setAdvancedFindings([]);
+    try {
+      const data = await callAdvancedReview('auto-correct');
+      if (!data) return;
+      const corrections: any[] = data.corrections || [];
+      const normalized = corrections.map((c: any) => ({ key: c.key, original: c.original, current: c.current, fix: c.corrected, issue: 'تصحيح إملائي/نحوي آلي' }));
+      setAdvancedAction('auto-correct');
+      setAdvancedFindings(normalized);
+      if (normalized.length === 0) toast({ title: '✅ لا توجد تصحيحات', description: 'جميع الترجمات سليمة إملائياً' });
+    } catch (err) {
+      toast({ title: '❌ فشل', description: err instanceof Error ? err.message : 'خطأ غير معروف', variant: 'destructive' });
+    } finally { setAdvancedBusy(null); }
+  };
+
+  // context-retranslate: returns {retranslations: [{key, original, current, retranslated, changes}]}
+  const handleContextRetranslate = async () => {
+    setAdvancedBusy('context-retranslate');
+    setAdvancedAction(null);
+    setAdvancedFindings([]);
+    try {
+      const extraBody: Record<string, unknown> = {};
+      if (state) {
+        const contextSrc = state.entries
+          .filter(e => { const k = `${e.msbtFile}:${e.index}`; return state.translations[k]?.trim(); })
+          .slice(0, 30)
+          .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`] }));
+        extraBody.contextEntries = contextSrc;
+      }
+      const data = await callAdvancedReview('context-retranslate', extraBody);
+      if (!data) return;
+      const retrans: any[] = data.retranslations || [];
+      const normalized = retrans.map((r: any) => ({ key: r.key, original: r.original, current: r.current, fix: r.retranslated, issue: r.changes || 'إعادة ترجمة مع سياق' }));
+      setAdvancedAction('context-retranslate');
+      setAdvancedFindings(normalized);
+      if (normalized.length === 0) toast({ title: '✅ لا حاجة لإعادة ترجمة', description: 'الترجمات الحالية مناسبة للسياق' });
+    } catch (err) {
+      toast({ title: '❌ فشل', description: err instanceof Error ? err.message : 'خطأ غير معروف', variant: 'destructive' });
+    } finally { setAdvancedBusy(null); }
+  };
+
+  // quick-alternatives: fetch 3 style-variants for a single entry
+  const handleQuickAlternatives = async (entryKey: string) => {
+    if (!state) return;
+    const entry = state.entries.find(e => `${e.msbtFile}:${e.index}` === entryKey);
+    if (!entry) return;
+    const translation = state.translations[entryKey];
+    if (!translation?.trim()) {
+      toast({ title: 'ℹ️ لا توجد ترجمة', description: 'اكتب ترجمة أولاً قبل طلب البدائل' });
+      return;
+    }
+    setAdvancedBusy('quick-alternatives');
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      // Build small context: 6 surrounding entries from same file
+      const fileEntries = state.entries.filter(e => e.msbtFile === entry.msbtFile);
+      const idx = fileEntries.findIndex(e => e.index === entry.index);
+      const contextSlice = fileEntries.slice(Math.max(0, idx - 3), idx + 4)
+        .filter(e => e.index !== entry.index)
+        .map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, translation: state.translations[`${e.msbtFile}:${e.index}`] || '' }))
+        .filter(c => c.translation);
+      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entries: [{ key: entryKey, original: entry.original, translation, maxBytes: entry.maxBytes || 0 }],
+          glossary: activeGlossary,
+          action: 'quick-alternatives',
+          geminiModel,
+          contextEntries: contextSlice,
+        }),
+      }, 60000);
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.error || `خطأ ${response.status}`);
+      }
+      const data = await response.json();
+      const alts: any[] = data.alternatives || [];
+      if (alts.length === 0) {
+        toast({ title: 'ℹ️ لا بدائل', description: 'لم يقترح الذكاء الاصطناعي بدائل مختلفة' });
+        return;
+      }
+      setQuickAlternatives({ key: entryKey, original: entry.original, current: translation, alternatives: alts });
+    } catch (err) {
+      toast({ title: '❌ فشل', description: err instanceof Error ? err.message : 'خطأ غير معروف', variant: 'destructive' });
+    } finally { setAdvancedBusy(null); }
+  };
+
+  // Apply/dismiss helpers for advanced findings
+  const applyAdvancedFinding = (key: string) => {
+    const f = advancedFindings.find(x => x.key === key);
+    if (!f || !state) return;
+    setPreviousTranslations(old => ({ ...old, [key]: state.translations[key] || '' }));
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, [key]: f.fix } } : null);
+    setAdvancedFindings(findings => findings.filter(x => x.key !== key));
+  };
+  const applyAllAdvancedFindings = () => {
+    if (!state || advancedFindings.length === 0) return;
+    const updates: Record<string, string> = {};
+    const prev: Record<string, string> = {};
+    advancedFindings.forEach(f => { updates[f.key] = f.fix; prev[f.key] = state.translations[f.key] || ''; });
+    setPreviousTranslations(old => ({ ...old, ...prev }));
+    setState(p => p ? { ...p, translations: { ...p.translations, ...updates } } : null);
+    const n = advancedFindings.length;
+    setAdvancedFindings([]);
+    setAdvancedAction(null);
+    showLastSaved(`✅ طُبّق ${n} تحسين`);
+  };
+  const dismissAdvancedFinding = (key: string) => {
+    setAdvancedFindings(findings => findings.filter(x => x.key !== key));
+  };
+  const dismissAllAdvanced = () => {
+    setAdvancedFindings([]);
+    setAdvancedAction(null);
+  };
+
+  // Apply a single quick-alternative
+  const applyQuickAlternative = (text: string) => {
+    if (!quickAlternatives || !state) return;
+    const { key } = quickAlternatives;
+    setPreviousTranslations(old => ({ ...old, [key]: state.translations[key] || '' }));
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, [key]: text } } : null);
+    setQuickAlternatives(null);
+    showLastSaved('✅ طُبّق البديل');
+  };
+
   // === File IO (extracted to useEditorFileIO) ===
   const filterLabel = filterCategory !== "all" ? filterCategory
     : filterFile !== "all" ? filterFile
@@ -770,6 +996,7 @@ export function useEditorState() {
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setTranslationEngine, translationQuality, setTranslationQuality,
+    geminiModel, setGeminiModel,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
 
@@ -779,7 +1006,16 @@ export function useEditorState() {
     updateTranslation, handleUndoTranslation,
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
+    handleTranslatePage, handleTranslateFromGlossaryOnly,
+    showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,
+    applyPageTranslations, discardPageTranslations,
     handleSuggestShorterTranslations, handleApplyShorterTranslation, handleApplyAllShorterTranslations,
+    // Advanced AI review (7 new actions ported from Xenoblade)
+    advancedBusy, advancedAction, advancedFindings, quickAlternatives,
+    handleSmartReview, handleGrammarCheck, handleContextReview, handleDetectWeak,
+    handleAutoCorrect, handleContextRetranslate, handleQuickAlternatives,
+    applyAdvancedFinding, applyAllAdvancedFindings, dismissAdvancedFinding, dismissAllAdvanced,
+    applyQuickAlternative, setQuickAlternatives,
     handleFixAllStuckCharacters, handleFixMixedLanguage, handleFixAllPunctuation, handleFixAllBrackets,
     handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza,
     ...fileIO,

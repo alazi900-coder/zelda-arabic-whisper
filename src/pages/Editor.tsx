@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
   Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
+  FileText, BookMarked,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -44,6 +45,9 @@ import FeatureTourDialog from "@/components/editor/FeatureTourDialog";
 import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog";
 import EditorStatsCards from "@/components/editor/EditorStatsCards";
 import EditorToolbar from "@/components/editor/EditorToolbar";
+import PageTranslationCompare from "@/components/editor/PageTranslationCompare";
+import AdvancedReviewPanel from "@/components/editor/AdvancedReviewPanel";
+import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -338,7 +342,43 @@ const Editor = () => {
             <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.setShowRetranslateConfirm(true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6 border-accent/30 text-accent hover:text-accent">
               <RotateCcw className="w-4 h-4" /> إعادة ترجمة الصفحة 🔄
             </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, false)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <FileText className="w-4 h-4" /> ترجمة الصفحة 📄
+            </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <Sparkles className="w-4 h-4" /> من الذاكرة فقط 🧠
+            </Button>
+            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslateFromGlossaryOnly()} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+              <BookMarked className="w-4 h-4" /> من القاموس 📖
+            </Button>
           </div>
+
+          {/* Page Translation Compare Dialog (ported from Xenoblade) */}
+          <PageTranslationCompare
+            open={editor.showPageCompare}
+            originals={editor.pageTranslationOriginals}
+            oldTranslations={editor.oldPageTranslations}
+            newTranslations={editor.pendingPageTranslations}
+            onApply={editor.applyPageTranslations}
+            onDiscard={editor.discardPageTranslations}
+          />
+
+          {/* Advanced AI Review Results Panel (7 new AI actions) */}
+          <AdvancedReviewPanel
+            action={editor.advancedAction}
+            findings={editor.advancedFindings}
+            onApply={editor.applyAdvancedFinding}
+            onDismiss={editor.dismissAdvancedFinding}
+            onApplyAll={editor.applyAllAdvancedFindings}
+            onDismissAll={editor.dismissAllAdvanced}
+          />
+
+          {/* Quick Alternatives Panel (3 style-variants for single entry) */}
+          <QuickAlternativesPanel
+            data={editor.quickAlternatives}
+            onApply={editor.applyQuickAlternative}
+            onClose={() => editor.setQuickAlternatives(null)}
+          />
 
           {/* Translation Engine Selector */}
           <Card className="mb-6 border-primary/20 bg-primary/5">
@@ -363,21 +403,36 @@ const Editor = () => {
                   ))}
                 </div>
               </div>
-              {!['mymemory', 'google'].includes(editor.translationEngine) && (
+              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable') && (
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex items-center gap-2 shrink-0">
                     <BarChart3 className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-display font-bold">جودة الترجمة</span>
+                    <span className="text-sm font-display font-bold">نموذج Gemini</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Flash)</Button>
-                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Pro)</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.0-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.0-flash')} className="text-xs font-body">⚡ 2.0 Flash</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.5-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-flash')} className="text-xs font-body">✨ 2.5 Flash</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.5-pro' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-pro')} className="text-xs font-body">💎 2.5 Pro</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
-                    {editor.translationQuality === 'quality'
-                      ? (editor.translationEngine === 'claude' ? 'أدق لكن أبطأ — يستخدم Claude Sonnet' : 'أدق لكن أبطأ — يستخدم Gemini Pro')
-                      : (editor.translationEngine === 'claude' ? 'أسرع وأخف — يستخدم Claude Haiku' : 'أسرع وأخف — يستخدم Gemini Flash')}
+                    {editor.geminiModel === 'gemini-2.0-flash'
+                      ? 'أسرع نموذج — مجاني (1500/يوم)'
+                      : editor.geminiModel === 'gemini-2.5-flash'
+                      ? 'توازن بين السرعة والجودة'
+                      : 'أعلى جودة — أبطأ قليلاً'}
                   </span>
+                </div>
+              )}
+              {editor.translationEngine === 'claude' && (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-display font-bold">جودة Claude</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Haiku)</Button>
+                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Sonnet)</Button>
+                  </div>
                 </div>
               )}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
@@ -722,15 +777,15 @@ const Editor = () => {
           />
 
           {/* Build Options */}
-          <Card className="mb-4 border-border">
-            <CardContent className="p-4">
-              <h3 className="font-display font-bold mb-3 text-sm">⚙️ خيارات البناء</h3>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-body">
+          <Card className="mb-3 border-border">
+            <CardContent className="p-3 sm:p-4">
+              <h3 className="font-display font-bold mb-2 text-xs sm:text-sm">⚙️ خيارات البناء</h3>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
+                <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-body">
                   <input type="checkbox" checked={editor.arabicNumerals} onChange={(e) => editor.setArabicNumerals(e.target.checked)} className="rounded border-border" />
                   تحويل الأرقام إلى هندية (٠١٢٣٤٥٦٧٨٩)
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-body">
+                <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-body">
                   <input type="checkbox" checked={editor.mirrorPunctuation} onChange={(e) => editor.setMirrorPunctuation(e.target.checked)} className="rounded border-border" />
                   عكس علامات الترقيم (؟ ، ؛)
                 </label>
@@ -739,12 +794,12 @@ const Editor = () => {
           </Card>
 
           {/* Arabic Processing + Build Buttons */}
-          <div className="flex gap-3 mb-6">
-            <Button size="lg" variant="secondary" onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic} className="flex-1 font-display font-bold">
-              {editor.applyingArabic ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />} تطبيق المعالجة العربية ✨
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <Button size="sm" variant="secondary" onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
+              {editor.applyingArabic ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />} تطبيق المعالجة العربية ✨
             </Button>
-            <Button size="lg" onClick={editor.handlePreBuild} disabled={editor.building} className="flex-1 font-display font-bold">
-              {editor.building ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileDown className="w-4 h-4 mr-2" />} بناء الملف النهائي
+            <Button size="sm" onClick={editor.handlePreBuild} disabled={editor.building} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
+              {editor.building ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <FileDown className="w-3.5 h-3.5 mr-1.5" />} بناء الملف النهائي
             </Button>
           </div>
 

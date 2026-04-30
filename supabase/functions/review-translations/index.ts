@@ -41,16 +41,389 @@ Deno.serve(async (req) => {
    }
 
    try {
-     const { entries, glossary, action } = await req.json() as {
+     const { entries, glossary, action, geminiModel, contextEntries } = await req.json() as {
        entries: ReviewEntry[];
        glossary?: string;
-       action?: 'review' | 'suggest-short' | 'improve';
+       action?: 'review' | 'suggest-short' | 'improve'
+              | 'smart-review' | 'grammar-check' | 'context-review'
+              | 'quick-alternatives' | 'auto-correct' | 'detect-weak'
+              | 'context-retranslate';
+       geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
+       contextEntries?: { key: string; original: string; translation: string }[];
      };
+
+     // Resolve AI gateway model: prefer explicit geminiModel, fallback to 2.5-flash
+     const resolvedModel = geminiModel
+       ? `google/${geminiModel}`
+       : 'google/gemini-2.5-flash';
 
      if (!entries || entries.length === 0) {
        return new Response(JSON.stringify({ issues: [] }), {
          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
        });
+     }
+
+     // Helper: lazy-fetch Lovable key
+     const getLovableKey = () => {
+       const k = Deno.env.get('LOVABLE_API_KEY');
+       if (!k) throw new Error('LOVABLE_API_KEY is not configured');
+       return k;
+     };
+
+     // ==========================================================
+     //   NEW ADVANCED REVIEW ACTIONS (ported from Xenoblade)
+     //   Adapted for Zelda: keeps [Color:Red], [Icon:Heart], A/B/X/Y buttons
+     //   Names: Link, Zelda, Ganon, Hyrule stay in English
+     // ==========================================================
+
+     // --- smart-review: مراجعة ذكية عميقة ---
+     if (action === 'smart-review') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const CHUNK = 15;
+       const allFindings: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const prompt = `أنت مدقق لغوي متخصص في ترجمة ألعاب Zelda. حلّل كل ترجمة وأبلغ عن المشاكل الواضحة فقط:
+
+⚠️ تعليمات حاسمة:
+- أبلغ فقط عن المشاكل الواضحة والمؤكدة — لا تقترح تغييرات ذوقية
+- غيّر فقط الجزء الذي فيه مشكلة، وأبقِ الباقي كما هو
+- أبقِ جميع وسوم Zelda كما هي بدون تغيير: [Color:...], [Icon:...], [PageBreak], A/B/X/Y/L/R/ZL/ZR
+- أبقِ أسماء Link, Zelda, Ganon, Hyrule بالإنجليزية
+- إذا كان النص مقبولاً ومفهوماً، لا تضعه في النتائج
+
+أنواع المشاكل:
+1. literal — ترجمة حرفية جامدة
+2. grammar — خطأ نحوي واضح
+3. inconsistency — مصطلح مخالف للقاموس
+4. naturalness — صياغة ركيكة واضحة
+
+${glossary ? `\nالقاموس المعتمد:\n${glossary.slice(0, 3000)}\n` : ''}
+
+النصوص:
+${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join('\n\n')}
+
+أخرج JSON array فقط. كل عنصر:
+{"i": رقم, "type": "literal"|"grammar"|"inconsistency"|"naturalness", "issue": "وصف المشكلة", "fix": "الترجمة المقترحة"}
+أخرج [] إذا لم تجد مشاكل.`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مدقق لغوي دقيق. أخرج ONLY valid JSON arrays.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات، حاول لاحقاً' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           if (response.status === 402) return new Response(JSON.stringify({ error: 'يجب إضافة رصيد لاستخدام الذكاء الاصطناعي' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (const f of findings) {
+             if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
+               allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'naturalness', issue: f.issue || '', fix: f.fix || '' });
+             }
+           }
+         } catch (e) { console.error('smart-review parse:', e); }
+       }
+       return new Response(JSON.stringify({ findings: allFindings }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- grammar-check: فحص نحوي متخصّص ---
+     if (action === 'grammar-check') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const CHUNK = 15;
+       const allFindings: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const prompt = `أنت مدقق نحوي وإملائي للعربية. أبلغ عن الأخطاء الواضحة فقط:
+
+⚠️ تعليمات:
+- فقط الأخطاء النحوية والإملائية المؤكدة — لا تغيّر الأسلوب
+- أبقِ وسوم Zelda كما هي: [Color:...], [Icon:...], A/B/X/Y/L/R/ZL/ZR
+- أبقِ أسماء Link, Zelda, Ganon, Hyrule بالإنجليزية
+- الإصلاح يجب أن يغيّر أقل عدد ممكن من الكلمات
+
+أنواع الأخطاء:
+1. gender — تذكير/تأنيث  2. conjugation — تصريف
+3. case — إعراب  4. spelling — إملاء (مثل "لاكن"→"لكن")
+5. hamza — همزات  6. negation — نفي  7. preposition — حروف جر
+
+${glossary ? `\nالقاموس:\n${glossary.slice(0, 2000)}\n` : ''}
+
+النصوص:
+${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join('\n\n')}
+
+أخرج JSON array فقط:
+{"i": رقم, "type": نوع, "issue": "شرح الخطأ", "fix": "المصحّح"}
+[] إذا لم تجد أخطاء.`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مدقق نحوي/إملائي. أخرج ONLY JSON arrays.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (const f of findings) {
+             if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
+               allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'spelling', issue: f.issue || '', fix: f.fix || '' });
+             }
+           }
+         } catch (e) { console.error('grammar-check parse:', e); }
+       }
+       return new Response(JSON.stringify({ findings: allFindings }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- context-review: مراجعة مع سياق المشاهد ---
+     if (action === 'context-review') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const CHUNK = 10;
+       const allFindings: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const contextBlock = contextEntries && contextEntries.length > 0
+           ? `\nسياق إضافي (نصوص مجاورة):\n${contextEntries.slice(0, 30).map(ce => `  "${ce.original}" → "${ce.translation}"`).join('\n')}\n` : '';
+         const prompt = `أنت مراجع ترجمات Zelda متخصص في السياق. حلّل كل ترجمة في سياقها وحسّنها.
+
+المشاكل:
+1. context-mismatch — صحيحة لغوياً لا تناسب سياق المشهد
+2. tone-mismatch — نبرة لا تناسب الشخصية (Zelda رسمية، Ganon شرير...)
+3. ambiguity — غامضة قد تُفهم خطأ
+4. continuity — عدم اتساق مع الجمل المجاورة
+5. improvement — اقتراح تحسين صياغي
+
+أبقِ وسوم Zelda كما هي: [Color:...], [Icon:...], A/B/X/Y/L/R/ZL/ZR.
+أبقِ Link, Zelda, Ganon, Hyrule بالإنجليزية.
+
+${glossary ? `\nالقاموس:\n${glossary.slice(0, 2000)}\n` : ''}${contextBlock}
+
+النصوص:
+${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join('\n\n')}
+
+أخرج JSON array فقط:
+{"i": رقم, "type": نوع, "issue": "المشكلة", "fix": "الترجمة المحسّنة"}
+[] إذا لا توجد مشاكل.`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مراجع سياقي. أخرج ONLY JSON arrays.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (const f of findings) {
+             if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
+               allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'improvement', issue: f.issue || '', fix: f.fix || '' });
+             }
+           }
+         } catch (e) { console.error('context-review parse:', e); }
+       }
+       return new Response(JSON.stringify({ findings: allFindings }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- quick-alternatives: 3 بدائل سريعة لأي نص ---
+     if (action === 'quick-alternatives') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const entry = entries[0];
+       if (!entry?.translation?.trim()) return new Response(JSON.stringify({ alternatives: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const contextBlock = contextEntries && contextEntries.length > 0
+         ? `\nسياق:\n${contextEntries.slice(0, 10).map(ce => `  "${ce.original}" → "${ce.translation}"`).join('\n')}\n` : '';
+       const prompt = `أنت مترجم Zelda محترف. أعطني 3 بدائل بأساليب متنوعة:
+
+النص الأصلي: "${entry.original}"
+الترجمة الحالية: "${entry.translation}"
+${entry.maxBytes > 0 ? `الحد الأقصى: ${entry.maxBytes} بايت (كل حرف عربي = 2 بايت)` : ''}
+
+أبقِ وسوم Zelda كما هي: [Color:...], [Icon:...], A/B/X/Y/L/R/ZL/ZR.
+أبقِ Link, Zelda, Ganon, Hyrule بالإنجليزية.
+
+${glossary ? `القاموس:\n${glossary.slice(0, 1500)}\n` : ''}${contextBlock}
+
+قدم 3 بدائل:
+1. 💬 طبيعي وسلس
+2. ✂️ مختصر ومباشر
+3. 📚 أدبي وغني
+
+أخرج JSON array فقط بـ 3 عناصر:
+{"style": "natural"|"concise"|"literary", "text": "البديل", "reason": "سبب قصير"}`;
+       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+         body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مترجم ألعاب. أخرج ONLY JSON arrays.' }, { role: 'user', content: prompt }] }),
+       });
+       if (!response.ok) {
+         if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+         throw new Error(`AI error: ${response.status}`);
+       }
+       const data = await response.json();
+       const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+       if (!m) throw new Error('Failed to parse AI response');
+       const alternatives = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+       return new Response(JSON.stringify({ alternatives }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- auto-correct: تصحيح إملائي/نحوي جماعي ---
+     if (action === 'auto-correct') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ corrections: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const CHUNK = 20;
+       const allCorrections: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const prompt = `مصحح إملائي/نحوي آلي. صحّح كل ترجمة بدون تغيير المعنى أو الأسلوب.
+
+قواعد:
+- صحّح الأخطاء الإملائية/النحوية فقط، لا تغيّر الصياغة
+- أبقِ الوسوم كما هي: [Color:...], [Icon:...], A/B/X/Y/L/R/ZL/ZR
+- أبقِ Link, Zelda, Ganon, Hyrule بالإنجليزية
+- إذا كان النص سليماً أعده نفسه بالضبط
+- صحّح: همزات، تاء/هاء، ياء/ألف مقصورة، تذكير/تأنيث
+
+${chunk.map((e, i) => `[${i}] "${e.translation}"`).join('\n')}
+
+أخرج JSON array فقط بنفس الترتيب يحتوي النصوص المصححة.`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مصحح إملائي. أخرج ONLY JSON arrays. لا تغيّر المعنى.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const corrected: string[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (let i = 0; i < Math.min(chunk.length, corrected.length); i++) {
+             const e = chunk[i];
+             const t = corrected[i]?.trim();
+             if (t && t !== e.translation) {
+               allCorrections.push({ key: e.key, original: e.original, current: e.translation, corrected: t });
+             }
+           }
+         } catch (err) { console.error('auto-correct parse:', err); }
+       }
+       return new Response(JSON.stringify({ corrections: allCorrections }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- detect-weak: كشف الترجمات الضعيفة ---
+     if (action === 'detect-weak') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ weakEntries: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const CHUNK = 15;
+       const allWeak: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const prompt = `مراجع جودة ترجمات Zelda. قيّم كل ترجمة (1-10):
+- 1-3: ركيكة/سيئة  - 4-5: مقبولة تحتاج تحسين
+- 6-7: جيدة مع ملاحظات  - 8-10: ممتازة (تجاهلها)
+
+${glossary ? `القاموس:\n${glossary.slice(0, 1500)}\n` : ''}
+
+${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join('\n\n')}
+
+أخرج JSON array فقط للترجمات بدرجة 7 أو أقل:
+{"i": رقم, "score": درجة, "reason": "السبب", "suggestion": "ترجمة أفضل"}
+[] إذا كانت كلها ممتازة.`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مقيّم جودة. أخرج ONLY JSON arrays.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const findings: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (const f of findings) {
+             if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
+               allWeak.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, score: f.score || 5, reason: f.reason || '', suggestion: f.suggestion || '' });
+             }
+           }
+         } catch (err) { console.error('detect-weak parse:', err); }
+       }
+       allWeak.sort((a, b) => a.score - b.score);
+       return new Response(JSON.stringify({ weakEntries: allWeak }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+     }
+
+     // --- context-retranslate: إعادة ترجمة مع سياق ---
+     if (action === 'context-retranslate') {
+       const LOVABLE_API_KEY = getLovableKey();
+       const translated = entries.filter(e => e.translation?.trim());
+       if (translated.length === 0) return new Response(JSON.stringify({ retranslations: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+       const contextBlock = contextEntries && contextEntries.length > 0
+         ? `\nسياق:\n${contextEntries.slice(0, 20).map(ce => `  EN: "${ce.original}" → AR: "${ce.translation}"`).join('\n')}\n` : '';
+       const CHUNK = 10;
+       const allRetrans: any[] = [];
+       for (let c = 0; c < translated.length; c += CHUNK) {
+         const chunk = translated.slice(c, c + CHUNK);
+         const prompt = `مترجم Zelda محترف. أعد ترجمة النصوص مع مراعاة السياق.
+
+${glossary ? `القاموس:\n${glossary.slice(0, 2000)}\n` : ''}${contextBlock}
+
+قواعد:
+- استخدم السياق لفهم المشهد/الشخصية
+- قدّم ترجمة طبيعية تناسب Zelda
+- أبقِ وسوم Zelda كما هي: [Color:...], [Icon:...], A/B/X/Y/L/R/ZL/ZR
+- أبقِ Link, Zelda, Ganon, Hyrule بالإنجليزية
+
+${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nالترجمة الحالية: "${e.translation}"\n${e.maxBytes > 0 ? `الحد: ${e.maxBytes} بايت` : ''}`).join('\n\n')}
+
+أخرج JSON array فقط بنفس الترتيب:
+{"text": "الترجمة الجديدة", "changes": "ملخص التغييرات"}`;
+         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+           method: 'POST',
+           headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+           body: JSON.stringify({ model: resolvedModel, messages: [{ role: 'system', content: 'مترجم ألعاب. أخرج ONLY JSON arrays.' }, { role: 'user', content: prompt }] }),
+         });
+         if (!response.ok) {
+           if (response.status === 429) return new Response(JSON.stringify({ error: 'تم تجاوز حد الطلبات' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+           console.error('AI error:', await response.text()); continue;
+         }
+         const data = await response.json();
+         const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
+         if (!m) continue;
+         try {
+           const results: any[] = JSON.parse(m[0].replace(/[\x00-\x1F\x7F]/g, ' '));
+           for (let i = 0; i < Math.min(chunk.length, results.length); i++) {
+             const e = chunk[i];
+             const nt = results[i]?.text?.trim();
+             if (nt && nt !== e.translation) {
+               allRetrans.push({ key: e.key, original: e.original, current: e.translation, retranslated: nt, changes: results[i].changes || '' });
+             }
+           }
+         } catch (err) { console.error('context-retranslate parse:', err); }
+       }
+       return new Response(JSON.stringify({ retranslations: allRetrans }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
      }
 
      // --- Handle "suggest short translations" action ---
