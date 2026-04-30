@@ -95,6 +95,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0}>
               {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
             </DropdownMenuItem>
+            {handleEnhanceWithContext && (
+              <DropdownMenuItem onClick={handleEnhanceWithContext} disabled={enhancing || editor.translatedCount === 0}>
+                {enhancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />} تحسين بالسياق 💡
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setShowInconsistencies(true)} disabled={editor.translatedCount === 0}>
               <Search className="w-4 h-4" /> كشف التناقضات 🔍
             </DropdownMenuItem>
