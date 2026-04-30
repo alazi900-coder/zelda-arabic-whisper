@@ -331,8 +331,23 @@ ${textsBlock}`;
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
+        // Parse Anthropic error body for clearer messages
+        let parsedMsg = '';
+        try {
+          const j = JSON.parse(err);
+          parsedMsg = j?.error?.message || '';
+        } catch { /* ignore */ }
+
+        if (parsedMsg.toLowerCase().includes('credit balance')) {
+          return new Response(JSON.stringify({
+            error: 'رصيد حساب Claude فارغ. Anthropic لا تقدم استخداماً مجانياً — يجب شراء رصيد من console.anthropic.com → Plans & Billing. أو استخدم محرك Gemini المجاني بدلاً من ذلك.'
+          }), {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         return new Response(JSON.stringify({
-          error: `خطأ Claude: ${claudeResponse.status}`
+          error: `خطأ Claude (${claudeResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
         }), {
           status: claudeResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
