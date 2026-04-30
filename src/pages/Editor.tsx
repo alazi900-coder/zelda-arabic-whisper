@@ -718,6 +718,7 @@ const Editor = () => {
             isMobile={isMobile} editor={editor} untranslatedCount={untranslatedCount}
             polishing={polishing} handlePolishArabic={handlePolishArabic}
             setShowInconsistencies={setShowInconsistencies} setShowSmartImprove={setShowSmartImprove}
+            enhancing={enhancing} handleEnhanceWithContext={handleEnhanceWithContext}
           />
 
           {/* Build Options */}
