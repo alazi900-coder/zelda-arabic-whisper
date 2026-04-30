@@ -42,10 +42,10 @@ export function calcConfidence(input: ConfidenceInput): number {
   }
 
   // 4. Tag preservation (max 15) — technical tags from original present in translation
-  const origTags = original.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
+  const origTags: string[] = original.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
   if (origTags.length > 0) {
-    const transTags = translation.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
-    const preserved = origTags.filter(t => transTags.includes(t)).length;
+    const transTags: string[] = translation.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
+    const preserved = origTags.filter((t: string) => transTags.includes(t)).length;
     score += Math.round((preserved / origTags.length) * 15);
   } else {
     score += 15;
