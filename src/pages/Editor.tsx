@@ -722,15 +722,15 @@ const Editor = () => {
           />
 
           {/* Build Options */}
-          <Card className="mb-4 border-border">
-            <CardContent className="p-4">
-              <h3 className="font-display font-bold mb-3 text-sm">⚙️ خيارات البناء</h3>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-body">
+          <Card className="mb-3 border-border">
+            <CardContent className="p-3 sm:p-4">
+              <h3 className="font-display font-bold mb-2 text-xs sm:text-sm">⚙️ خيارات البناء</h3>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
+                <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-body">
                   <input type="checkbox" checked={editor.arabicNumerals} onChange={(e) => editor.setArabicNumerals(e.target.checked)} className="rounded border-border" />
                   تحويل الأرقام إلى هندية (٠١٢٣٤٥٦٧٨٩)
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm font-body">
+                <label className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm font-body">
                   <input type="checkbox" checked={editor.mirrorPunctuation} onChange={(e) => editor.setMirrorPunctuation(e.target.checked)} className="rounded border-border" />
                   عكس علامات الترقيم (؟ ، ؛)
                 </label>
@@ -739,12 +739,12 @@ const Editor = () => {
           </Card>
 
           {/* Arabic Processing + Build Buttons */}
-          <div className="flex gap-3 mb-6">
-            <Button size="lg" variant="secondary" onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic} className="flex-1 font-display font-bold">
-              {editor.applyingArabic ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />} تطبيق المعالجة العربية ✨
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <Button size="sm" variant="secondary" onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
+              {editor.applyingArabic ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />} تطبيق المعالجة العربية ✨
             </Button>
-            <Button size="lg" onClick={editor.handlePreBuild} disabled={editor.building} className="flex-1 font-display font-bold">
-              {editor.building ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileDown className="w-4 h-4 mr-2" />} بناء الملف النهائي
+            <Button size="sm" onClick={editor.handlePreBuild} disabled={editor.building} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
+              {editor.building ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <FileDown className="w-3.5 h-3.5 mr-1.5" />} بناء الملف النهائي
             </Button>
           </div>
 
