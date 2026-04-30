@@ -22,6 +22,7 @@ interface UseEditorTranslationProps {
   userClaudeKey: string;
   translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude';
   translationQuality: 'fast' | 'quality';
+  geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
   filteredEntries: ExtractedEntry[];
   isFilterActive: boolean;
   myMemoryEmail: string;
@@ -33,6 +34,7 @@ interface UseEditorTranslationProps {
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
   filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
+  geminiModel,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
@@ -98,6 +100,7 @@ export function useEditorTranslation({
           userClaudeKey: userClaudeKey || undefined,
           translationEngine,
           translationQuality,
+          geminiModel,
           myMemoryEmail: myMemoryEmail || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
@@ -251,6 +254,7 @@ export function useEditorTranslation({
               userClaudeKey: userClaudeKey || undefined,
               translationEngine,
               translationQuality,
+          geminiModel,
               myMemoryEmail: myMemoryEmail || undefined,
               category: batchCategory,
               filePath: batchFilePath,
@@ -375,6 +379,7 @@ export function useEditorTranslation({
             userClaudeKey: userClaudeKey || undefined,
             translationEngine,
             translationQuality,
+          geminiModel,
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batch[0].msbtFile,
@@ -432,7 +437,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, translationEngine, translationQuality, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -597,6 +602,7 @@ export function useEditorTranslation({
             userClaudeKey: userClaudeKey || undefined,
             translationEngine,
             translationQuality,
+          geminiModel,
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batchFilePath,

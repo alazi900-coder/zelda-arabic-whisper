@@ -46,6 +46,8 @@ import KeyboardShortcutsDialog from "@/components/editor/KeyboardShortcutsDialog
 import EditorStatsCards from "@/components/editor/EditorStatsCards";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import PageTranslationCompare from "@/components/editor/PageTranslationCompare";
+import AdvancedReviewPanel from "@/components/editor/AdvancedReviewPanel";
+import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -361,6 +363,23 @@ const Editor = () => {
             onDiscard={editor.discardPageTranslations}
           />
 
+          {/* Advanced AI Review Results Panel (7 new AI actions) */}
+          <AdvancedReviewPanel
+            action={editor.advancedAction}
+            findings={editor.advancedFindings}
+            onApply={editor.applyAdvancedFinding}
+            onDismiss={editor.dismissAdvancedFinding}
+            onApplyAll={editor.applyAllAdvancedFindings}
+            onDismissAll={editor.dismissAllAdvanced}
+          />
+
+          {/* Quick Alternatives Panel (3 style-variants for single entry) */}
+          <QuickAlternativesPanel
+            data={editor.quickAlternatives}
+            onApply={editor.applyQuickAlternative}
+            onClose={() => editor.setQuickAlternatives(null)}
+          />
+
           {/* Translation Engine Selector */}
           <Card className="mb-6 border-primary/20 bg-primary/5">
             <CardContent className="p-3 md:p-4 space-y-3">
@@ -384,21 +403,36 @@ const Editor = () => {
                   ))}
                 </div>
               </div>
-              {!['mymemory', 'google'].includes(editor.translationEngine) && (
+              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable') && (
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex items-center gap-2 shrink-0">
                     <BarChart3 className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-display font-bold">جودة الترجمة</span>
+                    <span className="text-sm font-display font-bold">نموذج Gemini</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Flash)</Button>
-                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Pro)</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.0-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.0-flash')} className="text-xs font-body">⚡ 2.0 Flash</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.5-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-flash')} className="text-xs font-body">✨ 2.5 Flash</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.5-pro' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-pro')} className="text-xs font-body">💎 2.5 Pro</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
-                    {editor.translationQuality === 'quality'
-                      ? (editor.translationEngine === 'claude' ? 'أدق لكن أبطأ — يستخدم Claude Sonnet' : 'أدق لكن أبطأ — يستخدم Gemini Pro')
-                      : (editor.translationEngine === 'claude' ? 'أسرع وأخف — يستخدم Claude Haiku' : 'أسرع وأخف — يستخدم Gemini Flash')}
+                    {editor.geminiModel === 'gemini-2.0-flash'
+                      ? 'أسرع نموذج — مجاني (1500/يوم)'
+                      : editor.geminiModel === 'gemini-2.5-flash'
+                      ? 'توازن بين السرعة والجودة'
+                      : 'أعلى جودة — أبطأ قليلاً'}
                   </span>
+                </div>
+              )}
+              {editor.translationEngine === 'claude' && (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-display font-bold">جودة Claude</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Haiku)</Button>
+                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Sonnet)</Button>
+                  </div>
                 </div>
               )}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">

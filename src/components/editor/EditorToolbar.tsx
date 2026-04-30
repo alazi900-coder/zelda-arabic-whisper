@@ -95,6 +95,26 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0}>
               {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs">🤖 مراجعات AI متقدمة</DropdownMenuLabel>
+            <DropdownMenuItem onClick={editor.handleSmartReview} disabled={editor.advancedBusy === 'smart-review' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'smart-review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🔬</>} مراجعة ذكية عميقة
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleGrammarCheck} disabled={editor.advancedBusy === 'grammar-check' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'grammar-check' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>✍️</>} فحص نحوي متخصّص
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleContextReview} disabled={editor.advancedBusy === 'context-review' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'context-review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🎭</>} مراجعة مع سياق المشاهد
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleAutoCorrect} disabled={editor.advancedBusy === 'auto-correct' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'auto-correct' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🔧</>} تصحيح إملائي/نحوي جماعي
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleDetectWeak} disabled={editor.advancedBusy === 'detect-weak' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'detect-weak' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>⚠️</>} كشف الترجمات الضعيفة
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleContextRetranslate} disabled={editor.advancedBusy === 'context-retranslate' || editor.translatedCount === 0}>
+              {editor.advancedBusy === 'context-retranslate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🎬</>} إعادة ترجمة مع سياق
+            </DropdownMenuItem>
             {handleEnhanceWithContext && (
               <DropdownMenuItem onClick={handleEnhanceWithContext} disabled={enhancing || editor.translatedCount === 0}>
                 {enhancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />} تحسين بالسياق 💡
@@ -180,6 +200,24 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       </Button>
       <Button variant="outline" onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30">
         <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
+      </Button>
+      <Button variant="outline" onClick={editor.handleSmartReview} disabled={editor.advancedBusy === 'smart-review' || editor.translatedCount === 0} className="font-body border-primary/30">
+        {editor.advancedBusy === 'smart-review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🔬</>} مراجعة ذكية عميقة
+      </Button>
+      <Button variant="outline" onClick={editor.handleGrammarCheck} disabled={editor.advancedBusy === 'grammar-check' || editor.translatedCount === 0} className="font-body border-primary/30">
+        {editor.advancedBusy === 'grammar-check' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>✍️</>} فحص نحوي
+      </Button>
+      <Button variant="outline" onClick={editor.handleContextReview} disabled={editor.advancedBusy === 'context-review' || editor.translatedCount === 0} className="font-body border-primary/30">
+        {editor.advancedBusy === 'context-review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🎭</>} مراجعة سياقية
+      </Button>
+      <Button variant="outline" onClick={editor.handleAutoCorrect} disabled={editor.advancedBusy === 'auto-correct' || editor.translatedCount === 0} className="font-body border-accent/30">
+        {editor.advancedBusy === 'auto-correct' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🔧</>} تصحيح جماعي
+      </Button>
+      <Button variant="outline" onClick={editor.handleDetectWeak} disabled={editor.advancedBusy === 'detect-weak' || editor.translatedCount === 0} className="font-body border-accent/30">
+        {editor.advancedBusy === 'detect-weak' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>⚠️</>} كشف الضعيف
+      </Button>
+      <Button variant="outline" onClick={editor.handleContextRetranslate} disabled={editor.advancedBusy === 'context-retranslate' || editor.translatedCount === 0} className="font-body border-accent/30">
+        {editor.advancedBusy === 'context-retranslate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🎬</>} إعادة ترجمة بسياق
       </Button>
     </div>
   );
