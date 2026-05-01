@@ -951,21 +951,19 @@ const Editor = () => {
                     prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
                     next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
                   };
+                  const extraToolButtons = [
+                    { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openTMPanel(entry), icon: "🧠", title: "ذاكرة الترجمة", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openScreenshots(entry), icon: "📸", title: "سياق بالصور", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
+                    { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
+                  ];
                   return (
                     <div key={key} className="relative">
                       <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
                           {diffConf.emoji} {diffConf.label}
                         </span>
-                        {[
-                          { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openTMPanel(entry), icon: "🧠", title: "ذاكرة الترجمة", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openScreenshots(entry), icon: "📸", title: "سياق بالصور", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
-                          { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
-                        ].map((btn, i) => (
-                          <button key={i} onClick={btn.onClick} className={`text-[9px] px-1 py-0.5 rounded ${btn.cls} transition-colors`} title={btn.title}>{btn.icon}</button>
-                        ))}
                       </div>
                       <EntryCard entry={entry} translation={editor.state?.translations[key] || ''} glossary={editor.state?.glossary}
                         adjacentContext={adjacentContext} isProtected={editor.state?.protectedEntries?.has(key) || false}
@@ -976,7 +974,8 @@ const Editor = () => {
                         updateTranslation={editor.updateTranslation} handleTranslateSingle={editor.handleTranslateSingle}
                         handleImproveSingleTranslation={editor.handleImproveSingleTranslation} handleUndoTranslation={editor.handleUndoTranslation}
                         handleFixReversed={editor.handleFixReversed} handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote} />
+                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote}
+                        extraToolButtons={extraToolButtons} />
                     </div>
                   );
                 })
@@ -1179,7 +1178,7 @@ const Editor = () => {
                 )}
                 {editor.deepScanReport.examples.length > 0 && (
                   <div>
-                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📝 أمثلة على الإصلاحات (أول 5):</h4>
+                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📝 معاينة الإصلاحات (أول 5):</h4>
                     <div className="space-y-2">
                       {editor.deepScanReport.examples.map((ex, i) => (
                         <div key={i} className="text-xs p-2 rounded border border-border/40 bg-muted/10 space-y-1">
@@ -1191,10 +1190,32 @@ const Editor = () => {
                     </div>
                   </div>
                 )}
+                {editor.deepScanReport.manualReview && editor.deepScanReport.manualReview.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2 text-xs text-amber-600">⚠️ يحتاج مراجعة يدوية ({editor.deepScanReport.manualReview.length}):</h4>
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      {editor.deepScanReport.manualReview.map((m, i) => (
+                        <div key={i} className="text-xs p-2 rounded border border-amber-500/30 bg-amber-500/5 space-y-0.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground text-[10px] truncate" dir="ltr">{m.file} • {m.label}</span>
+                            <span className="text-amber-600 text-[10px] shrink-0">{m.reason}</span>
+                          </div>
+                          <div className="text-foreground/80 truncate" dir="rtl">{m.current}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">افتح كل نص في المحرر لإصلاحه يدوياً (تكرار وسوم أو ترتيب يحتاج قرار بشري).</p>
+                  </div>
+                )}
               </div>
             )}
-            <DialogFooter>
-              <Button onClick={() => editor.setDeepScanReport(null)}>إغلاق</Button>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button variant="ghost" onClick={() => editor.setDeepScanReport(null)}>إغلاق</Button>
+              {editor.deepScanReport?.pendingUpdates && (
+                <Button onClick={() => { editor.applyDeepScanFixes(); }} className="gap-1">
+                  ✅ تطبيق الإصلاحات ({Object.keys(editor.deepScanReport.pendingUpdates).length})
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

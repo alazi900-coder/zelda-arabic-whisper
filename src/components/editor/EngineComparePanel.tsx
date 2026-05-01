@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -161,7 +161,7 @@ export default function EngineComparePanel({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setResults([]); } }}>
       <DialogContent
-        className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden"
+        className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] max-h-[92dvh] flex flex-col p-0 gap-0 overflow-hidden"
         dir="rtl"
       >
         <DialogHeader className="p-4 pb-2 border-b border-border/50">
@@ -196,7 +196,7 @@ export default function EngineComparePanel({
           )}
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-3">
             {results.map((r) => {
               const isEditing = editingEngine === r.engine;
@@ -290,7 +290,7 @@ export default function EngineComparePanel({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

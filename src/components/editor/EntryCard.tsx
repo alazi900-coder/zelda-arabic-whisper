@@ -36,6 +36,8 @@ interface EntryCardProps {
   translationMemory?: { key: string; translation: string }[];
   translatorNotes?: Record<string, string>;
   onUpdateNote?: (key: string, note: string) => void;
+  /** Extra context-tool buttons (scene, TM, screenshots, AI hints, engine compare) rendered next to the auto-translate button */
+  extraToolButtons?: { onClick: () => void; icon: string; title: string; cls?: string }[];
 }
 
 // Cached parsed glossary to avoid re-parsing on every entry
@@ -98,7 +100,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
-  translationMemory, translatorNotes, onUpdateNote,
+  translationMemory, translatorNotes, onUpdateNote, extraToolButtons,
 }) => {
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
@@ -259,7 +261,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
               glossaryMatches={glossaryMatches}
               translationMemory={translationMemory}
             />
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1 shrink-0 flex-wrap">
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowGamePreview(true)} title="معاينة كما ستظهر في اللعبة">
                 <Gamepad2 className="w-4 h-4 text-secondary" />
               </Button>
@@ -269,6 +271,22 @@ const EntryCard: React.FC<EntryCardProps> = ({
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => handleImproveSingleTranslation(entry)} disabled={improvingTranslations || !translation?.trim()} title="تحسين هذه الترجمة">
                 {improvingTranslations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-secondary" />}
               </Button>
+              {/* Context tool buttons (moved from above the original text) */}
+              {extraToolButtons && extraToolButtons.length > 0 && (
+                <>
+                  <span className="w-px h-5 bg-border/50 mx-0.5" aria-hidden />
+                  {extraToolButtons.map((btn, i) => (
+                    <button
+                      key={i}
+                      onClick={btn.onClick}
+                      title={btn.title}
+                      className={`h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-xs transition-colors ${btn.cls || 'bg-muted/40 text-muted-foreground hover:bg-muted'}`}
+                    >
+                      {btn.icon}
+                    </button>
+                  ))}
+                </>
+              )}
               {isDamagedTag && handleLocalFixDamagedTag && (
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowTagPreview(prev => !prev)} title="👁 معاينة الإصلاح قبل التطبيق">
                   <Eye className="w-4 h-4 text-accent" />
