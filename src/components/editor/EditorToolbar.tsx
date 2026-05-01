@@ -86,6 +86,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={editor.handleReviewTranslations} disabled={editor.reviewing || editor.translatedCount === 0}><ShieldCheck className="w-4 h-4" /> مراجعة ذكية 🔍</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleImproveTranslations} disabled={editor.improvingTranslations || editor.translatedCount === 0}><Sparkles className="w-4 h-4" /> تحسين الترجمات ✨</DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs">🧹 تنظيف النصوص (مع مراجعة قبل التطبيق)</DropdownMenuLabel>
+            <DropdownMenuItem onClick={editor.handleFixAllDiacritics} disabled={editor.translatedCount === 0}>🔡 إزالة التشكيلات</DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleFixAllBrackets} disabled={editor.translatedCount === 0}>🏷️ إصلاح أقواس الوسوم [Color:Red]</DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleFixAllLonelyLam} disabled={editor.translatedCount === 0}>🔠 إصلاح اللام المنفردة (ل → لا)</DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleFixAllTaaHaa} disabled={editor.translatedCount === 0}>🔤 إصلاح تاء مربوطة/هاء (ه → ة)</DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={editor.handleFixAllStuckCharacters} disabled={editor.needsImproveCount.stuck === 0}>🔤 إصلاح الأحرف الملتصقة</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0}>
               {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
@@ -190,6 +196,18 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Button variant="outline" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
         {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
       </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="font-body border-amber-500/40 text-amber-700 hover:text-amber-800">🧹 تنظيف النصوص</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="bg-card border-border z-50">
+          <DropdownMenuLabel className="text-xs">مع مراجعة قبل التطبيق</DropdownMenuLabel>
+          <DropdownMenuItem onClick={editor.handleFixAllDiacritics} disabled={editor.translatedCount === 0}>🔡 إزالة التشكيلات</DropdownMenuItem>
+          <DropdownMenuItem onClick={editor.handleFixAllBrackets} disabled={editor.translatedCount === 0}>🏷️ إصلاح أقواس الوسوم [Color:Red]</DropdownMenuItem>
+          <DropdownMenuItem onClick={editor.handleFixAllLonelyLam} disabled={editor.translatedCount === 0}>🔠 إصلاح اللام المنفردة (ل → لا)</DropdownMenuItem>
+          <DropdownMenuItem onClick={editor.handleFixAllTaaHaa} disabled={editor.translatedCount === 0}>🔤 إصلاح تاء مربوطة/هاء (ه → ة)</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button variant="outline" onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0} className="font-body border-accent/30 text-accent hover:text-accent">
         {polishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} تحسين الصياغة العربية ✍️
       </Button>

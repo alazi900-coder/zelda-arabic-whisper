@@ -3,6 +3,7 @@ import { toast } from "@/hooks/use-toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { hasArabicPresentationForms, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { fixBrackets } from "@/lib/fix-brackets";
+import { fixLonelyLam, fixTaaMarbutaHaa } from "@/lib/arabic-text-fixes";
 import type { EditorState, ExtractedEntry } from "@/components/editor/types";
 import type { FixPreviewItem } from "@/components/editor/FixPreviewDialog";
 
@@ -156,6 +157,42 @@ export function useEditorFixes({
     setFixPreview({ title: "توحيد الهمزات", items, updates });
   }, [state, setFixPreview]);
 
+  const handleFixAllLonelyLam = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    const items: FixPreviewItem[] = [];
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
+      const { fixed, changes } = fixLonelyLam(translation);
+      if (changes > 0 && fixed !== translation) {
+        updates[key] = fixed;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
+      }
+    }
+    if (items.length === 0) { toast({ title: "لا توجد لام منفردة (ل) للإصلاح" }); return; }
+    setFixPreview({ title: "إصلاح اللام المنفردة (ل → لا)", items, updates });
+  }, [state, setFixPreview]);
+
+  const handleFixAllTaaHaa = useCallback(() => {
+    if (!state) return;
+    const updates: Record<string, string> = {};
+    const items: FixPreviewItem[] = [];
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const translation = state.translations[key];
+      if (!translation?.trim()) continue;
+      const { fixed, changes } = fixTaaMarbutaHaa(translation);
+      if (changes > 0 && fixed !== translation) {
+        updates[key] = fixed;
+        items.push({ key, label: entry.label, file: entry.msbtFile, oldText: translation, newText: fixed });
+      }
+    }
+    if (items.length === 0) { toast({ title: "لا توجد كلمات تنتهي بـ ه يجب أن تكون ة" }); return; }
+    setFixPreview({ title: "إصلاح تاء مربوطة/هاء (ه → ة)", items, updates });
+  }, [state, setFixPreview]);
+
   const handleFixMixedLanguage = useCallback(async () => {
     if (!state) return;
     setFixingMixed(true);
@@ -208,6 +245,8 @@ export function useEditorFixes({
     handleFixAllDiacritics,
     handleFixAllSpaces,
     handleFixAllHamza,
+    handleFixAllLonelyLam,
+    handleFixAllTaaHaa,
     handleFixMixedLanguage,
   };
 }

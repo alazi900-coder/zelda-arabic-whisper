@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { FileArchive, ArrowRight, Loader2, CheckCircle2, Pencil } from "lucide-react";
+import ProcessLogsPanel from "@/components/process/ProcessLogsPanel";
 
 const Process = () => {
   const [langFile, setLangFile] = useState<File | null>(null);
@@ -11,7 +12,14 @@ const Process = () => {
   const [autoDetectedCount, setAutoDetectedCount] = useState(0);
   const [mergeMode, setMergeMode] = useState<"fresh" | "merge">("fresh");
   const [hasPreviousSession, setHasPreviousSession] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const appendLog = useCallback((msg: string) => {
+    const time = new Date().toLocaleTimeString("ar-SA");
+    setLogs((prev) => [...prev, `[${time}] ${msg}`]);
+  }, []);
 
   // Check if there's a previous editing session in IndexedDB
   useEffect(() => {
@@ -45,8 +53,17 @@ const Process = () => {
   const handleExtract = async () => {
     if (!langFile || !dictFile) return;
     setExtracting(true);
+    setExtractError(null);
+    setLogs([]);
 
-    const { lang, dict } = getCorrectFiles();
+    const { lang, dict, swapped } = getCorrectFiles();
+
+    appendLog("🗡️ بدء فتح كنز الترجمات...");
+    if (swapped) {
+      appendLog("🔄 تم التبديل تلقائيًا: ملف القاموس وملف اللغة كانا في الخانات الخاطئة");
+    }
+    appendLog(`📄 ملف اللغة: ${lang.name} (${(lang.size / 1024 / 1024).toFixed(2)} ميجابايت)`);
+    appendLog(`📖 ملف القاموس: ${dict.name} (${(dict.size / 1024 / 1024).toFixed(2)} ميجابايت)`);
 
     try {
       const formData = new FormData();
@@ -56,6 +73,7 @@ const Process = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+      appendLog("📡 إرسال الملفات إلى الخادم...");
       const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/arabize?mode=extract`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
@@ -70,8 +88,12 @@ const Process = () => {
         }
         throw new Error(`خطأ ${response.status}`);
       }
+      appendLog("✅ تمّ فك الضغط واستخراج أرشيف SARC وقراءة ملفات MSBT");
 
       const data = await response.json();
+      const fileSet = new Set<string>();
+      for (const e of data.entries) fileSet.add(e.msbtFile);
+      appendLog(`📜 استُخرج ${data.entries.length} نصاً من ${fileSet.size} ملف MSBT`);
 
       // Store files in IndexedDB to avoid sessionStorage quota
       const { idbSet, idbGet } = await import("@/lib/idb-storage");
@@ -120,8 +142,14 @@ const Process = () => {
           autoTranslations[key] = cleaned;
         }
       }
-      console.log(`Auto-detected ${Object.keys(autoTranslations).length} pre-translated Arabic entries`);
-      setAutoDetectedCount(Object.keys(autoTranslations).length);
+      const detectedCount = Object.keys(autoTranslations).length;
+      console.log(`Auto-detected ${detectedCount} pre-translated Arabic entries`);
+      setAutoDetectedCount(detectedCount);
+      if (detectedCount > 0) {
+        appendLog(`🛡️ كشف ${detectedCount} نصّاً معرّباً مسبقاً + إصلاح اتجاه النص (BiDi)`);
+      } else {
+        appendLog("🔍 لم تُكتشف ترجمات عربية سابقة داخل الملف");
+      }
 
       // Merge or start fresh based on user choice
       const finalTranslations: Record<string, string> = { ...autoTranslations };
@@ -138,17 +166,39 @@ const Process = () => {
           }
         }
         console.log(`Preserved ${preservedCount} previous translations`);
+        if (preservedCount > 0) {
+          appendLog(`💾 دمج ${preservedCount} ترجمة سابقة من الجلسة المحفوظة`);
+        }
       }
 
+      appendLog("💾 حفظ النصوص في تخزين المتصفح (IndexedDB)...");
       await idbSet("editorState", {
         entries: data.entries,
         translations: finalTranslations,
         protectedEntries: [],
       });
 
+      const totalTranslated = Object.values(finalTranslations).filter((v) => v && v.trim()).length;
+      const pct = data.entries.length > 0 ? Math.round((totalTranslated / data.entries.length) * 100) : 0;
+      appendLog(`🏰 جاهز للمغامرة! المُترجَم: ${totalTranslated}/${data.entries.length} (${pct}%) — الانتقال للمحرر...`);
+
       navigate("/editor");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "خطأ غير معروف");
+      const name = err instanceof Error ? err.name : "Error";
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`⚠️ فشل الاستخراج`);
+      appendLog(`📋 السبب: ${name}`);
+      appendLog(`💬 التفاصيل: ${msg}`);
+      if (/timeout|network|fetch|failed to fetch/i.test(msg)) {
+        appendLog("💡 الحل: تحقّق من اتصال الإنترنت ثم أعد المحاولة");
+      } else if (/quota/i.test(msg) || /quota/i.test(name)) {
+        appendLog("💡 الحل: امسح بيانات الموقع من إعدادات المتصفح أو احذف المشاريع القديمة");
+      } else if (/413|too large/i.test(msg)) {
+        appendLog("💡 الحل: الملف كبير جداً على الخادم — جرّب ملف أصغر");
+      } else {
+        appendLog("💡 الحل: حدّث الصفحة وأعد المحاولة، وإن استمر الخطأ صدّر السجل وأرسله للمطوّر");
+      }
+      setExtractError(`${name}: ${msg}`);
     } finally {
       setExtracting(false);
     }
@@ -163,6 +213,13 @@ const Process = () => {
         </Link>
 
         <h1 className="text-3xl font-display font-bold mb-8">رفع الملفات والمعالجة</h1>
+
+        <ProcessLogsPanel
+          logs={logs}
+          hasError={!!extractError}
+          busy={extracting}
+          onRetry={handleExtract}
+        />
 
         {/* File Upload */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
