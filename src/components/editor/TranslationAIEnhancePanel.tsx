@@ -5,10 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
-  RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight,
-} from "lucide-react";
+import { Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square, RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { ExtractedEntry } from "./types";
@@ -38,24 +35,8 @@ interface GrammarIssue {
   severity?: "high" | "medium" | "low";
 }
 
-interface FatResult {
-  index: number;
-  context?: { sceneType?: string; tone?: string; character?: string | null };
-  issues?: { type?: string; message?: string; severity?: "high" | "medium" | "low" }[];
-  suggestions?: { text?: string; reason?: string; style?: string }[];
-  preferredSuggestion?: string;
-}
-
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
-
-const ZELDA_TYPE_MAP: Record<string, EnhanceSuggestion["type"]> = {
-  literal: "accuracy",
-  awkward: "style",
-  inconsistent: "consistency",
-  context_mismatch: "accuracy",
-  style: "style",
-};
 
 const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   entries,
@@ -78,55 +59,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     setProcessedCount(0);
   }, []);
 
-  const flattenForEnhance = (
-    fatResults: FatResult[],
-    batchEntries: { key: string; original: string; translation: string }[],
-  ): EnhanceSuggestion[] => {
-    const out: EnhanceSuggestion[] = [];
-    for (const r of fatResults) {
-      const e = batchEntries[r.index];
-      if (!e) continue;
-      const suggested = (r.preferredSuggestion || r.suggestions?.[0]?.text || "").trim();
-      if (!suggested) continue;
-      const reason = r.issues?.[0]?.message || r.suggestions?.[0]?.reason || "تحسين الصياغة";
-      const rawType = r.issues?.[0]?.type || "style";
-      out.push({
-        key: e.key,
-        original: e.original,
-        current: e.translation,
-        suggested,
-        reason,
-        type: ZELDA_TYPE_MAP[rawType] || "style",
-      });
-    }
-    return out;
-  };
-
-  const flattenForGrammar = (
-    fatResults: FatResult[],
-    batchEntries: { key: string; original: string; translation: string }[],
-  ): GrammarIssue[] => {
-    const out: GrammarIssue[] = [];
-    for (const r of fatResults) {
-      const e = batchEntries[r.index];
-      if (!e) continue;
-      const suggestion = (r.preferredSuggestion || r.suggestions?.[0]?.text || "").trim();
-      const issue = r.issues?.[0]?.message || "خطأ نحوي/إملائي";
-      if (!suggestion) continue;
-      out.push({
-        key: e.key,
-        original: e.original,
-        translation: e.translation,
-        issue,
-        suggestion,
-        severity: r.issues?.[0]?.severity || "medium",
-      });
-    }
-    return out;
-  };
-
   const analyzeTranslations = async (mode: "enhance" | "grammar") => {
-    const translatedEntries = entries.filter((e) => {
+    const translatedEntries = entries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
       return translations[key]?.trim() && !processedKeysRef.current.has(key);
     });
@@ -149,7 +83,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     for (let i = 0; i < translatedEntries.length; i += BATCH_SIZE) {
       const batch = translatedEntries.slice(i, i + BATCH_SIZE);
       batches.push({
-        textsToAnalyze: batch.map((e) => ({
+        textsToAnalyze: batch.map(e => ({
           key: `${e.msbtFile}:${e.index}`,
           original: e.original,
           translation: translations[`${e.msbtFile}:${e.index}`],
@@ -159,43 +93,63 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
 
     for (let i = 0; i < batches.length; i += PARALLEL_REQUESTS) {
       if (abortRef.current) break;
+
       const chunk = batches.slice(i, i + PARALLEL_REQUESTS);
       const promises = chunk.map(async ({ textsToAnalyze }) => {
         try {
-          const { data, error } = await supabase.functions.invoke("enhance-translations", {
-            body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000) },
+          const { data, error } = await supabase.functions.invoke('enhance-translations', {
+            body: {
+              entries: textsToAnalyze,
+              mode,
+              glossary: glossary?.slice(0, 5000),
+            },
           });
-          if (error) throw error;
+          if (error) {
+            console.error('Edge function error:', error);
+            throw error;
+          }
           if (data?.error) {
+            console.error('AI error response:', data.error);
             toast({ title: data.error, variant: "destructive" });
-            return { batchEntries: textsToAnalyze, fat: [] as FatResult[], count: textsToAnalyze.length };
+            return { data: null, count: textsToAnalyze.length };
           }
           for (const t of textsToAnalyze) processedKeysRef.current.add(t.key);
           setProcessedCount(processedKeysRef.current.size);
-          return { batchEntries: textsToAnalyze, fat: (data?.results || []) as FatResult[], count: textsToAnalyze.length };
+          return { data, count: textsToAnalyze.length };
         } catch (err) {
-          console.warn("Enhance batch error:", err);
-          return { batchEntries: textsToAnalyze, fat: [] as FatResult[], count: textsToAnalyze.length };
+          console.error('Batch error:', err);
+          if (String(err).includes('429')) {
+            toast({ title: "تم تجاوز حد الطلبات، جاري الانتظار...", variant: "destructive" });
+            await new Promise(r => setTimeout(r, 5000));
+            try {
+              const { data } = await supabase.functions.invoke('enhance-translations', {
+                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000) },
+              });
+              for (const t of textsToAnalyze) processedKeysRef.current.add(t.key);
+              setProcessedCount(processedKeysRef.current.size);
+              return { data, count: textsToAnalyze.length };
+            } catch { return { data: null, count: textsToAnalyze.length }; }
+          }
+          return { data: null, count: textsToAnalyze.length };
         }
       });
 
       const results = await Promise.all(promises);
-      for (const { batchEntries, fat, count } of results) {
+
+      for (const { data, count } of results) {
         processed += count;
-        if (mode === "enhance") {
-          const flat = flattenForEnhance(fat, batchEntries);
-          if (flat.length) {
-            allSuggestions = [...allSuggestions, ...flat];
-            setSuggestions((prev) => [...prev, ...flat]);
-          }
+        if (!data) continue;
+        if (mode === "enhance" && data.suggestions) {
+          allSuggestions = [...allSuggestions, ...data.suggestions];
+          setSuggestions(prev => [...prev, ...data.suggestions]);
+        } else if (mode === "grammar" && data.issues) {
+          allIssues = [...allIssues, ...data.issues];
+          setGrammarIssues(prev => [...prev, ...data.issues]);
         } else {
-          const flat = flattenForGrammar(fat, batchEntries);
-          if (flat.length) {
-            allIssues = [...allIssues, ...flat];
-            setGrammarIssues((prev) => [...prev, ...flat]);
-          }
+          console.warn('No suggestions/issues in response:', data);
         }
       }
+
       setProgress({ current: Math.min(processed, translatedEntries.length), total: translatedEntries.length });
     }
 
@@ -213,19 +167,25 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const stopAnalysis = () => { abortRef.current = true; };
 
   const applySuggestion = (item: EnhanceSuggestion | GrammarIssue) => {
-    const newText = "suggested" in item ? item.suggested : item.suggestion;
+    const newText = 'suggested' in item ? item.suggested : item.suggestion;
     onApplySuggestion(item.key, newText);
-    if ("suggested" in item) setSuggestions((prev) => prev.filter((s) => s.key !== item.key));
-    else setGrammarIssues((prev) => prev.filter((g) => g.key !== item.key));
+    if ('suggested' in item) {
+      setSuggestions(prev => prev.filter(s => s.key !== item.key));
+    } else {
+      setGrammarIssues(prev => prev.filter(g => g.key !== item.key));
+    }
   };
 
   const applyAll = () => {
     if (activeTab === "enhance") {
-      const filtered = filterType ? suggestions.filter((s) => s.type === filterType) : suggestions;
+      const filtered = filterType ? suggestions.filter(s => s.type === filterType) : suggestions;
       for (const s of filtered) onApplySuggestion(s.key, s.suggested);
       toast({ title: `✅ تم تطبيق ${filtered.length} اقتراح` });
-      if (filterType) setSuggestions((prev) => prev.filter((s) => s.type !== filterType));
-      else setSuggestions([]);
+      if (filterType) {
+        setSuggestions(prev => prev.filter(s => s.type !== filterType));
+      } else {
+        setSuggestions([]);
+      }
     } else {
       for (const g of grammarIssues) onApplySuggestion(g.key, g.suggestion);
       toast({ title: `✅ تم إصلاح ${grammarIssues.length} خطأ` });
@@ -234,8 +194,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   };
 
   const dismissSuggestion = (key: string) => {
-    setSuggestions((prev) => prev.filter((s) => s.key !== key));
-    setGrammarIssues((prev) => prev.filter((g) => g.key !== key));
+    setSuggestions(prev => prev.filter(s => s.key !== key));
+    setGrammarIssues(prev => prev.filter(g => g.key !== key));
   };
 
   const copyToClipboard = (text: string) => {
@@ -253,11 +213,15 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     punctuation: { label: "ترقيم", icon: <Type className="w-3 h-3" />, color: "bg-pink-500/10 text-pink-600 border-pink-500/20" },
   };
 
-  const filteredSuggestions = filterType ? suggestions.filter((s) => s.type === filterType) : suggestions;
-  const typeCounts: Record<string, number> = {};
-  for (const s of suggestions) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
+  const filteredSuggestions = filterType ? suggestions.filter(s => s.type === filterType) : suggestions;
 
-  const totalTranslated = entries.filter((e) => translations[`${e.msbtFile}:${e.index}`]?.trim()).length;
+  // Type counts for filter badges
+  const typeCounts: Record<string, number> = {};
+  for (const s of suggestions) {
+    typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
+  }
+
+  const totalTranslated = entries.filter(e => translations[`${e.msbtFile}:${e.index}`]?.trim()).length;
   const remaining = totalTranslated - processedCount;
 
   const severityConfig: Record<string, { color: string; label: string }> = {
@@ -273,6 +237,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           <Sparkles className="w-4 h-4 text-primary" />
           تحسين الترجمة بالذكاء الاصطناعي
         </CardTitle>
+        {/* Stats bar */}
         <div className="flex items-center gap-4 mt-2">
           <div className="flex gap-3 text-[11px] text-muted-foreground flex-1">
             <span>إجمالي: <strong className="text-foreground">{totalTranslated}</strong></span>
@@ -287,16 +252,37 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" size="sm" onClick={() => analyzeTranslations("enhance")} disabled={isAnalyzing} className="gap-1.5 h-10">
-            {isAnalyzing && activeTab === "enhance" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => analyzeTranslations("enhance")}
+            disabled={isAnalyzing}
+            className="gap-1.5 h-10"
+          >
+            {isAnalyzing && activeTab === "enhance" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
             <div className="text-right">
               <p className="text-xs font-bold">تحسين الصياغة</p>
               <p className="text-[10px] text-muted-foreground">أسلوب + مصطلحات + دقة</p>
             </div>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => analyzeTranslations("grammar")} disabled={isAnalyzing} className="gap-1.5 h-10">
-            {isAnalyzing && activeTab === "grammar" ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => analyzeTranslations("grammar")}
+            disabled={isAnalyzing}
+            className="gap-1.5 h-10"
+          >
+            {isAnalyzing && activeTab === "grammar" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <BookOpen className="w-4 h-4" />
+            )}
             <div className="text-right">
               <p className="text-xs font-bold">فحص القواعد</p>
               <p className="text-[10px] text-muted-foreground">إملاء + نحو + ترقيم</p>
@@ -304,6 +290,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           </Button>
         </div>
 
+        {/* Controls row */}
         <div className="flex items-center gap-2">
           {isAnalyzing && (
             <Button variant="destructive" size="sm" onClick={stopAnalysis} className="gap-1.5">
@@ -323,6 +310,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           )}
         </div>
 
+        {/* Progress bar */}
         {progress && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -333,17 +321,25 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           </div>
         )}
 
+        {/* Type filter badges (enhance mode) */}
         {suggestions.length > 0 && activeTab === "enhance" && (
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant={filterType === null ? "default" : "outline"} className="cursor-pointer text-[10px]" onClick={() => setFilterType(null)}>
+            <Badge
+              variant={filterType === null ? "default" : "outline"}
+              className="cursor-pointer text-[10px]"
+              onClick={() => setFilterType(null)}
+            >
               الكل ({suggestions.length})
             </Badge>
             {Object.entries(typeCounts).map(([type, count]) => {
               const config = typeConfig[type];
               return (
-                <Badge key={type} variant={filterType === type ? "default" : "outline"}
-                  className={`cursor-pointer text-[10px] gap-1 ${filterType !== type ? config?.color || "" : ""}`}
-                  onClick={() => setFilterType(filterType === type ? null : type)}>
+                <Badge
+                  key={type}
+                  variant={filterType === type ? "default" : "outline"}
+                  className={`cursor-pointer text-[10px] gap-1 ${filterType !== type ? config?.color || '' : ''}`}
+                  onClick={() => setFilterType(filterType === type ? null : type)}
+                >
                   {config?.icon}
                   {config?.label || type} ({count})
                 </Badge>
@@ -352,6 +348,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           </div>
         )}
 
+        {/* Tabs for results */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full h-9">
             <TabsTrigger value="enhance" className="flex-1 text-xs gap-1">
@@ -372,11 +369,15 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                     const config = typeConfig[s.type];
                     return (
                       <div key={`${s.key}-${i}`} className="rounded-xl border bg-card p-4 space-y-3 transition-all hover:shadow-sm">
+                        {/* Header */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0 space-y-1.5">
-                            <Badge variant="outline" className={`text-[10px] gap-1 ${config?.color || ""}`}>
-                              {config?.icon}{config?.label || s.type}
-                            </Badge>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className={`text-[10px] gap-1 ${config?.color || ''}`}>
+                                {config?.icon}
+                                {config?.label || s.type}
+                              </Badge>
+                            </div>
                             <p className="text-xs text-muted-foreground leading-relaxed">{s.reason}</p>
                           </div>
                           <div className="flex gap-1 shrink-0">
@@ -388,6 +389,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                             </Button>
                           </div>
                         </div>
+
+                        {/* Original text */}
                         <div className="bg-muted/30 rounded-lg p-2.5">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[10px] text-muted-foreground">النص الأصلي:</p>
@@ -397,6 +400,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </div>
                           <p className="text-xs text-muted-foreground leading-relaxed" dir="ltr">{s.original}</p>
                         </div>
+
+                        {/* Current vs Suggested */}
                         <div className="grid grid-cols-1 gap-2">
                           <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
                             <p className="text-[10px] text-red-500 mb-1 font-bold">الحالي:</p>
@@ -436,9 +441,10 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                 <div className="space-y-3 pr-1">
                   {grammarIssues.map((g, i) => (
                     <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-4 space-y-3 transition-all hover:shadow-sm">
+                      {/* Header */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <div className="flex items-center gap-2 mb-1.5">
                             <AlertTriangle className="w-4 h-4 text-red-500" />
                             <span className="text-sm font-bold text-red-500">{g.issue}</span>
                             {g.severity && (
@@ -457,10 +463,14 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </Button>
                         </div>
                       </div>
+
+                      {/* Original */}
                       <div className="bg-muted/30 rounded-lg p-2.5">
                         <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
                         <p className="text-xs text-muted-foreground leading-relaxed" dir="ltr">{g.original}</p>
                       </div>
+
+                      {/* Error vs Fix */}
                       <div className="grid grid-cols-1 gap-2">
                         <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
                           <p className="text-[10px] text-red-500 mb-1 font-bold">به خطأ:</p>
