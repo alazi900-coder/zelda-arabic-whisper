@@ -666,17 +666,25 @@ export function useEditorTranslation({
   /**
    * Translate current (possibly filtered) page from glossary only — no TM, no AI.
    */
-  const handleTranslateFromGlossaryOnly = () => {
+  const handleTranslateFromGlossaryOnly = (forceRetranslate = false) => {
     if (!state) return;
     const arabicRegex = ARABIC_REGEX;
+    let skipTranslated = 0;
     const candidates = paginatedEntries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
       if (!e.original.trim()) return false;
       if (arabicRegex.test(e.original)) return false;
       if (isTechnicalText(e.original) && !state.technicalBypass?.has(key)) return false;
-      if (state.translations[key]?.trim()) return false;
+      if (!forceRetranslate && state.translations[key]?.trim()) { skipTranslated++; return false; }
       return true;
     });
+    if (candidates.length === 0 && skipTranslated > 0 && !forceRetranslate) {
+      const confirmed = window.confirm(
+        `✅ الصفحة مترجمة بالكامل (${skipTranslated} نص مترجم).\n\nهل تريد إعادة الترجمة من القاموس؟`
+      );
+      if (confirmed) return handleTranslateFromGlossaryOnly(true);
+      return;
+    }
     if (candidates.length === 0) {
       setTranslateProgress(`✅ لا توجد نصوص غير مترجمة في هذه الصفحة`);
       setTimeout(() => setTranslateProgress(""), 4000);
