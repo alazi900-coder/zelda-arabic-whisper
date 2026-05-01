@@ -623,14 +623,18 @@ export function useEditorState() {
     showLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`, 4000);
   }, [state, setState, setPreviousTranslations, setLastSaved]);
 
-  // === Deep tag scan: scan ALL entries for tag issues and auto-fix locally ===
-  // Returns a detailed report. Uses no AI — fully offline.
+  // === Deep tag scan: scan ALL entries for tag issues and propose fixes (preview before apply) ===
+  // Detects: missing tags, duplicate (extra) tags, and order/identity mismatch — even when total counts are equal.
+  // Uses no AI — fully offline. Pending updates are stored and applied only after the user confirms.
   const [deepScanReport, setDeepScanReport] = useState<{
     scanned: number;
     fixed: number;
     notFixable: number;
     perFile: Record<string, number>;
     examples: { key: string; before: string; after: string }[];
+    pendingUpdates?: Record<string, string>;
+    pendingPrev?: Record<string, string>;
+    manualReview?: { key: string; file: string; label: string; reason: string; current: string }[];
   } | null>(null);
 
   const handleDeepTagScan = useCallback(() => {
@@ -643,8 +647,17 @@ export function useEditorState() {
     const prevTrans: Record<string, string> = {};
     const perFile: Record<string, number> = {};
     const examples: { key: string; before: string; after: string }[] = [];
+    const manualReview: { key: string; file: string; label: string; reason: string; current: string }[] = [];
     let scanned = 0;
     let notFixable = 0;
+
+    // Build a per-tag occurrence count map
+    const tagCounts = (s: string): Map<string, number> => {
+      const m = new Map<string, number>();
+      const tags = s.match(charRegexG) || [];
+      for (const t of tags) m.set(t, (m.get(t) || 0) + 1);
+      return m;
+    };
 
     for (const entry of state.entries) {
       if (!hasTechnicalTags(entry.original)) continue;
@@ -653,15 +666,35 @@ export function useEditorState() {
       if (!trans.trim()) continue;
       scanned++;
 
-      // Detect issues: missing tags, broken tags, or wrong tag count
       const origTags = entry.original.match(charRegexG) || [];
       const transTags = trans.match(charRegexG) || [];
-      const hasIssue = origTags.length !== transTags.length ||
+      const origCounts = tagCounts(entry.original);
+      const transCounts = tagCounts(trans);
+
+      // Detect: count mismatch | identity diff | duplicate tags | missing tags per-occurrence
+      const missing: string[] = [];
+      const extra: string[] = [];
+      for (const [tag, n] of origCounts) {
+        const m = transCounts.get(tag) || 0;
+        if (m < n) missing.push(...Array(n - m).fill(tag));
+      }
+      for (const [tag, n] of transCounts) {
+        const o = origCounts.get(tag) || 0;
+        if (n > o) extra.push(...Array(n - o).fill(tag));
+      }
+      const orderDiff = origTags.length === transTags.length &&
         origTags.some((t, i) => transTags[i] !== t);
+      const hasIssue = missing.length > 0 || extra.length > 0 || orderDiff;
       if (!hasIssue) continue;
 
       const fixed = restoreTagsLocally(entry.original, trans);
-      if (fixed !== trans) {
+      // Verify the fix actually resolves the tag-level issue
+      const fixedCounts = tagCounts(fixed);
+      let stillBroken = false;
+      for (const [tag, n] of origCounts) {
+        if ((fixedCounts.get(tag) || 0) !== n) { stillBroken = true; break; }
+      }
+      if (fixed !== trans && !stillBroken) {
         prevTrans[key] = trans;
         updates[key] = fixed;
         perFile[entry.msbtFile] = (perFile[entry.msbtFile] || 0) + 1;
@@ -670,20 +703,44 @@ export function useEditorState() {
         }
       } else {
         notFixable++;
+        const reasons: string[] = [];
+        if (missing.length > 0) reasons.push(`ينقص ${missing.length} وسم`);
+        if (extra.length > 0) reasons.push(`زائد ${extra.length} وسم (مكرر)`);
+        if (orderDiff) reasons.push('ترتيب الوسوم مختلف');
+        if (manualReview.length < 50) {
+          manualReview.push({
+            key, file: entry.msbtFile, label: entry.label,
+            reason: reasons.join(' • '), current: trans,
+          });
+        }
       }
     }
 
     const fixedCount = Object.keys(updates).length;
-    if (fixedCount > 0) {
-      setPreviousTranslations(old => ({ ...old, ...prevTrans }));
-      setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-    }
-    setDeepScanReport({ scanned, fixed: fixedCount, notFixable, perFile, examples });
+    // Preview mode: do NOT apply until user confirms via setDeepScanReport callback
+    setDeepScanReport({
+      scanned, fixed: fixedCount, notFixable, perFile, examples,
+      pendingUpdates: fixedCount > 0 ? updates : undefined,
+      pendingPrev: fixedCount > 0 ? prevTrans : undefined,
+      manualReview,
+    });
     toast({
-      title: fixedCount > 0 ? "✅ فحص عميق مكتمل" : "ℹ️ لا توجد مشاكل",
-      description: `فُحص ${scanned} نص — أُصلح ${fixedCount}${notFixable > 0 ? ` — تعذّر إصلاح ${notFixable}` : ''}`,
+      title: fixedCount > 0 ? "🔍 الفحص مكتمل — راجع المعاينة" : "ℹ️ لا توجد إصلاحات تلقائية",
+      description: `فُحص ${scanned} نص — ${fixedCount} قابل للإصلاح${notFixable > 0 ? ` — ${notFixable} يحتاج مراجعة يدوية` : ''}`,
     });
   }, [state, setState, setPreviousTranslations]);
+
+  // Apply pending fixes from the deep scan after user confirmation
+  const applyDeepScanFixes = useCallback(() => {
+    setDeepScanReport(prev => {
+      if (!prev?.pendingUpdates || !prev.pendingPrev) return prev;
+      setPreviousTranslations(old => ({ ...old, ...prev.pendingPrev! }));
+      setState(s => s ? { ...s, translations: { ...s.translations, ...prev.pendingUpdates! } } : null);
+      toast({ title: "✅ تم تطبيق الإصلاحات", description: `أُصلح ${Object.keys(prev.pendingUpdates).length} نص` });
+      return { ...prev, pendingUpdates: undefined, pendingPrev: undefined };
+    });
+  }, [setState, setPreviousTranslations]);
+
 
   // === Redistribute tags at word boundaries for already-fixed translations ===
   const handleRedistributeTags = useCallback(() => {
