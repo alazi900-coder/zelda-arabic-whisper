@@ -100,7 +100,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
-  translationMemory, translatorNotes, onUpdateNote,
+  translationMemory, translatorNotes, onUpdateNote, extraToolButtons,
 }) => {
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
