@@ -1,9 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, Sparkles, Brain, Copy, Pencil, X } from "lucide-react";
+import { Loader2, Check, Sparkles, Brain, Copy, Pencil, X, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { utf16leByteLength } from "@/lib/byte-utils";
@@ -15,6 +14,11 @@ interface Suggestion {
   styleLabel: string;
   reason: string;
   confidence: number;
+}
+
+interface CacheEntry {
+  suggestions: Suggestion[];
+  contextNote: string;
 }
 
 interface Props {
@@ -33,6 +37,9 @@ const STYLE_CONFIG: Record<string, { emoji: string; color: string }> = {
   creative: { emoji: "✨", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
 };
 
+// In-memory cache shared across opens (cleared on full page refresh).
+const cache = new Map<string, CacheEntry>();
+
 export default function ContextSuggestPanel({ open, onClose, entry, entries, translations, glossary, onApplyTranslation }: Props) {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -43,10 +50,23 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
 
   const targetKey = `${entry.msbtFile}:${entry.index}`;
 
+  // Load from cache when reopened for the same entry
+  useEffect(() => {
+    if (!open) return;
+    const cached = cache.get(targetKey);
+    if (cached) {
+      setSuggestions(cached.suggestions);
+      setContextNote(cached.contextNote);
+    } else {
+      setSuggestions([]);
+      setContextNote("");
+    }
+    setApplied(null);
+    setEditingIdx(null);
+  }, [open, targetKey]);
+
   const fetchSuggestions = useCallback(async () => {
     setLoading(true);
-    setSuggestions([]);
-    setContextNote("");
     setApplied(null);
     setEditingIdx(null);
 
@@ -83,20 +103,19 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
       if (error) throw error;
       if (!data?.suggestions) throw new Error('No suggestions returned');
 
-      setSuggestions(data.suggestions);
-      setContextNote(data.contextNote || "");
+      const result: CacheEntry = {
+        suggestions: data.suggestions,
+        contextNote: data.contextNote || "",
+      };
+      cache.set(targetKey, result);
+      setSuggestions(result.suggestions);
+      setContextNote(result.contextNote);
     } catch (err: any) {
       toast({ title: "❌ خطأ", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [entry, entries, translations, glossary, targetKey]);
-
-  React.useEffect(() => {
-    if (open && suggestions.length === 0 && !loading) {
-      fetchSuggestions();
-    }
-  }, [open]);
 
   const handleApply = (text: string, label: string) => {
     onApplyTranslation(targetKey, text);
@@ -128,12 +147,18 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setSuggestions([]); } }}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-0" dir="rtl">
-        <DialogHeader className="p-4 pb-2 border-b border-border/50">
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent
+        className="w-[calc(100vw-1rem)] max-w-2xl h-[92dvh] sm:h-[85vh] max-h-[92dvh] flex flex-col p-0 gap-0 overflow-hidden"
+        dir="rtl"
+      >
+        <DialogHeader className="p-4 pb-2 border-b border-border/50 shrink-0">
           <DialogTitle className="text-sm font-display flex items-center gap-2">
             <Brain className="w-4 h-4 text-primary" />
             اقتراحات سياقية بالذكاء الاصطناعي
+            {suggestions.length > 0 && (
+              <Badge variant="secondary" className="text-[10px]">{suggestions.length} اقتراح</Badge>
+            )}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             ترجمات مقترحة تراعي سياق المشهد والحوارات المحيطة
@@ -141,7 +166,7 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
         </DialogHeader>
 
         {/* Target text */}
-        <div className="px-4 py-2 border-b border-border/30 bg-muted/20">
+        <div className="px-4 py-2 border-b border-border/30 bg-muted/20 shrink-0">
           <p className="text-xs text-muted-foreground mb-1">النص الأصلي:</p>
           <p className="text-sm font-body" dir="ltr">{entry.original}</p>
           {translations[targetKey] && (
@@ -162,7 +187,7 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
           )}
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-3">
             {loading ? (
               <div className="text-center py-12 space-y-3">
@@ -170,9 +195,10 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                 <p className="text-sm text-muted-foreground">يتم تحليل السياق وتوليد الاقتراحات...</p>
               </div>
             ) : suggestions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-sm text-muted-foreground">لا توجد اقتراحات بعد</p>
-                <Button variant="outline" size="sm" onClick={fetchSuggestions} className="mt-3">
+              <div className="text-center py-12 space-y-3">
+                <Brain className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm text-muted-foreground">اضغط الزر أدناه لتوليد اقتراحات سياقية بالـ AI</p>
+                <Button variant="default" size="sm" onClick={fetchSuggestions} className="mt-2">
                   <Sparkles className="w-3.5 h-3.5" /> توليد اقتراحات
                 </Button>
               </div>
@@ -211,23 +237,6 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                             {byteInfo.bytes}/{byteInfo.max}B {byteInfo.over ? '⚠️' : '✓'}
                           </Badge>
                         )}
-                        <div className="mr-auto flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleCopy(s.translation)} title="نسخ">
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => startEdit(i, s.translation)} title="تعديل">
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant={isApplied ? "default" : "outline"}
-                            size="sm"
-                            className="h-6 px-2 text-[10px]"
-                            onClick={() => handleApply(s.translation, s.styleLabel)}
-                          >
-                            {isApplied ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                            {isApplied ? 'مُطبّق' : 'تطبيق'}
-                          </Button>
-                        </div>
                       </div>
 
                       {isEditing ? (
@@ -238,7 +247,7 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                             value={editText}
                             onChange={e => setEditText(e.target.value)}
                           />
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             {entry.maxBytes > 0 && (() => {
                               const editInfo = getByteInfo(editText);
                               return (
@@ -248,32 +257,53 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
                               );
                             })()}
                             <div className="mr-auto flex gap-1">
-                              <Button size="sm" className="h-6 px-2 text-[10px]" onClick={() => applyEdit(i)}>
+                              <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => applyEdit(i)}>
                                 <Check className="w-3 h-3" /> حفظ
                               </Button>
-                              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setEditingIdx(null)}>
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setEditingIdx(null)}>
                                 <X className="w-3 h-3" /> إلغاء
                               </Button>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm font-body leading-relaxed mb-1.5" dir="rtl">{s.translation}</p>
+                        <p className="text-sm font-body leading-relaxed mb-2" dir="rtl">{s.translation}</p>
                       )}
-                      <p className="text-[11px] text-muted-foreground">{s.reason}</p>
+                      <p className="text-[11px] text-muted-foreground mb-2">{s.reason}</p>
+
+                      {/* Action buttons — always visible (no opacity tricks for mobile) */}
+                      {!isEditing && (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-border/20">
+                          <Button
+                            variant={isApplied ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 px-2.5 text-[11px] flex-1 sm:flex-initial"
+                            onClick={() => handleApply(s.translation, s.styleLabel)}
+                          >
+                            {isApplied ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                            {isApplied ? 'مُطبّق' : 'تطبيق'}
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => startEdit(i, s.translation)}>
+                            <Pencil className="w-3 h-3" /> تعديل
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleCopy(s.translation)} title="نسخ">
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
                 <div className="text-center pt-2">
-                  <Button variant="ghost" size="sm" onClick={fetchSuggestions} disabled={loading} className="text-xs">
-                    <Sparkles className="w-3 h-3" /> توليد اقتراحات جديدة
+                  <Button variant="outline" size="sm" onClick={fetchSuggestions} disabled={loading} className="text-xs">
+                    <RefreshCw className="w-3 h-3" /> توليد اقتراحات جديدة
                   </Button>
                 </div>
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
