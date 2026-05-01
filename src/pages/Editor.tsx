@@ -50,7 +50,6 @@ import AdvancedReviewPanel from "@/components/editor/AdvancedReviewPanel";
 import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
-import EditorLogsPanel from "@/components/editor/EditorLogsPanel";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 import linkHero from "@/assets/link-hero.png";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -292,69 +291,28 @@ const Editor = () => {
   }, [editor.state?.entries]);
 
   if (!editor.state) {
-    const isError = !!editor.loadError;
-    const isLoading = !isError && editor.loadLogs.length > 0 && editor.loadLogs.length < 3;
     return (
       <div className="min-h-screen py-6 md:py-10 px-3 md:px-4 relative overflow-hidden">
-        {/* Hyrule parchment background */}
         <div
           className="absolute inset-0 pointer-events-none opacity-[0.06] bg-cover bg-center"
           style={{ backgroundImage: `url(${hyruleWorld})` }}
           aria-hidden
         />
-        <div className="relative max-w-3xl mx-auto">
-          <EditorLogsPanel logs={editor.loadLogs} hasError={isError} />
-
-          <div className="text-center space-y-4 mt-4">
-            <img
-              src={linkHero}
-              alt=""
-              className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full ring-2 ring-amber-500/40 object-cover shadow-lg"
-            />
-            {isError ? (
-              <>
-                <h2 className="font-display text-xl sm:text-2xl font-bold">⚠️ تعذّر فتح كنز الترجمات</h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  راجع سجل المغامرة بالأعلى لمعرفة السبب وكيفية الحل. يمكنك تصدير السجل ومشاركته للمساعدة.
-                </p>
-                <div className="flex gap-2 justify-center flex-wrap">
-                  <Button onClick={() => window.location.reload()} className="font-display gap-2">
-                    <RotateCcw className="w-4 h-4" /> إعادة محاولة
-                  </Button>
-                  <Link to="/process">
-                    <Button variant="outline" className="font-display">العودة لصفحة المعالجة</Button>
-                  </Link>
-                </div>
-              </>
-            ) : isLoading ? (
-              <>
-                <h2 className="font-display text-xl sm:text-2xl font-bold">📜 جاري فتح الكنز...</h2>
-                <Loader2 className="w-6 h-6 mx-auto animate-spin text-amber-600" />
-                {/* Skeleton cards while loading */}
-                <div className="space-y-2 mt-6 text-right" dir="rtl">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="rounded-lg border border-border/40 p-4 animate-pulse bg-card/50">
-                      <div className="h-3 bg-muted rounded w-1/3 mb-2" />
-                      <div className="h-4 bg-muted rounded w-full mb-1" />
-                      <div className="h-4 bg-muted rounded w-4/5" />
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="font-display text-xl sm:text-2xl font-bold">🏰 لا توجد بيانات للتحرير</h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  ابدأ مغامرتك برفع ملف اللغة وملف القاموس في صفحة المعالجة لاستخراج النصوص.
-                </p>
-                <Link to="/process">
-                  <Button className="font-display gap-2">
-                    <Upload className="w-4 h-4" /> اذهب لصفحة المعالجة
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
+        <div className="relative max-w-3xl mx-auto text-center space-y-4 mt-4">
+          <img
+            src={linkHero}
+            alt=""
+            className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full ring-2 ring-amber-500/40 object-cover shadow-lg"
+          />
+          <h2 className="font-display text-xl sm:text-2xl font-bold">🏰 لا توجد بيانات للتحرير</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            ابدأ مغامرتك برفع ملف اللغة وملف القاموس في صفحة المعالجة لاستخراج النصوص.
+          </p>
+          <Link to="/process">
+            <Button className="font-display gap-2">
+              <Upload className="w-4 h-4" /> اذهب لصفحة المعالجة
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -393,9 +351,6 @@ const Editor = () => {
             />
           </div>
           <p className="text-sm md:text-base text-muted-foreground mb-4 font-body">عدّل النصوص العربية يدوياً أو استخدم الترجمة التلقائية</p>
-
-          {/* 📜 Adventure log (collapsed by default on success, auto-open on error) */}
-          <EditorLogsPanel logs={editor.loadLogs} hasError={!!editor.loadError} />
 
           {/* Stats + Translate Buttons */}
           <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6">

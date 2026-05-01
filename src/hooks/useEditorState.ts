@@ -70,13 +70,6 @@ export function useEditorState() {
     try { return localStorage.getItem('userGeminiKey') || ''; } catch { return ''; }
   });
 
-  // === 📜 Adventure log: per-stage progress and errors during file load ===
-  const [loadLogs, setLoadLogs] = useState<string[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const appendLog = useCallback((msg: string) => {
-    const time = new Date().toLocaleTimeString("ar-SA");
-    setLoadLogs(prev => [...prev, `[${time}] ${msg}`]);
-  }, []);
   const setUserGeminiKey = useCallback((key: string) => {
     _setUserGeminiKey(key);
     try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch (e) { console.warn('localStorage userGeminiKey:', e); }
@@ -163,7 +156,8 @@ export function useEditorState() {
     setFixPreview, isMixedLanguage, activeGlossary, showTimedMessage,
   });
   const { fixingMixed, handleFixAllStuckCharacters, handleFixAllPunctuation, handleFixAllBrackets,
-    handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza, handleFixMixedLanguage } = fixes;
+    handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza,
+    handleFixAllLonelyLam, handleFixAllTaaHaa, handleFixMixedLanguage } = fixes;
 
   const cloud = useEditorCloud({ state, setState, user, setCloudSyncing, setCloudStatus });
   const { handleCloudSave, handleCloudLoad } = cloud;
@@ -263,13 +257,8 @@ export function useEditorState() {
   useEffect(() => {
     const loadState = async () => {
       try {
-        appendLog("🗡️ بدء فتح كنز الترجمات...");
-        appendLog("📦 قراءة التخزين المحلي (IndexedDB)...");
       const stored = await idbGet<EditorState>("editorState");
       if (stored) {
-        const fileSet = new Set<string>();
-        for (const e of stored.entries) fileSet.add(e.msbtFile);
-        appendLog(`📜 استُخرج ${stored.entries.length} نصاً من ${fileSet.size} ملف MSBT`);
         const validKeys = new Set(stored.entries.map(e => `${e.msbtFile}:${e.index}`));
         const autoTranslations = detectPreTranslated({
           entries: stored.entries,
@@ -282,8 +271,6 @@ export function useEditorState() {
         }
         const mergedTranslations = { ...autoTranslations, ...filteredStored };
         const autoCount = Object.keys(autoTranslations).length;
-        const savedCount = Object.keys(filteredStored).length;
-        appendLog(`💎 ترجمات محفوظة: ${savedCount} | معرّب مسبقاً: ${autoCount}`);
         const protectedSet = new Set<string>(
           Array.isArray(stored.protectedEntries) ? (stored.protectedEntries as string[]) : []
         );
@@ -303,9 +290,6 @@ export function useEditorState() {
             }
           }
         }
-        if (protectedSet.size > 0) {
-          appendLog(`🛡️ حماية ${protectedSet.size} نصاً عربياً موجوداً`);
-        }
         // === One-time auto-repair: fix ONLY entries where translation has FEWER tags than original ===
         let autoFixCount = 0;
         for (const entry of stored.entries) {
@@ -323,10 +307,6 @@ export function useEditorState() {
             }
           }
         }
-        if (autoFixCount > 0) {
-          appendLog(`⚔️ إصلاح تلقائي: ${autoFixCount} رمزاً تالفاً`);
-        }
-
         const finalState: EditorState = {
           entries: stored.entries,
           translations: mergedTranslations,
@@ -345,9 +325,6 @@ export function useEditorState() {
           });
         }
 
-        const totalTranslated = Object.values(mergedTranslations).filter(v => v && v.trim()).length;
-        const pct = stored.entries.length > 0 ? Math.round((totalTranslated / stored.entries.length) * 100) : 0;
-        appendLog(`🏰 جاهز للمغامرة! المُترجَم: ${totalTranslated}/${stored.entries.length} (${pct}%)`);
         const parts: string[] = [];
         if (autoCount > 0) parts.push(`اكتشاف ${autoCount} نص معرّب مسبقاً`);
         if (autoFixCount > 0) parts.push(`🔧 إصلاح تلقائي لـ ${autoFixCount} رمز تالف`);
@@ -390,7 +367,6 @@ export function useEditorState() {
           "LayoutMsg/ButtonGuide.msbt:0": "\uFFF9\uE000\uFFFA تأكيد",
           "LayoutMsg/ButtonGuide.msbt:1": "\uFFF9\uE001\uFFFA إلغاء",
         };
-        appendLog("ℹ️ لا توجد بيانات محفوظة — تحميل بيانات تجريبية");
         setState({
           entries: demoEntries,
           translations: demoTranslations,
@@ -400,26 +376,11 @@ export function useEditorState() {
         setLastSaved("تم تحميل بيانات تجريبية");
       }
       } catch (err) {
-        const name = err instanceof Error ? err.name : 'Error';
-        const msg = err instanceof Error ? err.message : String(err);
-        appendLog(`⚠️ فشل التحميل`);
-        appendLog(`📋 السبب: ${name}`);
-        appendLog(`💬 التفاصيل: ${msg}`);
-        // Heuristic guidance based on error type
-        if (/quota/i.test(msg) || /quota/i.test(name)) {
-          appendLog(`💡 الحل: امسح بيانات الموقع من إعدادات المتصفح، أو احذف المشاريع القديمة`);
-        } else if (/indexeddb|database|version/i.test(msg) || /version/i.test(name)) {
-          appendLog(`💡 الحل: قد تكون قاعدة البيانات تالفة — جرّب نافذة خاصة (incognito) ثم أعد رفع الملف`);
-        } else if (/network|fetch|timeout/i.test(msg)) {
-          appendLog(`💡 الحل: تحقق من اتصال الإنترنت ثم حدّث الصفحة`);
-        } else {
-          appendLog(`💡 الحل: حدّث الصفحة، وإن استمر الخطأ صدّر السجل وأرسله للمطوّر`);
-        }
-        setLoadError(`${name}: ${msg}`);
+        console.warn('Editor state load failed:', err);
       }
     };
     loadState();
-  }, [detectPreTranslated, appendLog]);
+  }, [detectPreTranslated]);
 
   const saveToIDB = useCallback(async (editorState: EditorState) => {
     await idbSet("editorState", {
@@ -1137,8 +1098,6 @@ export function useEditorState() {
 
 
   return {
-    // 📜 Adventure log
-    loadLogs, loadError,
     state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
@@ -1184,6 +1143,7 @@ export function useEditorState() {
     applyQuickAlternative, setQuickAlternatives,
     handleFixAllStuckCharacters, handleFixMixedLanguage, handleFixAllPunctuation, handleFixAllBrackets,
     handleFixAllDiacritics, handleFixAllSpaces, handleFixAllHamza,
+    handleFixAllLonelyLam, handleFixAllTaaHaa,
     ...fileIO,
     handleImproveTranslations, handleApplyImprovement, handleApplyAllImprovements,
     handleImproveSingleTranslation,
