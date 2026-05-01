@@ -290,7 +290,7 @@ export default function EngineComparePanel({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
