@@ -196,7 +196,7 @@ export default function EngineComparePanel({
           )}
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-3">
             {results.map((r) => {
               const isEditing = editingEngine === r.engine;
