@@ -7,6 +7,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -378,15 +382,34 @@ const Editor = () => {
             <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.setShowRetranslateConfirm(true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6 border-accent/30 text-accent hover:text-accent">
               <RotateCcw className="w-4 h-4" /> إعادة ترجمة الصفحة 🔄
             </Button>
-            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, false)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
-              <FileText className="w-4 h-4" /> ترجمة الصفحة 📄
-            </Button>
-            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslatePage(false, true)} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
-              <Sparkles className="w-4 h-4" /> من الذاكرة فقط 🧠
-            </Button>
-            <Button size={isMobile ? "default" : "lg"} variant="outline" onClick={() => editor.handleTranslateFromGlossaryOnly()} disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
-              <BookMarked className="w-4 h-4" /> من القاموس 📖
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size={isMobile ? "default" : "lg"} variant="outline" disabled={editor.translating} className="font-display font-bold px-4 md:px-6">
+                  <FileText className="w-4 h-4" /> ترجمة الصفحة 📄
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-card border-border z-50">
+                <DropdownMenuLabel className="text-xs">الصفحة الحالية</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => editor.handleTranslatePage(false, false)} disabled={editor.translating}>
+                  <Sparkles className="w-4 h-4" /> ترجمة بـ AI 🤖
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => editor.handleTranslatePage(false, true)} disabled={editor.translating}>
+                  <Sparkles className="w-4 h-4" /> من الذاكرة فقط 🧠
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => editor.handleTranslateFromGlossaryOnly()} disabled={editor.translating}>
+                  <BookMarked className="w-4 h-4" /> من القاموس فقط 📖
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs">جميع الصفحات</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => {
+                  if (editor.isFilterActive) setShowFilterTranslateConfirm(true);
+                  else editor.handleAutoTranslate();
+                }} disabled={editor.translating}>
+                  <Sparkles className="w-4 h-4" /> ترجمة جميع غير المترجمة 🌍
+                  {editor.isFilterActive ? ` (${editor.filterLabel})` : ''}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Page Translation Compare Dialog (ported from Xenoblade) */}

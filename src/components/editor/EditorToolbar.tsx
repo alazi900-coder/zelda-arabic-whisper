@@ -49,7 +49,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={editor.handleExportCSV}><FileDown className="w-4 h-4" /> تصدير CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleImportCSV}><Upload className="w-4 h-4" /> استيراد CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
-            <DropdownMenuSeparator />
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="font-body text-xs"><BookOpen className="w-3 h-3" /> القواميس</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-card border-border z-50">
             <DropdownMenuItem onClick={editor.handleImportGlossary}><BookOpen className="w-4 h-4" /> تحميل قاموس مخصص</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs">📖 القواميس المدمجة</DropdownMenuLabel>
