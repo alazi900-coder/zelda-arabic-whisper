@@ -36,6 +36,8 @@ interface EntryCardProps {
   translationMemory?: { key: string; translation: string }[];
   translatorNotes?: Record<string, string>;
   onUpdateNote?: (key: string, note: string) => void;
+  /** Extra context-tool buttons (scene, TM, screenshots, AI hints, engine compare) rendered next to the auto-translate button */
+  extraToolButtons?: { onClick: () => void; icon: string; title: string; cls?: string }[];
 }
 
 // Cached parsed glossary to avoid re-parsing on every entry
