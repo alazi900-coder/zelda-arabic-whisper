@@ -29,6 +29,7 @@ interface UseEditorTranslationProps {
   myMemoryCharsUsed: number;
   setMyMemoryCharsUsed: React.Dispatch<React.SetStateAction<number>>;
   myMemoryDailyLimit: number;
+  customPromptInstructions?: string;
 }
 
 export function useEditorTranslation({
@@ -36,6 +37,7 @@ export function useEditorTranslation({
   filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
   geminiModel,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
+  customPromptInstructions,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function useEditorTranslation({
           myMemoryEmail: myMemoryEmail || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
+          extraInstructions: customPromptInstructions || undefined,
         }),
       });
       if (!response.ok) {
@@ -258,6 +261,7 @@ export function useEditorTranslation({
               myMemoryEmail: myMemoryEmail || undefined,
               category: batchCategory,
               filePath: batchFilePath,
+              extraInstructions: customPromptInstructions || undefined,
             }),
           });
           if (response.status === 429 && retries < maxRetries) {
@@ -383,6 +387,7 @@ export function useEditorTranslation({
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batch[0].msbtFile,
+            extraInstructions: customPromptInstructions || undefined,
           }),
         });
         if (!response.ok) {
@@ -437,7 +442,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -606,6 +611,7 @@ export function useEditorTranslation({
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batchFilePath,
+            extraInstructions: customPromptInstructions || undefined,
           }),
         });
         if (!response.ok) {

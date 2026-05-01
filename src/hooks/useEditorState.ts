@@ -74,6 +74,18 @@ export function useEditorState() {
     _setUserGeminiKey(key);
     try { if (key) localStorage.setItem('userGeminiKey', key); else localStorage.removeItem('userGeminiKey'); } catch (e) { console.warn('localStorage userGeminiKey:', e); }
   }, []);
+
+  // === Custom prompt instructions (appended to every AI translation prompt) ===
+  const [customPromptInstructions, _setCustomPromptInstructions] = useState<string>(() => {
+    try { return localStorage.getItem('customPromptInstructions') || ''; } catch { return ''; }
+  });
+  const setCustomPromptInstructions = useCallback((v: string) => {
+    _setCustomPromptInstructions(v);
+    try {
+      if (v.trim()) localStorage.setItem('customPromptInstructions', v);
+      else localStorage.removeItem('customPromptInstructions');
+    } catch (e) { console.warn('localStorage customPromptInstructions:', e); }
+  }, []);
   const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude'>(() => {
     try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude') || 'lovable'; } catch { return 'lovable'; }
   });
@@ -535,6 +547,7 @@ export function useEditorState() {
     filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
     geminiModel,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
+    customPromptInstructions,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1121,6 +1134,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
+    customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
 

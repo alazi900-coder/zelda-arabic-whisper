@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, myMemoryEmail, category, filePath, labels } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       category?: string;
       filePath?: string;
       labels?: string[];
+      extraInstructions?: string;
     };
 
     if (!entries || entries.length === 0) {
@@ -213,7 +214,13 @@ ${relevant.join('\n')}`;
     // Build system prompt based on category
     const systemPrompt = buildSystemPrompt(category || 'other');
 
-    const userPrompt = `ترجم النصوص التالية من الإنجليزية إلى العربية. أعد فقط مصفوفة JSON تحتوي على النصوص المترجمة بنفس الترتيب، بدون أي شرح أو تعليقات.${metadataSection}${glossarySection}${contextSection}
+    // User-supplied extra instructions (from prompt presets or free-form input)
+    const trimmedExtra = (extraInstructions || '').trim().slice(0, 4000);
+    const extraInstructionsSection = trimmedExtra
+      ? `\n\nتعليمات إضافية من المستخدم (أولوية عليا — تتقدّم على الإعدادات الافتراضية إذا تعارضت):\n${trimmedExtra}`
+      : '';
+
+    const userPrompt = `ترجم النصوص التالية من الإنجليزية إلى العربية. أعد فقط مصفوفة JSON تحتوي على النصوص المترجمة بنفس الترتيب، بدون أي شرح أو تعليقات.${metadataSection}${glossarySection}${contextSection}${extraInstructionsSection}
 
 النصوص للترجمة:
 ${textsBlock}`;

@@ -53,6 +53,8 @@ import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import TranslationAIEnhancePanel from "@/components/editor/TranslationAIEnhancePanel";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PROMPT_PRESETS } from "@/components/editor/promptPresets";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 import linkHero from "@/assets/link-hero.png";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -512,6 +514,54 @@ const Editor = () => {
                   </div>
                 </div>
               )}
+
+              {/* Custom prompt instructions (PR4) */}
+              <div className="flex flex-col gap-2 border-t border-border/50 pt-3 mt-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-display font-bold">📝 تعليمات إضافية للمترجم</span>
+                    <span className="text-xs text-muted-foreground font-body">
+                      نصّ حرّ يُلحَق بكل برومت AI. اختر قالباً جاهزاً لزيلدا أو اكتب نصّك.
+                    </span>
+                  </div>
+                  {editor.customPromptInstructions && (
+                    <Button variant="ghost" size="sm" onClick={() => editor.setCustomPromptInstructions('')} className="text-xs text-destructive shrink-0 h-7">
+                      مسح
+                    </Button>
+                  )}
+                </div>
+                <Select
+                  value=""
+                  onValueChange={(id) => {
+                    const preset = PROMPT_PRESETS.find(p => p.id === id);
+                    if (preset) editor.setCustomPromptInstructions(preset.text);
+                  }}
+                >
+                  <SelectTrigger className="w-full text-sm font-body" dir="rtl">
+                    <SelectValue placeholder="اختر قالباً جاهزاً..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROMPT_PRESETS.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="font-body">
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <textarea
+                  value={editor.customPromptInstructions}
+                  onChange={(e) => editor.setCustomPromptInstructions(e.target.value.slice(0, 4000))}
+                  placeholder="اكتب أي قواعد إضافية تريد أن يلتزم بها المترجم (مثلاً: أبقِ أسماء Sheikah بالإنجليزية، استخدم نبرة فصحى للأميرة Zelda، إلخ)..."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded bg-background border border-border font-body text-sm resize-y"
+                  dir="rtl"
+                />
+                {editor.customPromptInstructions && (
+                  <p className="text-[10px] text-muted-foreground font-body text-left" dir="ltr">
+                    {editor.customPromptInstructions.length} / 4000
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
