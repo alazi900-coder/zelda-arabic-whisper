@@ -1192,8 +1192,13 @@ const Editor = () => {
                 )}
               </div>
             )}
-            <DialogFooter>
-              <Button onClick={() => editor.setDeepScanReport(null)}>إغلاق</Button>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button variant="ghost" onClick={() => editor.setDeepScanReport(null)}>إغلاق</Button>
+              {editor.deepScanReport?.pendingUpdates && (
+                <Button onClick={() => { editor.applyDeepScanFixes(); }} className="gap-1">
+                  ✅ تطبيق الإصلاحات ({Object.keys(editor.deepScanReport.pendingUpdates).length})
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
