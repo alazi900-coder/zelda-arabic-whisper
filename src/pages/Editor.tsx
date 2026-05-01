@@ -1178,7 +1178,7 @@ const Editor = () => {
                 )}
                 {editor.deepScanReport.examples.length > 0 && (
                   <div>
-                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📝 أمثلة على الإصلاحات (أول 5):</h4>
+                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📝 معاينة الإصلاحات (أول 5):</h4>
                     <div className="space-y-2">
                       {editor.deepScanReport.examples.map((ex, i) => (
                         <div key={i} className="text-xs p-2 rounded border border-border/40 bg-muted/10 space-y-1">
@@ -1188,6 +1188,23 @@ const Editor = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {editor.deepScanReport.manualReview && editor.deepScanReport.manualReview.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2 text-xs text-amber-600">⚠️ يحتاج مراجعة يدوية ({editor.deepScanReport.manualReview.length}):</h4>
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      {editor.deepScanReport.manualReview.map((m, i) => (
+                        <div key={i} className="text-xs p-2 rounded border border-amber-500/30 bg-amber-500/5 space-y-0.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground text-[10px] truncate" dir="ltr">{m.file} • {m.label}</span>
+                            <span className="text-amber-600 text-[10px] shrink-0">{m.reason}</span>
+                          </div>
+                          <div className="text-foreground/80 truncate" dir="rtl">{m.current}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">افتح كل نص في المحرر لإصلاحه يدوياً (تكرار وسوم أو ترتيب يحتاج قرار بشري).</p>
                   </div>
                 )}
               </div>
