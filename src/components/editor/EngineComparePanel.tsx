@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X } from "lucide-react";
+import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { utf16leByteLength } from "@/lib/byte-utils";
 import type { ExtractedEntry } from "./types";
@@ -18,6 +18,9 @@ interface EngineResult {
   loading: boolean;
   error?: string;
 }
+
+// In-memory cache (cleared on full page refresh).
+const cache = new Map<string, EngineResult[]>();
 
 interface Props {
   open: boolean;
@@ -43,6 +46,19 @@ export default function EngineComparePanel({
   const [editText, setEditText] = useState("");
 
   const targetKey = `${entry.msbtFile}:${entry.index}`;
+
+  // Load cached results when reopening for the same entry
+  useEffect(() => {
+    if (!open) return;
+    const cached = cache.get(targetKey);
+    if (cached) {
+      setResults(cached);
+    } else {
+      setResults([]);
+    }
+    setApplied(null);
+    setEditingEngine(null);
+  }, [open, targetKey]);
 
   const getByteInfo = (text: string) => {
     const bytes = utf16leByteLength(text);
@@ -128,13 +144,12 @@ export default function EngineComparePanel({
 
     await Promise.allSettled(promises);
     setFetching(false);
+    // Cache the final results
+    setResults(prev => {
+      cache.set(targetKey, prev);
+      return prev;
+    });
   }, [entry, entries, translations, glossary, userGeminiKey, myMemoryEmail, targetKey]);
-
-  React.useEffect(() => {
-    if (open && results.length === 0 && !fetching) {
-      fetchAllEngines();
-    }
-  }, [open]);
 
   const handleApply = (text: string, label: string, engine: string) => {
     if (!text) return;
@@ -159,7 +174,7 @@ export default function EngineComparePanel({
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setResults([]); } }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent
         className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] max-h-[92dvh] flex flex-col p-0 gap-0 overflow-hidden"
         dir="rtl"
@@ -198,6 +213,15 @@ export default function EngineComparePanel({
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-3">
+            {results.length === 0 && !fetching && (
+              <div className="text-center py-12 space-y-3">
+                <Columns className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm text-muted-foreground">اضغط الزر أدناه لجلب الترجمات من المحركات المختلفة</p>
+                <Button variant="default" size="sm" onClick={fetchAllEngines} className="mt-2">
+                  <Sparkles className="w-3.5 h-3.5" /> بدء المقارنة
+                </Button>
+              </div>
+            )}
             {results.map((r) => {
               const isEditing = editingEngine === r.engine;
               const byteInfo = r.translation ? getByteInfo(r.translation) : null;
@@ -217,25 +241,6 @@ export default function EngineComparePanel({
                       <Badge variant="outline" className={`text-[9px] h-5 px-1.5 ${byteInfo.over ? 'border-destructive/50 text-destructive bg-destructive/5' : ''}`}>
                         {byteInfo.bytes}/{byteInfo.max}B {byteInfo.over ? '⚠️' : '✓'}
                       </Badge>
-                    )}
-                    {!r.loading && r.translation && (
-                      <div className="mr-auto flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleCopy(r.translation)} title="نسخ">
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => startEdit(r.engine, r.translation)} title="تعديل">
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant={applied === r.engine ? "default" : "outline"}
-                          size="sm"
-                          className="h-7 px-3 text-xs"
-                          onClick={() => handleApply(r.translation, r.label, r.engine)}
-                        >
-                          {applied === r.engine ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                          {applied === r.engine ? 'مُطبّق' : 'تطبيق'}
-                        </Button>
-                      </div>
                     )}
                   </div>
 
@@ -274,9 +279,30 @@ export default function EngineComparePanel({
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm font-body leading-relaxed" dir="rtl">
-                      {r.translation || <span className="text-muted-foreground">لم يتم الحصول على ترجمة</span>}
-                    </p>
+                    <>
+                      <p className="text-sm font-body leading-relaxed mb-2" dir="rtl">
+                        {r.translation || <span className="text-muted-foreground">لم يتم الحصول على ترجمة</span>}
+                      </p>
+                      {r.translation && (
+                        <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-border/20">
+                          <Button
+                            variant={applied === r.engine ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 px-2.5 text-[11px] flex-1 sm:flex-initial"
+                            onClick={() => handleApply(r.translation, r.label, r.engine)}
+                          >
+                            {applied === r.engine ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                            {applied === r.engine ? 'مُطبّق' : 'تطبيق'}
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 px-2 text-[11px]" onClick={() => startEdit(r.engine, r.translation)}>
+                            <Pencil className="w-3 h-3" /> تعديل
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleCopy(r.translation)} title="نسخ">
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
@@ -284,8 +310,8 @@ export default function EngineComparePanel({
 
             {!fetching && results.length > 0 && (
               <div className="text-center pt-2">
-                <Button variant="ghost" size="sm" onClick={() => { setResults([]); fetchAllEngines(); }} className="text-xs">
-                  <Sparkles className="w-3 h-3" /> إعادة المقارنة
+                <Button variant="outline" size="sm" onClick={() => { cache.delete(targetKey); setResults([]); fetchAllEngines(); }} className="text-xs">
+                  <RefreshCw className="w-3 h-3" /> إعادة المقارنة
                 </Button>
               </div>
             )}
