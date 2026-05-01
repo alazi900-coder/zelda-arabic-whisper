@@ -161,7 +161,7 @@ export default function EngineComparePanel({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setResults([]); } }}>
       <DialogContent
-        className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden"
+        className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] max-h-[92dvh] flex flex-col p-0 gap-0 overflow-hidden"
         dir="rtl"
       >
         <DialogHeader className="p-4 pb-2 border-b border-border/50">
