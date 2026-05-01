@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
