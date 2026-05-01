@@ -1136,6 +1136,68 @@ const Editor = () => {
             translations={editor.state.translations} glossary={editor.state.glossary} isFilterActive={editor.isFilterActive}
             filteredEntries={editor.filteredEntries} onApplyImprovements={handleSmartImproveApply} />
         )}
+
+        {/* Deep Tag Scan Report Dialog */}
+        <Dialog open={!!editor.deepScanReport} onOpenChange={(v) => !v && editor.setDeepScanReport(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">🔍 تقرير الفحص العميق للوسوم</DialogTitle>
+              <DialogDescription>
+                نتائج الفحص الآلي لجميع النصوص المُترجمة التي تحتوي على وسوم تقنية.
+              </DialogDescription>
+            </DialogHeader>
+            {editor.deepScanReport && (
+              <div className="overflow-y-auto space-y-4 text-sm">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-3 rounded bg-muted/30 border border-border/40">
+                    <div className="text-2xl font-bold text-foreground">{editor.deepScanReport.scanned}</div>
+                    <div className="text-xs text-muted-foreground">نص مفحوص</div>
+                  </div>
+                  <div className="p-3 rounded bg-primary/10 border border-primary/30">
+                    <div className="text-2xl font-bold text-primary">{editor.deepScanReport.fixed}</div>
+                    <div className="text-xs text-muted-foreground">أُصلح تلقائياً</div>
+                  </div>
+                  <div className="p-3 rounded bg-destructive/10 border border-destructive/30">
+                    <div className="text-2xl font-bold text-destructive">{editor.deepScanReport.notFixable}</div>
+                    <div className="text-xs text-muted-foreground">يحتاج يدوياً</div>
+                  </div>
+                </div>
+                {Object.keys(editor.deepScanReport.perFile).length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📁 إصلاحات حسب الملف:</h4>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {Object.entries(editor.deepScanReport.perFile)
+                        .sort(([, a], [, b]) => (b as number) - (a as number))
+                        .map(([file, count]) => (
+                          <div key={file} className="flex justify-between items-center text-xs px-2 py-1 rounded bg-muted/20">
+                            <span className="truncate" dir="ltr">{file}</span>
+                            <span className="text-primary font-mono shrink-0">{count}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                {editor.deepScanReport.examples.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2 text-xs text-muted-foreground">📝 أمثلة على الإصلاحات (أول 5):</h4>
+                    <div className="space-y-2">
+                      {editor.deepScanReport.examples.map((ex, i) => (
+                        <div key={i} className="text-xs p-2 rounded border border-border/40 bg-muted/10 space-y-1">
+                          <div className="text-muted-foreground text-[10px]">{ex.key}</div>
+                          <div><span className="text-destructive">قبل:</span> <span dir="rtl">{ex.before}</span></div>
+                          <div><span className="text-primary">بعد:</span> <span dir="rtl">{ex.after}</span></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => editor.setDeepScanReport(null)}>إغلاق</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
