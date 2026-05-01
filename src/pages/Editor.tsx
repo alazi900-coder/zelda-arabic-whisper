@@ -54,6 +54,7 @@ import AdvancedReviewPanel from "@/components/editor/AdvancedReviewPanel";
 import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
+import TranslationAIEnhancePanel from "@/components/editor/TranslationAIEnhancePanel";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 import linkHero from "@/assets/link-hero.png";
 import { classifyDifficulty, DIFFICULTY_CONFIG, useDifficultyStats } from "@/hooks/useDifficultyClassifier";
@@ -76,6 +77,7 @@ const Editor = () => {
   const [showSceneContext, setShowSceneContext] = React.useState(false);
   const [sceneContextEntry, setSceneContextEntry] = React.useState<any>(null);
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
+  const [showAIEnhance, setShowAIEnhance] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
   const [showTMPanel, setShowTMPanel] = React.useState(false);
@@ -832,6 +834,7 @@ const Editor = () => {
             isMobile={isMobile} editor={editor} untranslatedCount={untranslatedCount}
             polishing={polishing} handlePolishArabic={handlePolishArabic}
             setShowInconsistencies={setShowInconsistencies} setShowSmartImprove={setShowSmartImprove}
+            setShowAIEnhance={setShowAIEnhance}
             enhancing={enhancing} handleEnhanceWithContext={handleEnhanceWithContext}
           />
 
@@ -1112,6 +1115,29 @@ const Editor = () => {
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}
             translations={editor.state.translations} glossary={editor.state.glossary} isFilterActive={editor.isFilterActive}
             filteredEntries={editor.filteredEntries} onApplyImprovements={handleSmartImproveApply} />
+        )}
+        {editor.state && (
+          <Dialog open={showAIEnhance} onOpenChange={setShowAIEnhance}>
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0" dir="rtl">
+              <DialogHeader className="p-4 border-b">
+                <DialogTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  تحسين الصياغة + فحص القواعد بالذكاء الاصطناعي
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  راجع كل الترجمات الموجودة دفعة واحدة. اقتراحات بالأسلوب والمصطلحات + كشف أخطاء إملائية ونحوية.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-4">
+                <TranslationAIEnhancePanel
+                  entries={editor.isFilterActive ? editor.filteredEntries : editor.state.entries}
+                  translations={editor.state.translations}
+                  glossary={editor.activeGlossary}
+                  onApplySuggestion={editor.updateTranslation}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Deep Tag Scan Report Dialog */}
