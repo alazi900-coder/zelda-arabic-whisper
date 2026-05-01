@@ -18,14 +18,13 @@ interface EditorToolbarProps {
   handlePolishArabic: () => void;
   setShowInconsistencies: (v: boolean) => void;
   setShowSmartImprove: (v: boolean) => void;
-  setShowAIEnhance?: (v: boolean) => void;
   enhancing?: boolean;
   handleEnhanceWithContext?: () => void;
 }
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   isMobile, editor, untranslatedCount, polishing,
-  handlePolishArabic, setShowInconsistencies, setShowSmartImprove, setShowAIEnhance,
+  handlePolishArabic, setShowInconsistencies, setShowSmartImprove,
   enhancing, handleEnhanceWithContext,
 }) => {
   if (isMobile) {
@@ -142,11 +141,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0}>
               <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
             </DropdownMenuItem>
-            {setShowAIEnhance && (
-              <DropdownMenuItem onClick={() => setShowAIEnhance(true)} disabled={editor.translatedCount === 0}>
-                <Sparkles className="w-4 h-4" /> تحسين الصياغة + فحص القواعد ✨
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -234,11 +228,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <Button variant="outline" onClick={() => setShowSmartImprove(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30">
         <Layers className="w-4 h-4" /> تحسين جماعي ذكي 🧠
       </Button>
-      {setShowAIEnhance && (
-        <Button variant="outline" onClick={() => setShowAIEnhance(true)} disabled={editor.translatedCount === 0} className="font-body border-primary/30 text-primary hover:text-primary">
-          <Sparkles className="w-4 h-4" /> تحسين الصياغة + فحص القواعد ✨
-        </Button>
-      )}
       <Button variant="outline" onClick={editor.handleSmartReview} disabled={editor.advancedBusy === 'smart-review' || editor.translatedCount === 0} className="font-body border-primary/30">
         {editor.advancedBusy === 'smart-review' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>🔬</>} مراجعة ذكية عميقة
       </Button>
