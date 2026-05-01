@@ -1171,7 +1171,7 @@ export function useEditorState() {
     updateTranslation, handleUndoTranslation,
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
-    handleDeepTagScan, deepScanReport, setDeepScanReport,
+    handleDeepTagScan, deepScanReport, setDeepScanReport, applyDeepScanFixes,
     handleTranslatePage, handleTranslateFromGlossaryOnly,
     showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,
     applyPageTranslations, discardPageTranslations,
