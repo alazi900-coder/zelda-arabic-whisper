@@ -160,7 +160,10 @@ export default function EngineComparePanel({
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); setResults([]); } }}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0" dir="rtl">
+      <DialogContent
+        className="w-[calc(100vw-1rem)] max-w-3xl h-[92dvh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden"
+        dir="rtl"
+      >
         <DialogHeader className="p-4 pb-2 border-b border-border/50">
           <DialogTitle className="text-sm font-display flex items-center gap-2">
             <Columns className="w-4 h-4 text-primary" />

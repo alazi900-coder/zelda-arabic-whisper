@@ -90,6 +90,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0}>
               {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح النصوص المختلطة 🌐
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleDeepTagScan} className="text-amber-600 focus:text-amber-700">
+              🔍 فحص عميق للوسوم وإصلاحها
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs">🆕 أدوات متقدمة</DropdownMenuLabel>
             <DropdownMenuItem onClick={handlePolishArabic} disabled={polishing || editor.translatedCount === 0}>
