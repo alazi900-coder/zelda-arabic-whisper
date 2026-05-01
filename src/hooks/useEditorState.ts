@@ -623,6 +623,68 @@ export function useEditorState() {
     showLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`, 4000);
   }, [state, setState, setPreviousTranslations, setLastSaved]);
 
+  // === Deep tag scan: scan ALL entries for tag issues and auto-fix locally ===
+  // Returns a detailed report. Uses no AI — fully offline.
+  const [deepScanReport, setDeepScanReport] = useState<{
+    scanned: number;
+    fixed: number;
+    notFixable: number;
+    perFile: Record<string, number>;
+    examples: { key: string; before: string; after: string }[];
+  } | null>(null);
+
+  const handleDeepTagScan = useCallback(() => {
+    if (!state) {
+      toast({ title: "⚠️ لا توجد بيانات", description: "حمّل ملفاً أولاً", variant: "destructive" });
+      return;
+    }
+    const charRegexG = /[\uFFF9-\uFFFC\uE000-\uF8FF]/g;
+    const updates: Record<string, string> = {};
+    const prevTrans: Record<string, string> = {};
+    const perFile: Record<string, number> = {};
+    const examples: { key: string; before: string; after: string }[] = [];
+    let scanned = 0;
+    let notFixable = 0;
+
+    for (const entry of state.entries) {
+      if (!hasTechnicalTags(entry.original)) continue;
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const trans = state.translations[key] || '';
+      if (!trans.trim()) continue;
+      scanned++;
+
+      // Detect issues: missing tags, broken tags, or wrong tag count
+      const origTags = entry.original.match(charRegexG) || [];
+      const transTags = trans.match(charRegexG) || [];
+      const hasIssue = origTags.length !== transTags.length ||
+        origTags.some((t, i) => transTags[i] !== t);
+      if (!hasIssue) continue;
+
+      const fixed = restoreTagsLocally(entry.original, trans);
+      if (fixed !== trans) {
+        prevTrans[key] = trans;
+        updates[key] = fixed;
+        perFile[entry.msbtFile] = (perFile[entry.msbtFile] || 0) + 1;
+        if (examples.length < 5) {
+          examples.push({ key, before: trans, after: fixed });
+        }
+      } else {
+        notFixable++;
+      }
+    }
+
+    const fixedCount = Object.keys(updates).length;
+    if (fixedCount > 0) {
+      setPreviousTranslations(old => ({ ...old, ...prevTrans }));
+      setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    }
+    setDeepScanReport({ scanned, fixed: fixedCount, notFixable, perFile, examples });
+    toast({
+      title: fixedCount > 0 ? "✅ فحص عميق مكتمل" : "ℹ️ لا توجد مشاكل",
+      description: `فُحص ${scanned} نص — أُصلح ${fixedCount}${notFixable > 0 ? ` — تعذّر إصلاح ${notFixable}` : ''}`,
+    });
+  }, [state, setState, setPreviousTranslations]);
+
   // === Redistribute tags at word boundaries for already-fixed translations ===
   const handleRedistributeTags = useCallback(() => {
     if (!state) return;
