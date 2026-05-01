@@ -951,21 +951,19 @@ const Editor = () => {
                     prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
                     next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
                   };
+                  const extraToolButtons = [
+                    { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openTMPanel(entry), icon: "🧠", title: "ذاكرة الترجمة", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openScreenshots(entry), icon: "📸", title: "سياق بالصور", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                    { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
+                    { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
+                  ];
                   return (
                     <div key={key} className="relative">
                       <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
                           {diffConf.emoji} {diffConf.label}
                         </span>
-                        {[
-                          { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openTMPanel(entry), icon: "🧠", title: "ذاكرة الترجمة", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openScreenshots(entry), icon: "📸", title: "سياق بالصور", cls: "bg-muted/50 text-muted-foreground hover:bg-muted" },
-                          { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
-                          { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
-                        ].map((btn, i) => (
-                          <button key={i} onClick={btn.onClick} className={`text-[9px] px-1 py-0.5 rounded ${btn.cls} transition-colors`} title={btn.title}>{btn.icon}</button>
-                        ))}
                       </div>
                       <EntryCard entry={entry} translation={editor.state?.translations[key] || ''} glossary={editor.state?.glossary}
                         adjacentContext={adjacentContext} isProtected={editor.state?.protectedEntries?.has(key) || false}
@@ -976,7 +974,8 @@ const Editor = () => {
                         updateTranslation={editor.updateTranslation} handleTranslateSingle={editor.handleTranslateSingle}
                         handleImproveSingleTranslation={editor.handleImproveSingleTranslation} handleUndoTranslation={editor.handleUndoTranslation}
                         handleFixReversed={editor.handleFixReversed} handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote} />
+                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote}
+                        extraToolButtons={extraToolButtons} />
                     </div>
                   );
                 })
