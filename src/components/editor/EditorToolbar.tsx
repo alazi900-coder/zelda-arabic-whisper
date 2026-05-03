@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -7,7 +8,7 @@ import {
 import {
   Download, Upload, FileText, FileDown, BookOpen, Cloud, CloudUpload,
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
-  Layers, MoreVertical, Save, Lightbulb,
+  Layers, MoreVertical, Save, Lightbulb, FlaskConical,
 } from "lucide-react";
 
 interface EditorToolbarProps {
@@ -30,6 +31,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   if (isMobile) {
     return (
       <div className="flex flex-wrap gap-2 mb-4">
+        <Button asChild variant="outline" size="sm" className="font-body text-xs border-emerald-500/40 text-emerald-700 hover:text-emerald-800">
+          <Link to="/quality-lab"><FlaskConical className="w-3 h-3" /> المختبر</Link>
+        </Button>
         <Button variant="outline" size="sm" onClick={editor.handleCloudSave} disabled={!editor.user || editor.cloudSyncing} className="font-body text-xs">
           {editor.cloudSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
         </Button>
@@ -149,6 +153,9 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   return (
     <div className="mb-6 flex gap-3 flex-wrap">
+      <Button asChild variant="outline" className="font-body border-emerald-500/40 text-emerald-700 hover:text-emerald-800" title="افتح الترجمات الحاليّة في مختبر جودة الترجمة">
+        <Link to="/quality-lab"><FlaskConical className="w-4 h-4" /> افتح في المختبر</Link>
+      </Button>
       <Button variant="outline" onClick={editor.handleExportTranslations} className="font-body"><Download className="w-4 h-4" /> تصدير JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

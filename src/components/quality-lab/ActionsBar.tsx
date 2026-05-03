@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Sparkles, Download, FileJson } from "lucide-react";
+import { Sparkles, Download, FileJson, ArrowLeftToLine } from "lucide-react";
 
 interface ActionsBarProps {
   totalIssues: number;
@@ -8,6 +8,12 @@ interface ActionsBarProps {
   onApplySafe: () => void;
   onExportIssues: () => void;
   onExportEntries: () => void;
+  /** Optional: when provided, shows a "Send to Editor" action. */
+  onSendToEditor?: () => void;
+  /** Whether the send-to-editor action is currently allowed. */
+  canSendToEditor?: boolean;
+  /** Whether the send-to-editor action is in progress. */
+  sendingToEditor?: boolean;
 }
 
 const ActionsBar = ({
@@ -17,6 +23,9 @@ const ActionsBar = ({
   onApplySafe,
   onExportIssues,
   onExportEntries,
+  onSendToEditor,
+  canSendToEditor = true,
+  sendingToEditor = false,
 }: ActionsBarProps) => {
   if (!hasReport) return null;
 
@@ -39,6 +48,20 @@ const ActionsBar = ({
           <Sparkles className="w-3.5 h-3.5" />
           <span>طبّق الآمن ({safeFixCount})</span>
         </Button>
+
+        {onSendToEditor && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onSendToEditor}
+            disabled={!canSendToEditor || sendingToEditor}
+            className="gap-1.5 shrink-0 bg-emerald-600 hover:bg-emerald-600/90 text-white"
+            title="ادمج الترجمات الحالية في جلسة المحرّر المحفوظة"
+          >
+            <ArrowLeftToLine className="w-3.5 h-3.5" />
+            <span>{sendingToEditor ? "جارٍ الإرسال…" : "أرسل إلى المحرّر"}</span>
+          </Button>
+        )}
 
         <Button
           variant="outline"
