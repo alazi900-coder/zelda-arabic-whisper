@@ -15,6 +15,7 @@ import Editor from "./pages/Editor";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
+import QualityLab from "./pages/QualityLab";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const AnimatedRoutes = () => {
         <Route path="/editor" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في المحرر"><Editor /></ErrorBoundary></PageTransition>} />
         <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
         <Route path="/install" element={<PageTransition><Install /></PageTransition>} />
+        <Route path="/quality-lab" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في مختبر الجودة"><QualityLab /></ErrorBoundary></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
