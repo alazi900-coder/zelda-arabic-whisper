@@ -140,6 +140,9 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   // ----- Scope filter for which entries are sent to AI -----
   const scopeFilter = useCallback((e: ExtractedEntry, t: string): boolean => {
     if (!t?.trim()) return false;
+    const key = `${e.msbtFile}:${e.index}`;
+    // Skip already-reviewed entries (approved or dismissed) if translation unchanged
+    if (isReviewedSync(reviewMem, key, t)) return false;
     switch (scope) {
       case "short": return t.length < 30;
       case "long": return t.length >= 100;
@@ -147,7 +150,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       case "no_arabic": return !/[\u0600-\u06FF]/.test(t);
       default: return true;
     }
-  }, [scope]);
+  }, [scope, reviewMem]);
 
   const analyzeTranslations = async (mode: "enhance" | "grammar") => {
     const translatedEntries = entries.filter(e => {
