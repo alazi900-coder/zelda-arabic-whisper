@@ -10,6 +10,15 @@ import FilterBar, {
   type FixFilter,
 } from "@/components/quality-lab/FilterBar";
 import ActionsBar from "@/components/quality-lab/ActionsBar";
+import GlossaryEditor from "@/components/quality-lab/GlossaryEditor";
+import { Button } from "@/components/ui/button";
+import { BookOpen } from "lucide-react";
+import {
+  loadCustomDicts,
+  EMPTY_DICTS,
+  dictsTotalCount,
+  type CustomDicts,
+} from "@/lib/glossary-store";
 import {
   scanUnified,
   type LocalIssue,
@@ -71,6 +80,9 @@ const QualityLab = () => {
   const [report, setReport] = useState<UnifiedScanReport | null>(null);
   const [shown, setShown] = useState(PAGE_SIZE);
 
+  const [customDicts, setCustomDicts] = useState<CustomDicts>(EMPTY_DICTS);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
   const [rule, setRule] = useState<string>("all");
@@ -84,19 +96,30 @@ const QualityLab = () => {
     };
   }, []);
 
+  useEffect(() => {
+    void loadCustomDicts().then(setCustomDicts);
+  }, []);
+
   const scrollDown = () => {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const runScan = (loaded: ScanEntry[]) => {
+  const runScan = (loaded: ScanEntry[], dicts: CustomDicts = customDicts) => {
     setEntries(loaded);
-    const next = scanUnified(loaded);
+    const next = scanUnified(loaded, dicts);
     setReport(next);
     setShown(PAGE_SIZE);
     setSearch("");
     setSeverity("all");
     setRule("all");
     setFix("all");
+  };
+
+  const onGlossarySaved = (next: CustomDicts) => {
+    setCustomDicts(next);
+    if (entries.length > 0) {
+      runScan(entries, next);
+    }
   };
 
   const onLoaded = (loaded: ScanEntry[]) => {
@@ -236,6 +259,27 @@ const QualityLab = () => {
       <div ref={inputRef}>
         <InputZone onLoaded={onLoaded} />
       </div>
+
+      <section className="px-4 max-w-6xl mx-auto w-full pb-2">
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setGlossaryOpen(true)}
+            className="gap-1.5"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>القاموس المخصّص ({dictsTotalCount(customDicts)})</span>
+          </Button>
+        </div>
+      </section>
+
+      <GlossaryEditor
+        open={glossaryOpen}
+        onOpenChange={setGlossaryOpen}
+        onSaved={onGlossarySaved}
+      />
 
       {report && (
         <div ref={reportRef} className="pb-16">
