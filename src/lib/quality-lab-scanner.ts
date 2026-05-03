@@ -7,6 +7,8 @@ import {
   type IssueType,
 } from "./local-enhance-scanner";
 import { scanAllWithDictionaries, type DictScanInput } from "./dict-scanner";
+import { scanAllWithCustomDicts, type CustomDictInput } from "./custom-dict-scanner";
+import type { CustomDicts } from "./glossary-store";
 
 export type { LocalIssue, LocalScanInput, IssueSeverity, IssueType };
 export { isGrammarIssue };
@@ -31,11 +33,15 @@ export interface UnifiedScanReport {
 /**
  * Unified Quality Lab scanner. Combines:
  *  1. The structural 17-rule scanner from local-enhance-scanner.
- *  2. Dictionary-based detection (hamza, taa marbutah — PR4; more later).
+ *  2. Built-in dictionary-based detection (hamza, taa marbutah, gaming, proper-nouns, digits).
+ *  3. Optional user-managed custom dictionaries layered on top of the built-ins.
  *
  * Issues are deduplicated by (key | rule | issue label).
  */
-export function scanUnified(inputs: UnifiedScanInput[]): UnifiedScanReport {
+export function scanUnified(
+  inputs: UnifiedScanInput[],
+  customDicts?: CustomDicts,
+): UnifiedScanReport {
   const ruleIssues = scanAllLocally(inputs);
   const dictInputs: DictScanInput[] = inputs.map(({ key, original, translation }) => ({
     key,
@@ -43,10 +49,12 @@ export function scanUnified(inputs: UnifiedScanInput[]): UnifiedScanReport {
     translation,
   }));
   const dictIssues = scanAllWithDictionaries(dictInputs);
+  const customInputs: CustomDictInput[] = dictInputs;
+  const customIssues = customDicts ? scanAllWithCustomDicts(customInputs, customDicts) : [];
 
   const seen = new Set<string>();
   const issues: LocalIssue[] = [];
-  for (const it of [...ruleIssues, ...dictIssues]) {
+  for (const it of [...ruleIssues, ...dictIssues, ...customIssues]) {
     const sig = `${it.key}|${it.rule}|${it.issue}`;
     if (seen.has(sig)) continue;
     seen.add(sig);
