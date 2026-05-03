@@ -13,10 +13,15 @@ import {
 import {
   Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
   RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight, Filter, Download,
-  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2,
+  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2, WifiOff, Wifi, Upload,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  loadReviewMemory, markReviewed, exportReviewMemory,
+  importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
+} from "@/lib/enhance-memory";
+import { scanAllLocally } from "@/lib/local-enhance-scanner";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
