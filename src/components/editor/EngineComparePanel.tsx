@@ -189,30 +189,30 @@ export default function EngineComparePanel({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Source text */}
-        <div className="px-4 py-2 border-b border-border/30 bg-muted/20">
-          <p className="text-xs text-muted-foreground mb-1">النص الأصلي:</p>
-          <p className="text-sm font-body" dir="ltr">{entry.original}</p>
-          {translations[targetKey] && (
-            <>
-              <p className="text-xs text-muted-foreground mt-2 mb-1">الترجمة الحالية:</p>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-body text-primary/80 flex-1" dir="rtl">{translations[targetKey]}</p>
-                {entry.maxBytes > 0 && (() => {
-                  const info = getByteInfo(translations[targetKey]);
-                  return (
-                    <Badge variant="outline" className={`text-[9px] h-4 px-1.5 shrink-0 ${info.over ? 'border-destructive/50 text-destructive' : ''}`}>
-                      {info.bytes}/{info.max}B
-                    </Badge>
-                  );
-                })()}
-              </div>
-            </>
-          )}
-        </div>
-
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-3">
+            <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
+                <p className="text-sm font-body break-words whitespace-pre-wrap" dir="ltr">{entry.original}</p>
+              </div>
+              {translations[targetKey] && (
+                <div className="pt-2 border-t border-border/20">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-[10px] text-muted-foreground">الترجمة الحالية:</p>
+                    {entry.maxBytes > 0 && (() => {
+                      const info = getByteInfo(translations[targetKey]);
+                      return (
+                        <Badge variant="outline" className={`text-[9px] h-4 px-1.5 shrink-0 ${info.over ? 'border-destructive/50 text-destructive' : ''}`}>
+                          {info.bytes}/{info.max}B
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-sm font-body text-primary/80 break-words whitespace-pre-wrap" dir="rtl">{translations[targetKey]}</p>
+                </div>
+              )}
+            </div>
             {results.length === 0 && !fetching && (
               <div className="text-center py-12 space-y-3">
                 <Columns className="w-12 h-12 text-muted-foreground/30 mx-auto" />

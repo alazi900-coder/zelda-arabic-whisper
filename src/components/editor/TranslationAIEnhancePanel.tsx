@@ -13,10 +13,15 @@ import {
 import {
   Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
   RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight, Filter, Download,
-  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2,
+  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2, WifiOff, Wifi, Upload,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  loadReviewMemory, markReviewed, exportReviewMemory,
+  importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
+} from "@/lib/enhance-memory";
+import { scanAllLocally } from "@/lib/local-enhance-scanner";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -115,8 +120,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [appliedHistory, setAppliedHistory] = useState<{ key: string; previous: string; applied: string; ts: number }[]>([]);
 
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [reviewMem, setReviewMem] = useState<ReviewMemory>({ approved: {}, dismissed: {} });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const abortRef = useRef(false);
   const processedKeysRef = useRef<Set<string>>(new Set());
+
+  // Load persistent review memory once
+  React.useEffect(() => {
+    loadReviewMemory().then(setReviewMem);
+  }, []);
 
   const resetProcessedKeys = useCallback(() => {
     processedKeysRef.current = new Set();
@@ -126,6 +140,9 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   // ----- Scope filter for which entries are sent to AI -----
   const scopeFilter = useCallback((e: ExtractedEntry, t: string): boolean => {
     if (!t?.trim()) return false;
+    const key = `${e.msbtFile}:${e.index}`;
+    // Skip already-reviewed entries (approved or dismissed) if translation unchanged
+    if (isReviewedSync(reviewMem, key, t)) return false;
     switch (scope) {
       case "short": return t.length < 30;
       case "long": return t.length >= 100;
@@ -133,7 +150,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       case "no_arabic": return !/[\u0600-\u06FF]/.test(t);
       default: return true;
     }
-  }, [scope]);
+  }, [scope, reviewMem]);
 
   const analyzeTranslations = async (mode: "enhance" | "grammar") => {
     const translatedEntries = entries.filter(e => {
@@ -150,6 +167,33 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     setIsAnalyzing(true);
     setActiveTab(mode);
     abortRef.current = false;
+
+    // ----- OFFLINE local scan -----
+    if (offlineMode) {
+      const inputs = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: translations[`${e.msbtFile}:${e.index}`],
+      }));
+      const issues = scanAllLocally(inputs);
+      for (const t of inputs) processedKeysRef.current.add(t.key);
+      setProcessedCount(processedKeysRef.current.size);
+      if (mode === "grammar") {
+        setGrammarIssues(prev => [...prev, ...issues.map(i => ({
+          key: i.key, original: i.original, translation: i.translation,
+          issue: i.issue, suggestion: i.suggestion, severity: i.severity,
+        }))]);
+      } else {
+        setSuggestions(prev => [...prev, ...issues.map(i => ({
+          key: i.key, original: i.original, current: i.translation,
+          suggested: i.suggestion, reason: i.issue, type: i.type as any,
+        }))]);
+      }
+      setIsAnalyzing(false);
+      toast({ title: `🔌 فحص محلي: ${issues.length} مشكلة` });
+      return;
+    }
+
     setProgress({ current: 0, total: translatedEntries.length });
 
     let allSuggestions: EnhanceSuggestion[] = [];
@@ -241,6 +285,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     const previous = translations[key] || "";
     onApplySuggestion(key, newText);
     setAppliedHistory(prev => [{ key, previous, applied: newText, ts: Date.now() }, ...prev].slice(0, 50));
+    markReviewed(key, newText, "approved").then(() => loadReviewMemory().then(setReviewMem));
   };
 
   const applySuggestion = (item: EnhanceSuggestion | GrammarIssue) => {
@@ -294,8 +339,40 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   };
 
   const dismissSuggestion = (key: string) => {
+    const cur = translations[key];
+    if (cur) markReviewed(key, cur, "dismissed").then(() => loadReviewMemory().then(setReviewMem));
     setSuggestions(prev => prev.filter(s => s.key !== key));
     setGrammarIssues(prev => prev.filter(g => g.key !== key));
+  };
+
+  const handleExportMemory = async () => {
+    const json = await exportReviewMemory();
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `enhance-memory-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "📥 تم تصدير سجل المراجعات" });
+  };
+
+  const handleImportMemory = async (file: File) => {
+    try {
+      const text = await file.text();
+      const n = await importReviewMemory(text, "merge");
+      const m = await loadReviewMemory();
+      setReviewMem(m);
+      toast({ title: `✅ تم استيراد ${n} مراجعة` });
+    } catch (e: any) {
+      toast({ title: "❌ فشل الاستيراد", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleClearMemory = async () => {
+    await clearReviewMemory();
+    setReviewMem({ approved: {}, dismissed: {} });
+    toast({ title: "🗑️ تم مسح سجل المراجعات" });
   };
 
   const dismissAll = () => {
@@ -441,6 +518,32 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               <input type="checkbox" checked={showDiff} onChange={(e) => setShowDiff(e.target.checked)} className="accent-primary" />
               عرض الفروقات (Diff) ملوّنة
             </label>
+
+            <label className="flex items-center gap-2 text-xs cursor-pointer pt-1 border-t pt-2">
+              <input type="checkbox" checked={offlineMode} onChange={(e) => setOfflineMode(e.target.checked)} className="accent-primary" />
+              {offlineMode ? <WifiOff className="w-3.5 h-3.5 text-amber-500" /> : <Wifi className="w-3.5 h-3.5 text-green-500" />}
+              <span>وضع الفحص بدون إنترنت (محرك محلي ذكي)</span>
+            </label>
+
+            <div className="border-t pt-2 space-y-1.5">
+              <p className="text-[10px] text-muted-foreground">
+                سجل المراجعات: <strong>{Object.keys(reviewMem.approved).length}</strong> معتمدة، <strong>{Object.keys(reviewMem.dismissed).length}</strong> متجاهلة
+                <span className="block">— يتم تخطيها تلقائياً في الفحوص القادمة طالما الترجمة لم تتغير</span>
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={handleExportMemory}>
+                  <Download className="w-3 h-3" /> تصدير السجل
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-3 h-3" /> استيراد
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 text-destructive" onClick={handleClearMemory}>
+                  <Trash2 className="w-3 h-3" /> مسح
+                </Button>
+                <input ref={fileInputRef} type="file" accept="application/json" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportMemory(f); e.target.value = ""; }} />
+              </div>
+            </div>
           </div>
         )}
       </CardHeader>
