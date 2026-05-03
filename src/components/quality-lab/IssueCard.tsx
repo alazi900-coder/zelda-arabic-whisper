@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Save,
   CornerUpLeft,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import DiffView from "@/components/quality-lab/DiffView";
@@ -25,6 +26,12 @@ interface IssueCardProps {
   onDismiss?: (issueId: string) => void;
   /** Stable identifier for the issue used by dismiss. */
   issueId?: string;
+  /**
+   * Hide «this pattern» (rule + issue text) across the whole report and
+   * remember that decision globally so it doesn’t appear again next session.
+   * If omitted, the per-pattern dismiss button is hidden.
+   */
+  onDismissPattern?: (rule: string, issueText: string) => void;
 }
 
 const severityClass = (s: LocalIssue["severity"]) => {
@@ -36,7 +43,14 @@ const severityClass = (s: LocalIssue["severity"]) => {
 const severityLabel = (s: LocalIssue["severity"]) =>
   s === "high" ? "حرج" : s === "medium" ? "متوسّط" : "بسيط";
 
-const IssueCard = ({ issue, ruleLabel, onApply, onDismiss, issueId }: IssueCardProps) => {
+const IssueCard = ({
+  issue,
+  ruleLabel,
+  onApply,
+  onDismiss,
+  issueId,
+  onDismissPattern,
+}: IssueCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(issue.suggestion || issue.translation);
@@ -76,6 +90,15 @@ const IssueCard = ({ issue, ruleLabel, onApply, onDismiss, issueId }: IssueCardP
     if (!onDismiss || !issueId) return;
     onDismiss(issueId);
   };
+
+  const dismissPattern = () => {
+    if (!onDismissPattern) return;
+    onDismissPattern(issue.rule, issue.issue);
+    if (onDismiss && issueId) onDismiss(issueId);
+    toast.success("تمّ تجاهل هذا النمط في المستقبل");
+  };
+
+  const canDismissPattern = Boolean(onDismissPattern);
 
   return (
     <article className="relative rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors">
@@ -118,13 +141,25 @@ const IssueCard = ({ issue, ruleLabel, onApply, onDismiss, issueId }: IssueCardP
                 <Check className="w-4 h-4" />
               </Button>
             )}
+            {canDismissPattern && !editing && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-400"
+                onClick={dismissPattern}
+                title="تجاهل النمط نفسه في كلّ المشاكل المماثلة (دائماً)"
+                aria-label="تجاهل النمط"
+              >
+                <EyeOff className="w-4 h-4" />
+              </Button>
+            )}
             {canDismiss && !editing && (
               <Button
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 onClick={dismiss}
-                title="تجاهل"
+                title="تجاهل هنا فقط"
                 aria-label="تجاهل"
               >
                 <X className="w-4 h-4" />
