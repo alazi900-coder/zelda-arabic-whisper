@@ -11,14 +11,14 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Link } from "react-router-dom";
+import { Link, useBlocker } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
   Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
-  FileText, BookMarked, Pin,
+  FileText, BookMarked, Pin, Lock, LockOpen,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -109,6 +109,8 @@ const Editor = () => {
   const [enhancing, setEnhancing] = React.useState(false);
 
   const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
+
+  const blocker = useBlocker(editor.isPageLocked);
 
   const handleEnhanceWithContext = React.useCallback(async () => {
     if (!editor.state || enhancing) return;
@@ -313,6 +315,12 @@ const Editor = () => {
 
           <div className="flex items-center gap-2 mb-1 md:mb-2 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-display font-bold">محرر الترجمة ✍️</h1>
+            <Button variant={editor.isPageLocked ? "default" : "outline"} size="sm"
+              onClick={() => editor.setIsPageLocked(!editor.isPageLocked)}
+              className={`font-body text-xs h-7 px-2 ${editor.isPageLocked ? 'bg-red-600 hover:bg-red-700 text-white' : ''}`}
+              title={editor.isPageLocked ? 'إلغاء قفل الصفحة — السماح بالخروج والتحديث' : 'قفل الصفحة — منع الخروج أو التحديث بالغلط'}>
+              {editor.isPageLocked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />} {editor.isPageLocked ? 'مقفل 🔒' : 'قفل'}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowFeatureTour(true)} className="font-body text-xs h-7 px-2">❓ دليل الأدوات</Button>
             <Button variant="outline" size="sm" onClick={() => setShowKeyboardShortcuts(true)} className="font-body text-xs h-7 px-2">⌨️ اختصارات</Button>
             {difficultyStats.totalMinutes > 0 && !isMobile && (
@@ -1069,6 +1077,22 @@ const Editor = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
               <AlertDialogAction onClick={() => { setShowFilterTranslateConfirm(false); editor.handleAutoTranslate(); }}>ترجمة {untranslatedCount} نص 🚀</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={blocker.state === 'blocked'}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>🔒 الصفحة مقفلة</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                <p>قفل الصفحة مفعّل — هل أنت متأكد من الخروج من المحرر؟</p>
+                <p className="text-xs text-muted-foreground mt-2">قد تفقد تغييرات غير محفوظة.</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => blocker.reset?.()}>البقاء في المحرر</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { editor.setIsPageLocked(false); blocker.proceed?.(); }} className="bg-destructive hover:bg-destructive/90">خروج</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
