@@ -13,8 +13,17 @@ import ActionsBar from "@/components/quality-lab/ActionsBar";
 import GlossaryEditor from "@/components/quality-lab/GlossaryEditor";
 import AIScanPanel from "@/components/quality-lab/AIScanPanel";
 import GoogleRoundTripPanel from "@/components/quality-lab/GoogleRoundTripPanel";
+import TMPanel from "@/components/quality-lab/TMPanel";
+import { scanWithTM } from "@/lib/tm-scanner";
+import {
+  issuesToCSV,
+  reportToMarkdown,
+  reportToHTML,
+  downloadString,
+  openHTMLForPrint,
+} from "@/lib/reports";
 import { Button } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Database, FileText, Printer, FileSpreadsheet } from "lucide-react";
 import {
   loadCustomDicts,
   EMPTY_DICTS,
@@ -75,6 +84,7 @@ const RULE_LABELS: Record<string, string> = {
   ai_grammar: "فحص بالنموذج",
   ai_enhance: "تحسين أسلوبي",
   google_low_similarity: "تباين دلالي (Google)",
+  tm_mismatch: "تباين مع ذاكرة الترجمة",
 };
 
 const QualityLab = () => {
@@ -87,6 +97,7 @@ const QualityLab = () => {
 
   const [customDicts, setCustomDicts] = useState<CustomDicts>(EMPTY_DICTS);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const [tmOpen, setTmOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
@@ -109,9 +120,29 @@ const QualityLab = () => {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const runScan = (loaded: ScanEntry[], dicts: CustomDicts = customDicts) => {
+  const runScan = async (loaded: ScanEntry[], dicts: CustomDicts = customDicts) => {
     setEntries(loaded);
     const next = scanUnified(loaded, dicts);
+    // Augment with TM mismatches (asynchronous because of IndexedDB lookups).
+    const tmIssues = await scanWithTM(
+      loaded.map((e) => ({ key: e.key, original: e.original, translation: e.translation })),
+    );
+    if (tmIssues.length > 0) {
+      const seen = new Set<string>(
+        next.issues.map((it) => `${it.key}|${it.rule}|${it.issue}`),
+      );
+      for (const it of tmIssues) {
+        const sig = `${it.key}|${it.rule}|${it.issue}`;
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        next.issues.push(it);
+        next.byRule[it.rule] = (next.byRule[it.rule] ?? 0) + 1;
+        next.byType[it.type] = (next.byType[it.type] ?? 0) + 1;
+        next.bySeverity[it.severity] = (next.bySeverity[it.severity] ?? 0) + 1;
+        next.total += 1;
+      }
+      next.affectedEntries = new Set(next.issues.map((i) => i.key)).size;
+    }
     setReport(next);
     setShown(PAGE_SIZE);
     setSearch("");
@@ -123,7 +154,13 @@ const QualityLab = () => {
   const onGlossarySaved = (next: CustomDicts) => {
     setCustomDicts(next);
     if (entries.length > 0) {
-      runScan(entries, next);
+      void runScan(entries, next);
+    }
+  };
+
+  const onTMChanged = () => {
+    if (entries.length > 0) {
+      void runScan(entries);
     }
   };
 
@@ -170,7 +207,7 @@ const QualityLab = () => {
   }, [report]);
 
   const onLoaded = (loaded: ScanEntry[]) => {
-    runScan(loaded);
+    void runScan(loaded);
     setTimeout(() => {
       reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -260,7 +297,7 @@ const QualityLab = () => {
     const updated = entries.map((e) =>
       byKey.has(e.key) ? { ...e, translation: byKey.get(e.key)! } : e,
     );
-    runScan(updated);
+    void runScan(updated);
     toast.success(`طُبّق ${safeFixCount} إصلاح على ${fixedKeys.size} إدخال`);
     setTimeout(() => {
       reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -296,6 +333,26 @@ const QualityLab = () => {
   const exportEntries = () => {
     if (entries.length === 0) return;
     downloadJson(`translations-${Date.now()}.json`, entries);
+  };
+
+  const exportCSV = () => {
+    if (!report || filteredIssues.length === 0) return;
+    const csv = issuesToCSV(filteredIssues, RULE_LABELS);
+    downloadString(`quality-report-${Date.now()}.csv`, csv, "text/csv;charset=utf-8");
+    toast.success(`صُدّر ${filteredIssues.length} سجل (CSV)`);
+  };
+
+  const exportMarkdown = () => {
+    if (!report || filteredIssues.length === 0) return;
+    const md = reportToMarkdown(report, filteredIssues, RULE_LABELS);
+    downloadString(`quality-report-${Date.now()}.md`, md, "text/markdown;charset=utf-8");
+    toast.success("صُدّر تقرير Markdown");
+  };
+
+  const printPDF = () => {
+    if (!report || filteredIssues.length === 0) return;
+    const html = reportToHTML(report, filteredIssues, RULE_LABELS);
+    openHTMLForPrint(html);
     toast.success("تم تصدير الترجمات");
   };
 
@@ -308,7 +365,17 @@ const QualityLab = () => {
       </div>
 
       <section className="px-4 max-w-6xl mx-auto w-full pb-2">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setTmOpen(true)}
+            className="gap-1.5"
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>ذاكرة الترجمة</span>
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -326,6 +393,22 @@ const QualityLab = () => {
         open={glossaryOpen}
         onOpenChange={setGlossaryOpen}
         onSaved={onGlossarySaved}
+      />
+
+      <TMPanel
+        open={tmOpen}
+        onOpenChange={setTmOpen}
+        onChanged={onTMChanged}
+        pendingApprovals={
+          report
+            ? entries
+                .filter((e) => {
+                  const hasIssue = report.issues.some((it) => it.key === e.key);
+                  return !hasIssue && e.translation.trim().length > 0;
+                })
+                .map((e) => ({ key: e.key, original: e.original, translation: e.translation }))
+            : undefined
+        }
       />
 
       {entries.length > 0 && report && (
@@ -360,6 +443,44 @@ const QualityLab = () => {
             onExportIssues={exportIssues}
             onExportEntries={exportEntries}
           />
+
+          <section className="px-4 max-w-6xl mx-auto w-full pb-3">
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={exportCSV}
+                disabled={filteredIssues.length === 0}
+                className="gap-1.5"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>CSV</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={exportMarkdown}
+                disabled={filteredIssues.length === 0}
+                className="gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Markdown</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={printPDF}
+                disabled={filteredIssues.length === 0}
+                className="gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>PDF (طباعة)</span>
+              </Button>
+            </div>
+          </section>
 
           {sortedIssues.length > 0 && (
             <FilterBar
