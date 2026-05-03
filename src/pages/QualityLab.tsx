@@ -44,6 +44,8 @@ const PAGE_SIZE = 30;
 const SAFE_RULES = new Set<string>([
   "dict_hamza",
   "dict_ta_marbutah",
+  "dict_alif_maksura",
+  "dict_common_typo",
   "double_space",
   "leading_trailing",
   "space_before_punct",
@@ -51,6 +53,10 @@ const SAFE_RULES = new Set<string>([
   "no_space_after_punct",
   "tab_chars",
   "repeated_word",
+  "tatweel",
+  "ellipsis_chars",
+  "nbsp",
+  "missing_arabic_question",
 ]);
 
 const RULE_LABELS: Record<string, string> = {
@@ -85,6 +91,15 @@ const RULE_LABELS: Record<string, string> = {
   ai_enhance: "تحسين أسلوبي",
   google_low_similarity: "تباين دلالي (Google)",
   tm_mismatch: "تباين مع ذاكرة الترجمة",
+  dict_alif_maksura: "ألف مقصورة/ياء",
+  dict_common_typo: "خطأ إملائي شائع",
+  tatweel: "كشيدة (تطويل)",
+  mixed_digits: "أرقام مختلطة",
+  missing_arabic_question: "علامة استفهام عربية",
+  ellipsis_chars: "ثلاث نقاط بدل الحذف",
+  nbsp: "مسافات غير قابلة للكسر",
+  length_anomaly: "تفاوت طول غير طبيعي",
+  punct_parity: "ترقيم غير متطابق",
 };
 
 const QualityLab = () => {
@@ -98,6 +113,7 @@ const QualityLab = () => {
   const [customDicts, setCustomDicts] = useState<CustomDicts>(EMPTY_DICTS);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [tmOpen, setTmOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
@@ -221,14 +237,34 @@ const QualityLab = () => {
     setSeverity("all");
     setRule("all");
     setFix("all");
+    setDismissed(new Set());
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const issueId = (it: LocalIssue): string => `${it.key}|${it.rule}|${it.issue}`;
+
+  const applyOne = (key: string, newText: string) => {
+    if (!entries.length) return;
+    const updated = entries.map((e) => (e.key === key ? { ...e, translation: newText } : e));
+    void runScan(updated);
+    toast.success(`تم التطبيق على ${key}`);
+  };
+
+  const dismissOne = (id: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   };
 
   const sortedIssues = useMemo<LocalIssue[]>(() => {
     if (!report) return [];
     const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    return [...report.issues].sort((a, b) => order[a.severity] - order[b.severity]);
-  }, [report]);
+    return [...report.issues]
+      .filter((it) => !dismissed.has(issueId(it)))
+      .sort((a, b) => order[a.severity] - order[b.severity]);
+  }, [report, dismissed]);
 
   const filteredIssues = useMemo<LocalIssue[]>(() => {
     if (sortedIssues.length === 0) return [];
@@ -536,12 +572,19 @@ const QualityLab = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {visible.map((issue, i) => (
-                    <IssueCard
-                      key={`${issue.key}__${issue.rule}__${i}`}
-                      issue={issue}
-                    />
-                  ))}
+                  {visible.map((issue, i) => {
+                    const id = issueId(issue);
+                    return (
+                      <IssueCard
+                        key={`${issue.key}__${issue.rule}__${i}`}
+                        issue={issue}
+                        ruleLabel={RULE_LABELS[issue.rule]}
+                        issueId={id}
+                        onApply={applyOne}
+                        onDismiss={dismissOne}
+                      />
+                    );
+                  })}
                 </div>
 
                 {hasMore && (

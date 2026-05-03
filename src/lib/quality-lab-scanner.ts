@@ -8,6 +8,7 @@ import {
 } from "./local-enhance-scanner";
 import { scanAllWithDictionaries, type DictScanInput } from "./dict-scanner";
 import { scanAllWithCustomDicts, type CustomDictInput } from "./custom-dict-scanner";
+import { scanAllExtraRules, type ExtraInput } from "./extra-rules";
 import type { CustomDicts } from "./glossary-store";
 
 export type { LocalIssue, LocalScanInput, IssueSeverity, IssueType };
@@ -51,10 +52,12 @@ export function scanUnified(
   const dictIssues = scanAllWithDictionaries(dictInputs);
   const customInputs: CustomDictInput[] = dictInputs;
   const customIssues = customDicts ? scanAllWithCustomDicts(customInputs, customDicts) : [];
+  const extraInputs: ExtraInput[] = dictInputs;
+  const extraIssues = scanAllExtraRules(extraInputs);
 
   const seen = new Set<string>();
   const issues: LocalIssue[] = [];
-  for (const it of [...ruleIssues, ...dictIssues, ...customIssues]) {
+  for (const it of [...ruleIssues, ...dictIssues, ...customIssues, ...extraIssues]) {
     const sig = `${it.key}|${it.rule}|${it.issue}`;
     if (seen.has(sig)) continue;
     seen.add(sig);
