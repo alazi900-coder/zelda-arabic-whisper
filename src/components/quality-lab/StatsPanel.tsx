@@ -147,6 +147,9 @@ const RULE_LABELS: Record<string, string> = {
   consistency: "اتساق المصطلحات",
   dict_hamza: "همزة (قاموس)",
   dict_ta_marbutah: "تاء مربوطة (قاموس)",
+  dict_gaming_term: "مصطلح ألعاب",
+  dict_proper_noun: "اسم علم",
+  digit_mismatch: "أرقام مختلفة",
 };
 
 function ruleLabel(rule: string): string {
