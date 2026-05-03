@@ -1,13 +1,12 @@
 // Dictionary-based scanner — leverages curated dictionaries to detect issues
 // that pure regex rules cannot reliably catch. Returns LocalIssue records
 // compatible with the existing local-enhance-scanner.
-//
-// PR4 introduces hamza and taa-marbutah dictionaries. Gaming glossary,
-// proper nouns, and digit consistency land in PR5.
 
 import type { LocalIssue } from "@/lib/local-enhance-scanner";
 import { findHamzaErrors } from "@/data/quality-dicts/hamza-dict";
 import { findTaMarbutahErrors } from "@/data/quality-dicts/ta-marbutah-dict";
+import { findUntranslatedGamingTerms } from "@/data/quality-dicts/gaming-glossary";
+import { findProperNounsInOriginal } from "@/data/quality-dicts/proper-nouns";
 
 export interface DictScanInput {
   key: string;
@@ -15,11 +14,21 @@ export interface DictScanInput {
   translation: string;
 }
 
+const AR_RANGE = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const DIGIT_RE = /\d+/g;
+
+const CATEGORY_LABEL: Record<string, string> = {
+  character: "شخصية",
+  place: "مكان",
+  item: "غرض",
+  race: "عرق",
+  concept: "مفهوم",
+};
+
 export function scanWithDictionaries(input: DictScanInput): LocalIssue[] {
   const { key, original, translation } = input;
   const issues: LocalIssue[] = [];
 
-  // Skip empty translations — they're flagged elsewhere.
   if (!translation.trim()) return issues;
 
   // 1. Hamza / common spelling errors
@@ -63,6 +72,87 @@ export function scanWithDictionaries(input: DictScanInput): LocalIssue[] {
       severity: "medium",
       type: "missing_char",
       rule: "dict_ta_marbutah",
+    });
+  }
+
+  // 3. Untranslated gaming terms — English words inside an Arabic translation
+  //    that have known Arabic equivalents in the gaming glossary.
+  const hasArabic = AR_RANGE.test(translation);
+  if (hasArabic) {
+    const stranded = findUntranslatedGamingTerms(translation);
+    if (stranded.length > 0) {
+      const sample = stranded
+        .slice(0, 3)
+        .map((s) => `«${s.en}» → «${s.ar}»`)
+        .join("، ");
+      issues.push({
+        key,
+        original,
+        translation,
+        suggestion: translation,
+        issue: `مصطلحات إنجليزية في القاموس (${stranded.length})`,
+        reason: `هذه المصطلحات لها مقابل عربي معتمد في قاموس الألعاب: ${sample}${
+          stranded.length > 3 ? "…" : ""
+        }. ترجمتها يُحسّن اتساق الأداة.`,
+        severity: "medium",
+        type: "terminology",
+        rule: "dict_gaming_term",
+      });
+    }
+  }
+
+  // 4. Proper nouns: if the original mentions a known proper noun, the
+  //    translation should contain one of its accepted Arabic renderings, or
+  //    keep the English form. Flag only when neither is found.
+  const properNouns = findProperNounsInOriginal(original);
+  for (const pn of properNouns) {
+    const englishPresent = new RegExp(
+      `\\b${pn.en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      "iu",
+    ).test(translation);
+    const arabicPresent = pn.acceptable.some((ar) => translation.includes(ar));
+    if (!englishPresent && !arabicPresent) {
+      issues.push({
+        key,
+        original,
+        translation,
+        suggestion: translation,
+        issue: `اسم علم محتمل ضائع: «${pn.en}»`,
+        reason: `النص الأصلي يذكر «${pn.en}» (${
+          CATEGORY_LABEL[pn.category] ?? pn.category
+        })، والترجمة لا تحتوي على هذا الاسم بأيّ من الصيغ المعتمدة (${pn.acceptable.join(
+          "، ",
+        )}). تأكّد أن الاسم لم يُحذف بالخطأ.`,
+        severity: "high",
+        type: "accuracy",
+        rule: "dict_proper_noun",
+      });
+    }
+  }
+
+  // 5. Number consistency between original and translation.
+  const origDigits = (original.match(DIGIT_RE) || []).map((s) =>
+    s.replace(/^0+(\d)/, "$1"),
+  );
+  const transDigits = (translation.match(DIGIT_RE) || []).map((s) =>
+    s.replace(/^0+(\d)/, "$1"),
+  );
+  if (
+    origDigits.length > 0 &&
+    origDigits.slice().sort().join(",") !== transDigits.slice().sort().join(",")
+  ) {
+    issues.push({
+      key,
+      original,
+      translation,
+      suggestion: translation,
+      issue: "الأرقام لا تطابق الأصل",
+      reason: `النص الأصلي يحوي [${origDigits.join("، ")}] والترجمة تحوي [${
+        transDigits.join("، ") || "—"
+      }]. الأرقام عادةً تُعرض ديناميكياً من اللعبة، فأي اختلاف هنا قد يُعطي معلومة غلط للّاعب.`,
+      severity: "high",
+      type: "accuracy",
+      rule: "digit_mismatch",
     });
   }
 
