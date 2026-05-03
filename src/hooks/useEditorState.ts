@@ -86,10 +86,10 @@ export function useEditorState() {
       else localStorage.removeItem('customPromptInstructions');
     } catch (e) { console.warn('localStorage customPromptInstructions:', e); }
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude'>(() => {
-    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude') || 'lovable'; } catch { return 'lovable'; }
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock'>(() => {
+    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock') || 'lovable'; } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch (e) { console.warn('localStorage translationEngine:', e); }
   }, []);
@@ -99,6 +99,27 @@ export function useEditorState() {
   const setUserClaudeKey = useCallback((key: string) => {
     _setUserClaudeKey(key);
     try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch (e) { console.warn('localStorage userClaudeKey:', e); }
+  }, []);
+  const [userBedrockAccessKey, _setUserBedrockAccessKey] = useState(() => {
+    try { return localStorage.getItem('userBedrockAccessKey') || ''; } catch { return ''; }
+  });
+  const setUserBedrockAccessKey = useCallback((key: string) => {
+    _setUserBedrockAccessKey(key);
+    try { if (key) localStorage.setItem('userBedrockAccessKey', key); else localStorage.removeItem('userBedrockAccessKey'); } catch (e) { console.warn('localStorage userBedrockAccessKey:', e); }
+  }, []);
+  const [userBedrockSecretKey, _setUserBedrockSecretKey] = useState(() => {
+    try { return localStorage.getItem('userBedrockSecretKey') || ''; } catch { return ''; }
+  });
+  const setUserBedrockSecretKey = useCallback((key: string) => {
+    _setUserBedrockSecretKey(key);
+    try { if (key) localStorage.setItem('userBedrockSecretKey', key); else localStorage.removeItem('userBedrockSecretKey'); } catch (e) { console.warn('localStorage userBedrockSecretKey:', e); }
+  }, []);
+  const [userBedrockRegion, _setUserBedrockRegion] = useState(() => {
+    try { return localStorage.getItem('userBedrockRegion') || 'us-east-1'; } catch { return 'us-east-1'; }
+  });
+  const setUserBedrockRegion = useCallback((region: string) => {
+    _setUserBedrockRegion(region);
+    try { if (region) localStorage.setItem('userBedrockRegion', region); else localStorage.removeItem('userBedrockRegion'); } catch (e) { console.warn('localStorage userBedrockRegion:', e); }
   }, []);
   const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
     try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
@@ -548,6 +569,7 @@ export function useEditorState() {
     geminiModel,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
     customPromptInstructions,
+    userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1111,7 +1133,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -1132,7 +1154,7 @@ export function useEditorState() {
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
     setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
-    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setTranslationEngine, translationQuality, setTranslationQuality,
+    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockAccessKey, setUserBedrockSecretKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
     customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,

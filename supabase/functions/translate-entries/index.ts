@@ -141,15 +141,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude';
+      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock';
       translationQuality?: 'fast' | 'quality';
       geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
       userClaudeKey?: string;
+      userBedrockAccessKey?: string;
+      userBedrockSecretKey?: string;
+      userBedrockRegion?: string;
       myMemoryEmail?: string;
       category?: string;
       filePath?: string;
@@ -366,6 +369,113 @@ ${textsBlock}`;
       const content = claudeData?.content?.[0]?.text || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Failed to parse Claude response');
+
+      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+      const translations: string[] = JSON.parse(sanitized);
+
+      const result: Record<string, string> = {};
+      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
+        if (translations[i]?.trim()) {
+          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
+        }
+      }
+
+      return new Response(JSON.stringify({ translations: result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === Amazon Bedrock translation engine (Claude via AWS) ===
+    if (translationEngine === 'bedrock' && userBedrockAccessKey?.trim() && userBedrockSecretKey?.trim()) {
+      const accessKey = userBedrockAccessKey.trim();
+      const secretKey = userBedrockSecretKey.trim();
+      const region = (userBedrockRegion || 'us-east-1').trim();
+
+      const bedrockModel = translationQuality === 'quality'
+        ? 'anthropic.claude-sonnet-4-20250514-v1:0'
+        : 'anthropic.claude-haiku-35-20241022-v1:0';
+
+      const hostname = `bedrock-runtime.${region}.amazonaws.com`;
+      const path = `/model/${encodeURIComponent(bedrockModel)}/invoke`;
+      const bedrockUrl = `https://${hostname}${path}`;
+
+      const payload = JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        temperature: 0.2,
+      });
+
+      // AWS Signature V4
+      const encoder = new TextEncoder();
+      const now = new Date();
+      const dateStamp = now.toISOString().replace(/[-:]/g, '').slice(0, 8);
+      const amzDate = dateStamp + 'T' + now.toISOString().replace(/[-:]/g, '').slice(9, 15) + 'Z';
+      const service = 'bedrock';
+      const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+
+      async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
+        const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
+      }
+
+      async function sha256Hex(data: string): Promise<string> {
+        const hash = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      const payloadHash = await sha256Hex(payload);
+      const canonicalHeaders = `content-type:application/json\nhost:${hostname}\nx-amz-date:${amzDate}\n`;
+      const signedHeaders = 'content-type;host;x-amz-date';
+      const canonicalRequest = `POST\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+      const canonicalRequestHash = await sha256Hex(canonicalRequest);
+      const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
+
+      const kDate = await hmacSha256(encoder.encode('AWS4' + secretKey), dateStamp);
+      const kRegion = await hmacSha256(kDate, region);
+      const kService = await hmacSha256(kRegion, service);
+      const kSigning = await hmacSha256(kService, 'aws4_request');
+      const signatureBuffer = await hmacSha256(kSigning, stringToSign);
+      const signature = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const authorizationHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+      const bedrockResponse = await fetch(bedrockUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Amz-Date': amzDate,
+          'Authorization': authorizationHeader,
+        },
+        body: payload,
+      });
+
+      if (!bedrockResponse.ok) {
+        const errText = await bedrockResponse.text();
+        console.error('Bedrock error:', errText);
+        if (bedrockResponse.status === 403) {
+          return new Response(JSON.stringify({
+            error: 'مفاتيح AWS غير صالحة أو لا تملك صلاحية الوصول إلى Amazon Bedrock. تأكد من تفعيل النموذج في منطقة AWS المختارة.'
+          }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (bedrockResponse.status === 429) {
+          return new Response(JSON.stringify({
+            error: 'تم تجاوز حد طلبات Amazon Bedrock، حاول لاحقاً.'
+          }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        let parsedMsg = '';
+        try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
+        return new Response(JSON.stringify({
+          error: `خطأ Bedrock (${bedrockResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
+        }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const bedrockData = await bedrockResponse.json();
+      const content = bedrockData?.content?.[0]?.text || '';
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('Failed to parse Bedrock response');
 
       const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
       const translations: string[] = JSON.parse(sanitized);
