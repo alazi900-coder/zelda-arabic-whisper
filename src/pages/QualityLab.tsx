@@ -18,6 +18,11 @@ import FilterBar, {
   type SeverityFilter,
   type FixFilter,
 } from "@/components/quality-lab/FilterBar";
+import BulkSuggestionsPanel from "@/components/quality-lab/BulkSuggestionsPanel";
+import {
+  aggregateBulkPatterns,
+  applyBulkPatterns,
+} from "@/lib/bulk-suggestions";
 import ActionsBar from "@/components/quality-lab/ActionsBar";
 import GlossaryEditor from "@/components/quality-lab/GlossaryEditor";
 import AIScanPanel from "@/components/quality-lab/AIScanPanel";
@@ -334,6 +339,34 @@ const QualityLab = () => {
   const visible = filteredIssues.slice(0, shown);
   const hasMore = filteredIssues.length > shown;
 
+  const bulkPatterns = useMemo(
+    () => aggregateBulkPatterns(filteredIssues),
+    [filteredIssues],
+  );
+
+  const applyBulkGroups = (selectedIds: ReadonlyArray<string>) => {
+    if (!entries.length || selectedIds.length === 0) return;
+    const idSet = new Set(selectedIds);
+    const selected = bulkPatterns.filter((g) => idSet.has(g.id));
+    if (selected.length === 0) return;
+    const currentByKey = new Map(entries.map((e) => [e.key, e.translation]));
+    const result = applyBulkPatterns(selected, currentByKey);
+    if (result.applied === 0) {
+      toast.info("لا تغيير — الأنماط المختارة لم تعد تظهر في النصّ الحالي");
+      return;
+    }
+    const updated = entries.map((e) =>
+      result.updates.has(e.key)
+        ? { ...e, translation: result.updates.get(e.key)! }
+        : e,
+    );
+    void runScan(updated);
+    toast.success(
+      `طُبّق ${result.applied} ظهور على ${result.updates.size} إدخال` +
+        (result.skipped > 0 ? ` · تخطّى ${result.skipped}` : ""),
+    );
+  };
+
   const clearFilters = () => {
     setSearch("");
     setSeverity("all");
@@ -608,6 +641,16 @@ const QualityLab = () => {
                 setShown(PAGE_SIZE);
               }}
             />
+          )}
+
+          {bulkPatterns.length > 0 && (
+            <section className="px-4 max-w-6xl mx-auto w-full">
+              <BulkSuggestionsPanel
+                groups={bulkPatterns}
+                ruleLabels={RULE_LABELS}
+                onApplyGroups={applyBulkGroups}
+              />
+            </section>
           )}
 
           <section className="px-4 max-w-6xl mx-auto w-full">
