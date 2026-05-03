@@ -167,6 +167,33 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     setIsAnalyzing(true);
     setActiveTab(mode);
     abortRef.current = false;
+
+    // ----- OFFLINE local scan -----
+    if (offlineMode) {
+      const inputs = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: translations[`${e.msbtFile}:${e.index}`],
+      }));
+      const issues = scanAllLocally(inputs);
+      for (const t of inputs) processedKeysRef.current.add(t.key);
+      setProcessedCount(processedKeysRef.current.size);
+      if (mode === "grammar") {
+        setGrammarIssues(prev => [...prev, ...issues.map(i => ({
+          key: i.key, original: i.original, translation: i.translation,
+          issue: i.issue, suggestion: i.suggestion, severity: i.severity,
+        }))]);
+      } else {
+        setSuggestions(prev => [...prev, ...issues.map(i => ({
+          key: i.key, original: i.original, current: i.translation,
+          suggested: i.suggestion, reason: i.issue, type: i.type as any,
+        }))]);
+      }
+      setIsAnalyzing(false);
+      toast({ title: `🔌 فحص محلي: ${issues.length} مشكلة` });
+      return;
+    }
+
     setProgress({ current: 0, total: translatedEntries.length });
 
     let allSuggestions: EnhanceSuggestion[] = [];
