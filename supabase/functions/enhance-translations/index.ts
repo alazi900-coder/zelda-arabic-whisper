@@ -30,10 +30,15 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const gatewayModelMap: Record<string, string> = {
-      'gemini-2.5-flash': 'google/gemini-2.5-flash',
-      'gemini-2.5-pro': 'google/gemini-2.5-pro',
       'gemini-3-flash-preview': 'google/gemini-3-flash-preview',
+      'gemini-3-pro-preview': 'google/gemini-3-pro-preview',
+      'gemini-2.5-flash': 'google/gemini-2.5-flash',
+      'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite',
+      'gemini-2.5-pro': 'google/gemini-2.5-pro',
+      'gemini-2.0-flash': 'google/gemini-2.0-flash',
       'gpt-5': 'openai/gpt-5',
+      'gpt-5-mini': 'openai/gpt-5-mini',
+      'gpt-5-nano': 'openai/gpt-5-nano',
     };
     const resolvedModel = (aiModel && gatewayModelMap[aiModel]) || 'google/gemini-2.5-flash';
 
@@ -73,11 +78,18 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 أجب بـ JSON فقط:
 {
   "issues": [
-    {"index": 0, "issue": "وصف الخطأ بدقة", "suggestion": "النص المصحح كاملاً", "severity": "high|medium|low"}
+    {
+      "index": 0,
+      "issue": "وصف مختصر جداً للخطأ (3-7 كلمات)",
+      "detail": "شرح أطول يوضح لماذا هو خطأ وأي قاعدة لغوية خالفها",
+      "suggestion": "النص المصحح كاملاً",
+      "severity": "high|medium|low"
+    }
   ]
 }
 
-أعِد فقط النصوص التي بها أخطاء فعلية. لا تقترح تحسينات أسلوبية هنا.`;
+أعِد فقط النصوص التي بها أخطاء فعلية. لا تقترح تحسينات أسلوبية هنا.
+حقل detail إلزامي ويجب أن يشرح لماذا هذا خطأ بوضوح (سطر أو سطرين).`;
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -131,6 +143,7 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
         original: entries[i.index]?.original || '',
         translation: entries[i.index]?.translation || '',
         issue: i.issue,
+        detail: i.detail || '',
         suggestion: i.suggestion,
         severity: i.severity || 'medium',
       })).filter((i: any) => i.key && i.suggestion);
@@ -168,7 +181,13 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 أجب بـ JSON فقط:
 {
   "suggestions": [
-    {"index": 0, "suggested": "النص المحسن كاملاً", "reason": "شرح مختصر للمشكلة", "type": "missing_char|grammar|terminology|accuracy|style|consistency|punctuation"}
+    {
+      "index": 0,
+      "suggested": "النص المحسن كاملاً",
+      "reason": "وصف مختصر للمشكلة (3-7 كلمات)",
+      "detail": "شرح أطول يوضح لماذا هذه مشكلة وأي قاعدة خالفتها الترجمة الحالية",
+      "type": "missing_char|grammar|terminology|accuracy|style|consistency|punctuation"
+    }
   ]
 }
 
@@ -176,7 +195,8 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 - أعِد فقط الترجمات التي بها مشاكل حقيقية
 - لا تقترح تعديلات تفضيلية بحتة
 - ركز على الأخطاء الموضوعية والحروف الناقصة أولاً
-- إذا كان النص صحيحاً لا تُعِده`;
+- إذا كان النص صحيحاً لا تُعِده
+- حقل detail إلزامي يشرح لماذا هذه مشكلة (سطر أو سطرين)`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -231,6 +251,7 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
       current: entries[s.index]?.translation || '',
       suggested: s.suggested,
       reason: s.reason,
+      detail: s.detail || '',
       type: s.type || 'style',
     })).filter((s: any) => s.key && s.suggested);
 

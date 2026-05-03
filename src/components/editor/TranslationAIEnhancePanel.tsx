@@ -21,7 +21,7 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { scanAllLocally } from "@/lib/local-enhance-scanner";
+import { scanAllLocally, isGrammarIssue, type LocalIssue } from "@/lib/local-enhance-scanner";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -36,7 +36,10 @@ interface EnhanceSuggestion {
   original: string;
   current: string;
   suggested: string;
+  /** Short reason (one line). */
   reason: string;
+  /** Optional detailed explanation of WHY this is a problem. */
+  detail?: string;
   type: "style" | "grammar" | "accuracy" | "consistency" | "missing_char" | "terminology" | "punctuation";
 }
 
@@ -47,6 +50,8 @@ interface GrammarIssue {
   issue: string;
   suggestion: string;
   severity?: "high" | "medium" | "low";
+  /** Optional detailed explanation of WHY this is a problem. */
+  detail?: string;
 }
 
 type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
@@ -54,11 +59,18 @@ type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
 
-const MODEL_OPTIONS = [
-  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (سريع — مُوصى)" },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (متوازن)" },
-  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro (دقة عالية، أبطأ)" },
-  { value: "gpt-5", label: "GPT-5 (دقة قصوى)" },
+interface ModelOption { value: string; label: string; group: "google" | "openai" | "local"; }
+
+const MODEL_OPTIONS: ModelOption[] = [
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview (سريع — مُوصى)", group: "google" },
+  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview (دقة عالية)", group: "google" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (متوازن)", group: "google" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (الأخف والأرخص)", group: "google" },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro (دقة عالية، أبطأ)", group: "google" },
+  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (الجيل السابق)", group: "google" },
+  { value: "gpt-5", label: "GPT-5 (دقة قصوى)", group: "openai" },
+  { value: "gpt-5-mini", label: "GPT-5 mini (متوازن — أرخص)", group: "openai" },
+  { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
 ];
 
 // --- Diff helper: word-level highlight ---
@@ -174,23 +186,41 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         key: `${e.msbtFile}:${e.index}`,
         original: e.original,
         translation: translations[`${e.msbtFile}:${e.index}`],
+        maxBytes: e.maxBytes ?? 0,
       }));
-      const issues = scanAllLocally(inputs);
+      const allIssues = scanAllLocally(inputs);
       for (const t of inputs) processedKeysRef.current.add(t.key);
       setProcessedCount(processedKeysRef.current.size);
+
+      // Split issues by mode: grammar vs style/enhance
+      const grammarBucket: LocalIssue[] = [];
+      const styleBucket: LocalIssue[] = [];
+      for (const it of allIssues) {
+        if (isGrammarIssue(it.type)) grammarBucket.push(it);
+        else styleBucket.push(it);
+      }
+      const targetBucket = mode === "grammar" ? grammarBucket : styleBucket;
+      const fallbackBucket = mode === "grammar" ? styleBucket : grammarBucket;
+      const chosen = targetBucket.length > 0 ? targetBucket : fallbackBucket;
+
       if (mode === "grammar") {
-        setGrammarIssues(prev => [...prev, ...issues.map(i => ({
+        setGrammarIssues(prev => [...prev, ...chosen.map(i => ({
           key: i.key, original: i.original, translation: i.translation,
           issue: i.issue, suggestion: i.suggestion, severity: i.severity,
+          detail: i.reason,
         }))]);
       } else {
-        setSuggestions(prev => [...prev, ...issues.map(i => ({
+        setSuggestions(prev => [...prev, ...chosen.map(i => ({
           key: i.key, original: i.original, current: i.translation,
-          suggested: i.suggestion, reason: i.issue, type: i.type as any,
+          suggested: i.suggestion, reason: i.issue, detail: i.reason,
+          type: i.type === "grammar" ? "style" : i.type,
         }))]);
       }
       setIsAnalyzing(false);
-      toast({ title: `🔌 فحص محلي: ${issues.length} مشكلة` });
+      toast({
+        title: `🔌 فحص محلي بدون اتصال: ${chosen.length} مشكلة`,
+        description: chosen.length === 0 ? "لا توجد مشاكل في النطاق المحدد" : "لا يتطلب اتصالاً ولا رصيداً"
+      });
       return;
     }
 
@@ -364,8 +394,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       const m = await loadReviewMemory();
       setReviewMem(m);
       toast({ title: `✅ تم استيراد ${n} مراجعة` });
-    } catch (e: any) {
-      toast({ title: "❌ فشل الاستيراد", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "❌ فشل الاستيراد", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     }
   };
 
@@ -681,17 +711,12 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                     const config = typeConfig[s.type];
                     const isEditing = editingKey === s.key;
                     return (
-                      <div key={`${s.key}-${i}`} className="rounded-xl border bg-card p-3 sm:p-4 space-y-3 transition-all hover:shadow-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0 space-y-1.5">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className={`text-[10px] gap-1 ${config?.color || ''}`}>
-                                {config?.icon}{config?.label || s.type}
-                              </Badge>
-                              <span className="text-[9px] text-muted-foreground font-mono truncate" dir="ltr">{s.key}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{s.reason}</p>
-                          </div>
+                      <div key={`${s.key}-${i}`} className="rounded-xl border bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
+                        {/* Row 1: badge + action buttons */}
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="outline" className={`text-[10px] gap-1 shrink-0 ${config?.color || ''}`}>
+                            {config?.icon}{config?.label || s.type}
+                          </Badge>
                           <div className="flex gap-1 shrink-0">
                             <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(s.key, s.suggested)} title="تعديل قبل التطبيق">
                               <Pencil className="w-3.5 h-3.5" />
@@ -705,14 +730,27 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </div>
                         </div>
 
-                        <div className="bg-muted/30 rounded-lg p-2.5">
+                        {/* Row 2: issue title (full width, wraps) */}
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{s.reason}</p>
+                          {s.detail && s.detail !== s.reason && (
+                            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+                              <span className="font-bold text-foreground/70">لماذا؟ </span>{s.detail}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Row 3: file path */}
+                        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={s.key}>{s.key}</div>
+
+                        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[10px] text-muted-foreground">النص الأصلي:</p>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => copyToClipboard(s.original)}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.original)}>
                               <Copy className="w-3 h-3" />
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed" dir="ltr">{s.original}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{s.original}</p>
                         </div>
 
                         {showDiff ? (
@@ -722,19 +760,19 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
                               <p className="text-[10px] text-red-500 mb-1 font-bold">الحالي:</p>
-                              <p className="text-sm leading-relaxed" dir="rtl">{s.current}</p>
+                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.current}</p>
                             </div>
                             <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
-                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20">
+                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-[10px] text-green-600 font-bold">المقترح:</p>
-                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => copyToClipboard(s.suggested)}>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.suggested)}>
                                   <Copy className="w-3 h-3" />
                                 </Button>
                               </div>
-                              <p className="text-sm leading-relaxed" dir="rtl">{s.suggested}</p>
+                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.suggested}</p>
                             </div>
                           </div>
                         )}
@@ -774,19 +812,16 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                   {filteredIssues.map((g, i) => {
                     const isEditing = editingKey === g.key;
                     return (
-                      <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-3 transition-all hover:shadow-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                              <span className="text-sm font-bold text-red-500 break-words">{g.issue}</span>
-                              {g.severity && (
-                                <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
-                                  {severityConfig[g.severity]?.label}
-                                </Badge>
-                              )}
-                              <span className="text-[9px] text-muted-foreground font-mono truncate" dir="ltr">{g.key}</span>
-                            </div>
+                      <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
+                        {/* Row 1: severity + actions */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                            {g.severity && (
+                              <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
+                                {severityConfig[g.severity]?.label}
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex gap-1 shrink-0">
                             <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(g.key, g.suggestion)} title="تعديل">
@@ -801,9 +836,22 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </div>
                         </div>
 
-                        <div className="bg-muted/30 rounded-lg p-2.5">
+                        {/* Row 2: title + reason */}
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{g.issue}</p>
+                          {g.detail && g.detail !== g.issue && (
+                            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+                              <span className="font-bold text-foreground/70">لماذا؟ </span>{g.detail}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Row 3: file path */}
+                        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={g.key}>{g.key}</div>
+
+                        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
                           <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed" dir="ltr">{g.original}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{g.original}</p>
                         </div>
 
                         {showDiff ? (
@@ -813,19 +861,19 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
                               <p className="text-[10px] text-red-500 mb-1 font-bold">به خطأ:</p>
-                              <p className="text-sm leading-relaxed" dir="rtl">{g.translation}</p>
+                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.translation}</p>
                             </div>
                             <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
-                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20">
+                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-[10px] text-green-600 font-bold">التصحيح:</p>
-                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => copyToClipboard(g.suggestion)}>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(g.suggestion)}>
                                   <Copy className="w-3 h-3" />
                                 </Button>
                               </div>
-                              <p className="text-sm leading-relaxed" dir="rtl">{g.suggestion}</p>
+                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.suggestion}</p>
                             </div>
                           </div>
                         )}
