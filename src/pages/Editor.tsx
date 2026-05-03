@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
   Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
-  FileText, BookMarked,
+  FileText, BookMarked, Pin,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -681,6 +681,11 @@ const Editor = () => {
             <div className="flex gap-2 md:gap-3 items-center">
               <DebouncedInput placeholder="ابحث عن نصوص..." value={editor.search} onChange={(val) => editor.setSearch(val)}
                 className="flex-1 min-w-[120px] px-3 py-2 rounded bg-background border border-border font-body text-sm" />
+              <Button variant={editor.isPinned ? "default" : "outline"} size="sm" onClick={editor.togglePin}
+                className={`font-body text-xs shrink-0 ${editor.isPinned ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+                title={editor.isPinned ? 'إلغاء تثبيت الصفحة — العودة للتصفية الديناميكية' : 'تثبيت الصفحة — تجميد النتائج الحالية أثناء التعديل'}>
+                <Pin className={`w-3 h-3 ${editor.isPinned ? 'fill-current' : ''}`} /> {editor.isPinned ? 'مثبّت' : 'تثبيت'}
+              </Button>
               {isMobile ? (
                 <Button variant={editor.filtersOpen ? "secondary" : "outline"} size="sm" onClick={() => editor.setFiltersOpen(!editor.filtersOpen)} className="font-body text-xs shrink-0">
                   <Filter className="w-3 h-3" /> فلاتر
@@ -957,18 +962,18 @@ const Editor = () => {
           )}
 
           {/* Pagination Header */}
-          {editor.filteredEntries.length > 0 && (
+          {editor.displayedEntries.length > 0 && (
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-muted-foreground">
-                عرض {editor.currentPage * PAGE_SIZE + 1}-{Math.min((editor.currentPage + 1) * PAGE_SIZE, editor.filteredEntries.length)} من {editor.filteredEntries.length} نص
+                عرض {editor.currentPage * PAGE_SIZE + 1}-{Math.min((editor.currentPage + 1) * PAGE_SIZE, editor.displayedEntries.length)} من {editor.displayedEntries.length} نص{editor.isPinned ? ' 📌' : ''}
               </p>
-              <PaginationControls currentPage={editor.currentPage} totalPages={editor.totalPages} totalItems={editor.filteredEntries.length} pageSize={PAGE_SIZE} setCurrentPage={editor.setCurrentPage} />
+              <PaginationControls currentPage={editor.currentPage} totalPages={editor.totalPages} totalItems={editor.displayedEntries.length} pageSize={PAGE_SIZE} setCurrentPage={editor.setCurrentPage} />
             </div>
           )}
 
           {/* Entries List */}
           <div className="space-y-2">
-            {editor.filteredEntries.length === 0 ? (
+            {editor.displayedEntries.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>
             ) : (
               editor.paginatedEntries

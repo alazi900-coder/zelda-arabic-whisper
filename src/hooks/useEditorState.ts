@@ -64,6 +64,8 @@ export function useEditorState() {
   const [advancedFindings, setAdvancedFindings] = useState<Array<{ key: string; original: string; current: string; fix: string; issue: string; type?: string; score?: number }>>([]);
   const [quickAlternatives, setQuickAlternatives] = useState<null | { key: string; original: string; current: string; alternatives: Array<{ style: string; text: string; reason: string }> }>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [pinnedEntryKeys, setPinnedEntryKeys] = useState<string[]>([]);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
   const [userGeminiKey, _setUserGeminiKey] = useState(() => {
@@ -528,13 +530,28 @@ export function useEditorState() {
     });
   }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
-  useEffect(() => { setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical]);
+  useEffect(() => { if (!isPinned) setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical, isPinned]);
 
-  const totalPages = Math.ceil(filteredEntries.length / PAGE_SIZE);
+  const displayedEntries = useMemo(() => {
+    if (!isPinned || pinnedEntryKeys.length === 0 || !state) return filteredEntries;
+    const entryMap = new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
+    return pinnedEntryKeys.map(k => entryMap.get(k)).filter((e): e is ExtractedEntry => !!e);
+  }, [isPinned, pinnedEntryKeys, filteredEntries, state]);
+
+  const togglePin = useCallback(() => {
+    setIsPinned(prev => {
+      if (!prev) {
+        setPinnedEntryKeys(filteredEntries.map(e => `${e.msbtFile}:${e.index}`));
+      }
+      return !prev;
+    });
+  }, [filteredEntries]);
+
+  const totalPages = Math.ceil(displayedEntries.length / PAGE_SIZE);
   const paginatedEntries = useMemo(() => {
     const start = currentPage * PAGE_SIZE;
-    return filteredEntries.slice(start, start + PAGE_SIZE);
-  }, [filteredEntries, currentPage]);
+    return displayedEntries.slice(start, start + PAGE_SIZE);
+  }, [displayedEntries, currentPage]);
 
 
   // === Translation handlers ===
@@ -1137,15 +1154,15 @@ export function useEditorState() {
     previousTranslations, currentPage,
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
-    fixingMixed, filtersOpen, buildStats, buildPreview, showBuildConfirm, fixPreview,
+    fixingMixed, filtersOpen, isPinned, buildStats, buildPreview, showBuildConfirm, fixPreview,
     categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
-    msbtFiles, filteredEntries, paginatedEntries, totalPages,
+    msbtFiles, filteredEntries, displayedEntries, paginatedEntries, totalPages,
     user,
 
     // Setters
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
-    setFiltersOpen, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
+    setFiltersOpen, togglePin, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
