@@ -7,6 +7,8 @@ import { findHamzaErrors } from "@/data/quality-dicts/hamza-dict";
 import { findTaMarbutahErrors } from "@/data/quality-dicts/ta-marbutah-dict";
 import { findUntranslatedGamingTerms } from "@/data/quality-dicts/gaming-glossary";
 import { findProperNounsInOriginal } from "@/data/quality-dicts/proper-nouns";
+import { findAlifMaksuraErrors } from "@/data/quality-dicts/alif-maksura-dict";
+import { findCommonTypos } from "@/data/quality-dicts/common-typos";
 
 export interface DictScanInput {
   key: string;
@@ -50,6 +52,50 @@ export function scanWithDictionaries(input: DictScanInput): LocalIssue[] {
       severity: "medium",
       type: "missing_char",
       rule: "dict_hamza",
+    });
+  }
+
+  // 2a. Alif-maksura confusions (ى vs ي)
+  const alif = findAlifMaksuraErrors(translation);
+  if (alif.matches.length > 0) {
+    const sample = alif.matches
+      .slice(0, 3)
+      .map((m) => `«${m.wrong}» ← «${m.right}»`)
+      .join("، ");
+    issues.push({
+      key,
+      original,
+      translation,
+      suggestion: alif.fix,
+      issue: `خلط بين الألف المقصورة والياء (${alif.matches.length})`,
+      reason: `رُصدت ${alif.matches.length} كلمة كُتبت بـي بدل الألف المقصورة ـى: ${sample}${
+        alif.matches.length > 3 ? "…" : ""
+      }. القاعدة: إن تلا الحرف ضميرٌ أو إضافةٌ فهو ياء، وإلاّ فهو ألفٌ مقصورة.`,
+      severity: "medium",
+      type: "missing_char",
+      rule: "dict_alif_maksura",
+    });
+  }
+
+  // 2b. Common typos (lakin/inshallah/etc.)
+  const typos = findCommonTypos(translation);
+  if (typos.matches.length > 0) {
+    const sample = typos.matches
+      .slice(0, 3)
+      .map((m) => `«${m.wrong}» ← «${m.right}»`)
+      .join("، ");
+    issues.push({
+      key,
+      original,
+      translation,
+      suggestion: typos.fix,
+      issue: `أخطاء إملائيّة شائعة (${typos.matches.length})`,
+      reason: `أخطاء معروفة في الترجمات العربية، مثل: ${sample}${
+        typos.matches.length > 3 ? "…" : ""
+      }. الإصلاح آمن للتطبيق الجماعي.`,
+      severity: "medium",
+      type: "missing_char",
+      rule: "dict_common_typo",
     });
   }
 
