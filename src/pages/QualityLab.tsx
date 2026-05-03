@@ -1,8 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import QualityLabHero from "@/components/quality-lab/QualityLabHero";
+import InputZone, { type ScanEntry } from "@/components/quality-lab/InputZone";
 
 const QualityLab = () => {
-  const placeholderRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
+  const [entries, setEntries] = useState<ScanEntry[]>([]);
 
   useEffect(() => {
     const prev = document.title;
@@ -13,29 +17,44 @@ const QualityLab = () => {
   }, []);
 
   const scrollDown = () => {
-    placeholderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <QualityLabHero onScrollDown={scrollDown} />
 
-      <section
-        ref={placeholderRef}
-        className="flex-1 flex items-center justify-center px-4 py-16"
-      >
-        <div className="max-w-xl mx-auto text-center rounded-2xl bg-card border border-border p-8 sm:p-12">
-          <div className="text-4xl mb-4">🚧</div>
-          <h2 className="text-xl sm:text-2xl font-display font-bold mb-3">
-            قريباً — أدوات الفحص
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-            هذه الواجهة قيد البناء التدريجي. ستُضاف منطقة الإدخال (لصق ورفع
-            واستيراد من المحرّر)، ثمّ بطاقات النتائج، ثمّ القواميس المتخصّصة،
-            ثمّ تكامل الذكاء الاصطناعي — كلّ ذلك في PRs منفصلة.
-          </p>
-        </div>
-      </section>
+      <div ref={inputRef}>
+        <InputZone onLoaded={setEntries} />
+      </div>
+
+      {entries.length > 0 && (
+        <section className="px-4 pb-16 max-w-5xl mx-auto w-full">
+          <div className="rounded-2xl bg-card border border-primary/30 p-6 sm:p-8 text-center">
+            <Badge variant="secondary" className="mb-3">
+              تمّ التحميل
+            </Badge>
+            <div className="text-3xl sm:text-4xl font-display font-black mb-1 text-primary">
+              {entries.length}
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              إدخال جاهز للفحص
+            </p>
+            <p className="text-xs text-muted-foreground/80 leading-relaxed mb-4 max-w-md mx-auto [overflow-wrap:anywhere]">
+              في هذا الـ PR، ينتهي العمل عند الإدخال. زرّ «شغّل الفحص» سيُفعّل
+              في PR3 مع 17 قاعدة بنيوية، ثمّ تُضاف القواميس المتخصّصة لاحقاً.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEntries([])}
+              className="font-display"
+            >
+              مسح وبدء جديد
+            </Button>
+          </div>
+        </section>
+      )}
 
       <footer className="mt-auto py-6 text-center text-xs text-muted-foreground border-t border-border">
         مختبر جودة الترجمة — يعمل بالكامل داخل متصفّحك
