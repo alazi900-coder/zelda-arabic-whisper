@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Shield, FileText, Download, Sparkles, ChevronDown } from "lucide-react";
+import { Shield, FileText, Download, Sparkles, ChevronDown, Beaker, ArrowLeft } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 
@@ -108,6 +108,53 @@ const Index = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Quality Lab CTA */}
+      <section className="px-4 pb-10 sm:pb-16">
+        <div className="max-w-4xl mx-auto">
+          <Link
+            to="/quality-lab"
+            className="group relative block rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-secondary/5 hover:from-primary/15 hover:to-secondary/10 transition-all overflow-hidden shadow-2xl shadow-primary/10 hover:shadow-primary/20"
+          >
+            <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-primary/20 blur-3xl group-hover:bg-primary/30 transition-colors" />
+            <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-secondary/15 blur-3xl group-hover:bg-secondary/25 transition-colors" />
+
+            <div className="relative p-6 sm:p-10 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-8">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-xl group-hover:bg-primary/40 transition-colors" />
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary/30 to-secondary/15 border border-primary/40 flex items-center justify-center">
+                  <Beaker className="w-8 h-8 sm:w-10 sm:h-10 text-primary drop-shadow-[0_0_15px_hsl(var(--primary))]" />
+                </div>
+              </div>
+
+              <div className="flex-1 text-center sm:text-right">
+                <div className="inline-flex items-center gap-1.5 mb-2 px-2.5 py-0.5 rounded-full bg-primary/15 border border-primary/30">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] sm:text-xs text-primary font-display font-semibold">جديد</span>
+                </div>
+                <h2 className="text-xl sm:text-3xl font-display font-black mb-2 leading-tight">
+                  مختبر جودة{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-l from-secondary to-primary">الترجمة العربية</span>
+                </h2>
+                <p className="text-xs sm:text-base text-muted-foreground leading-relaxed mb-3 sm:mb-4">
+                  افحص ترجماتك تلقائياً بـ 17 قاعدة بنيوية و+500 نمط إملائي ومصطلح ألعاب — كلّه يعمل داخل متصفّحك.
+                </p>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[10px] sm:text-xs">
+                  <span className="px-2 py-1 rounded-md bg-card/60 border border-border">17+ قاعدة</span>
+                  <span className="px-2 py-1 rounded-md bg-card/60 border border-border">قواميس متخصّصة</span>
+                  <span className="px-2 py-1 rounded-md bg-card/60 border border-border">يعمل بدون اتصال</span>
+                </div>
+              </div>
+
+              <div className="shrink-0 self-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center group-hover:bg-primary/30 group-hover:translate-x-[-4px] transition-all">
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
       </section>
 
