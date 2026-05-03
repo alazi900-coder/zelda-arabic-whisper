@@ -66,6 +66,13 @@ export function useEditorState() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [pinnedEntryKeys, setPinnedEntryKeys] = useState<string[]>([]);
+  const [isPageLocked, _setIsPageLocked] = useState(() => {
+    try { return localStorage.getItem('isPageLocked') === 'true'; } catch { return false; }
+  });
+  const setIsPageLocked = useCallback((locked: boolean) => {
+    _setIsPageLocked(locked);
+    try { localStorage.setItem('isPageLocked', String(locked)); } catch { /* ignore */ }
+  }, []);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [fixPreview, setFixPreview] = useState<{ title: string; items: import("@/components/editor/FixPreviewDialog").FixPreviewItem[]; updates: Record<string, string> } | null>(null);
   const [userGeminiKey, _setUserGeminiKey] = useState(() => {
@@ -531,6 +538,13 @@ export function useEditorState() {
   }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { if (!isPinned) setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical, isPinned]);
+
+  useEffect(() => {
+    if (!isPageLocked) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isPageLocked]);
 
   const displayedEntries = useMemo(() => {
     if (!isPinned || pinnedEntryKeys.length === 0 || !state) return filteredEntries;
@@ -1154,7 +1168,7 @@ export function useEditorState() {
     previousTranslations, currentPage,
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
-    fixingMixed, filtersOpen, isPinned, buildStats, buildPreview, showBuildConfirm, fixPreview,
+    fixingMixed, filtersOpen, isPinned, isPageLocked, buildStats, buildPreview, showBuildConfirm, fixPreview,
     categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, displayedEntries, paginatedEntries, totalPages,
@@ -1162,7 +1176,7 @@ export function useEditorState() {
 
     // Setters
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
-    setFiltersOpen, togglePin, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
+    setFiltersOpen, togglePin, setIsPageLocked, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
