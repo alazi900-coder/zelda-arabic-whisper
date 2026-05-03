@@ -12,6 +12,7 @@ import FilterBar, {
 import ActionsBar from "@/components/quality-lab/ActionsBar";
 import GlossaryEditor from "@/components/quality-lab/GlossaryEditor";
 import AIScanPanel from "@/components/quality-lab/AIScanPanel";
+import GoogleRoundTripPanel from "@/components/quality-lab/GoogleRoundTripPanel";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import {
@@ -73,6 +74,7 @@ const RULE_LABELS: Record<string, string> = {
   digit_mismatch: "أرقام مختلفة",
   ai_grammar: "فحص بالنموذج",
   ai_enhance: "تحسين أسلوبي",
+  google_low_similarity: "تباين دلالي (Google)",
 };
 
 const QualityLab = () => {
@@ -329,6 +331,18 @@ const QualityLab = () => {
       {entries.length > 0 && report && (
         <AIScanPanel
           entries={entries}
+          keysWithLocalIssues={keysWithLocalIssues}
+          onResults={onAIResults}
+        />
+      )}
+
+      {entries.length > 0 && report && (
+        <GoogleRoundTripPanel
+          entries={entries.map((e) => ({
+            key: e.key,
+            originalEnglish: e.original,
+            arabic: e.translation,
+          }))}
           keysWithLocalIssues={keysWithLocalIssues}
           onResults={onAIResults}
         />
