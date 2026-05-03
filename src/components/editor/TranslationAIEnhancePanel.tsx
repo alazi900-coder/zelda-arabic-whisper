@@ -285,6 +285,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     const previous = translations[key] || "";
     onApplySuggestion(key, newText);
     setAppliedHistory(prev => [{ key, previous, applied: newText, ts: Date.now() }, ...prev].slice(0, 50));
+    markReviewed(key, newText, "approved").then(() => loadReviewMemory().then(setReviewMem));
   };
 
   const applySuggestion = (item: EnhanceSuggestion | GrammarIssue) => {
@@ -338,8 +339,40 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   };
 
   const dismissSuggestion = (key: string) => {
+    const cur = translations[key];
+    if (cur) markReviewed(key, cur, "dismissed").then(() => loadReviewMemory().then(setReviewMem));
     setSuggestions(prev => prev.filter(s => s.key !== key));
     setGrammarIssues(prev => prev.filter(g => g.key !== key));
+  };
+
+  const handleExportMemory = async () => {
+    const json = await exportReviewMemory();
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `enhance-memory-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "📥 تم تصدير سجل المراجعات" });
+  };
+
+  const handleImportMemory = async (file: File) => {
+    try {
+      const text = await file.text();
+      const n = await importReviewMemory(text, "merge");
+      const m = await loadReviewMemory();
+      setReviewMem(m);
+      toast({ title: `✅ تم استيراد ${n} مراجعة` });
+    } catch (e: any) {
+      toast({ title: "❌ فشل الاستيراد", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleClearMemory = async () => {
+    await clearReviewMemory();
+    setReviewMem({ approved: {}, dismissed: {} });
+    toast({ title: "🗑️ تم مسح سجل المراجعات" });
   };
 
   const dismissAll = () => {
