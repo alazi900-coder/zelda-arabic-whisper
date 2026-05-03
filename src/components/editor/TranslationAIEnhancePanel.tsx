@@ -518,6 +518,32 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               <input type="checkbox" checked={showDiff} onChange={(e) => setShowDiff(e.target.checked)} className="accent-primary" />
               عرض الفروقات (Diff) ملوّنة
             </label>
+
+            <label className="flex items-center gap-2 text-xs cursor-pointer pt-1 border-t pt-2">
+              <input type="checkbox" checked={offlineMode} onChange={(e) => setOfflineMode(e.target.checked)} className="accent-primary" />
+              {offlineMode ? <WifiOff className="w-3.5 h-3.5 text-amber-500" /> : <Wifi className="w-3.5 h-3.5 text-green-500" />}
+              <span>وضع الفحص بدون إنترنت (محرك محلي ذكي)</span>
+            </label>
+
+            <div className="border-t pt-2 space-y-1.5">
+              <p className="text-[10px] text-muted-foreground">
+                سجل المراجعات: <strong>{Object.keys(reviewMem.approved).length}</strong> معتمدة، <strong>{Object.keys(reviewMem.dismissed).length}</strong> متجاهلة
+                <span className="block">— يتم تخطيها تلقائياً في الفحوص القادمة طالما الترجمة لم تتغير</span>
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={handleExportMemory}>
+                  <Download className="w-3 h-3" /> تصدير السجل
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-3 h-3" /> استيراد
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 text-destructive" onClick={handleClearMemory}>
+                  <Trash2 className="w-3 h-3" /> مسح
+                </Button>
+                <input ref={fileInputRef} type="file" accept="application/json" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportMemory(f); e.target.value = ""; }} />
+              </div>
+            </div>
           </div>
         )}
       </CardHeader>
