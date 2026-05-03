@@ -120,8 +120,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [appliedHistory, setAppliedHistory] = useState<{ key: string; previous: string; applied: string; ts: number }[]>([]);
 
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [reviewMem, setReviewMem] = useState<ReviewMemory>({ approved: {}, dismissed: {} });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const abortRef = useRef(false);
   const processedKeysRef = useRef<Set<string>>(new Set());
+
+  // Load persistent review memory once
+  React.useEffect(() => {
+    loadReviewMemory().then(setReviewMem);
+  }, []);
 
   const resetProcessedKeys = useCallback(() => {
     processedKeysRef.current = new Set();
