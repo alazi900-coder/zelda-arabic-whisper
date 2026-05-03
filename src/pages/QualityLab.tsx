@@ -32,7 +32,17 @@ import {
   openHTMLForPrint,
 } from "@/lib/reports";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Database, FileText, Printer, FileSpreadsheet } from "lucide-react";
+import {
+  BookOpen,
+  Database,
+  FileText,
+  Printer,
+  FileSpreadsheet,
+  LayoutGrid,
+  Layers,
+} from "lucide-react";
+import { groupIssuesByEntry } from "@/lib/group-issues";
+import EntryGroupCard from "@/components/quality-lab/EntryGroupCard";
 import {
   loadCustomDicts,
   EMPTY_DICTS,
@@ -45,6 +55,8 @@ import {
   type UnifiedScanReport,
 } from "@/lib/quality-lab-scanner";
 import { buildEditorDictJSON } from "@/lib/translations-json";
+
+type ResultsView = "per-issue" | "per-entry";
 
 const PAGE_SIZE = 30;
 
@@ -134,6 +146,24 @@ const QualityLab = () => {
   const [rule, setRule] = useState<string>("all");
   const [fix, setFix] = useState<FixFilter>("all");
   const [category, setCategory] = useState<string>("all");
+  const [resultsView, setResultsView] = useState<ResultsView>(() => {
+    if (typeof window === "undefined") return "per-issue";
+    try {
+      const v = localStorage.getItem("ql:results-view:v1");
+      return v === "per-entry" ? "per-entry" : "per-issue";
+    } catch {
+      return "per-issue";
+    }
+  });
+
+  const updateResultsView = (v: ResultsView) => {
+    setResultsView(v);
+    try {
+      localStorage.setItem("ql:results-view:v1", v);
+    } catch {
+      // ignore quota / private mode
+    }
+  };
 
   useEffect(() => {
     const prev = document.title;
@@ -281,6 +311,14 @@ const QualityLab = () => {
     });
   };
 
+  const dismissMany = (ids: ReadonlyArray<string>) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  };
+
   const sortedIssues = useMemo<LocalIssue[]>(() => {
     if (!report) return [];
     const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -333,6 +371,13 @@ const QualityLab = () => {
 
   const visible = filteredIssues.slice(0, shown);
   const hasMore = filteredIssues.length > shown;
+
+  const filteredGroups = useMemo(
+    () => groupIssuesByEntry(filteredIssues),
+    [filteredIssues],
+  );
+  const visibleGroups = filteredGroups.slice(0, shown);
+  const hasMoreGroups = filteredGroups.length > shown;
 
   const clearFilters = () => {
     setSearch("");
@@ -541,7 +586,48 @@ const QualityLab = () => {
           />
 
           <section className="px-4 max-w-6xl mx-auto w-full pb-3">
-            <div className="flex flex-wrap gap-2 justify-end">
+            <div className="flex flex-wrap gap-2 justify-end items-center">
+              <div
+                className="flex rounded-md overflow-hidden border border-border"
+                role="tablist"
+                aria-label="نمط عرض النتائج"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={resultsView === "per-issue"}
+                  onClick={() => updateResultsView("per-issue")}
+                  className={`px-2.5 py-1 text-xs flex items-center gap-1.5 transition-colors ${
+                    resultsView === "per-issue"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-transparent text-muted-foreground hover:bg-muted/40"
+                  }`}
+                  title="بطاقة لكلّ مشكلة (التقليدي)"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>لكلّ مشكلة</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={resultsView === "per-entry"}
+                  onClick={() => updateResultsView("per-entry")}
+                  className={`px-2.5 py-1 text-xs flex items-center gap-1.5 transition-colors border-r border-border ${
+                    resultsView === "per-entry"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-transparent text-muted-foreground hover:bg-muted/40"
+                  }`}
+                  title="بطاقة موحّدة لكلّ إدخال + اقتراح موحّد"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>
+                    لكلّ إدخال
+                    {filteredGroups.length > 0
+                      ? ` (${filteredGroups.length})`
+                      : ""}
+                  </span>
+                </button>
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -629,6 +715,35 @@ const QualityLab = () => {
                   لا توجد نتائج تطابق التصفية الحالية. جرّب تخفيف الشروط.
                 </p>
               </div>
+            ) : resultsView === "per-entry" ? (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {visibleGroups.map((g) => (
+                    <EntryGroupCard
+                      key={g.key}
+                      group={g}
+                      ruleLabels={RULE_LABELS}
+                      issueId={(it) => `${it.key}|${it.rule}|${it.issue}`}
+                      onApplyAll={applyOne}
+                      onApplyOne={applyOne}
+                      onDismissAll={dismissMany}
+                      onDismissOne={dismissOne}
+                    />
+                  ))}
+                </div>
+
+                {hasMoreGroups && (
+                  <div className="flex justify-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setShown((v) => v + PAGE_SIZE)}
+                      className="px-5 py-2.5 rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/20 text-sm font-display font-bold transition-colors"
+                    >
+                      تحميل المزيد ({filteredGroups.length - shown} متبقّ)
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
