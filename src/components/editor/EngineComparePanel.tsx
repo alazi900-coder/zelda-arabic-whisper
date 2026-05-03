@@ -31,8 +31,7 @@ interface Props {
   glossary?: string;
   userGeminiKey: string;
   userClaudeKey: string;
-  userBedrockAccessKey: string;
-  userBedrockSecretKey: string;
+  userBedrockApiKey: string;
   userBedrockRegion: string;
   myMemoryEmail: string;
   onApplyTranslation: (key: string, translation: string) => void;
@@ -40,7 +39,7 @@ interface Props {
 
 export default function EngineComparePanel({
   open, onClose, entry, entries, translations, glossary,
-  userGeminiKey, userClaudeKey, userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion, myMemoryEmail, onApplyTranslation,
+  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, myMemoryEmail, onApplyTranslation,
 }: Props) {
   const [results, setResults] = useState<EngineResult[]>([]);
   const [applied, setApplied] = useState<string | null>(null);
@@ -86,7 +85,7 @@ export default function EngineComparePanel({
     if (userClaudeKey) {
       engines.push({ id: "claude", label: "Claude (شخصي)", emoji: "🧠" });
     }
-    if (userBedrockAccessKey && userBedrockSecretKey) {
+    if (userBedrockApiKey) {
       engines.push({ id: "bedrock", label: "Amazon Bedrock", emoji: "☁️" });
     }
 
@@ -122,8 +121,7 @@ export default function EngineComparePanel({
             context: contextEntries.length > 0 ? contextEntries : undefined,
             userApiKey: eng.id === 'gemini' ? userGeminiKey : undefined,
             userClaudeKey: eng.id === 'claude' ? userClaudeKey : undefined,
-            userBedrockAccessKey: eng.id === 'bedrock' ? userBedrockAccessKey : undefined,
-            userBedrockSecretKey: eng.id === 'bedrock' ? userBedrockSecretKey : undefined,
+            userBedrockApiKey: eng.id === 'bedrock' ? userBedrockApiKey : undefined,
             userBedrockRegion: eng.id === 'bedrock' ? userBedrockRegion : undefined,
             translationEngine: eng.id,
             translationQuality: 'quality',
@@ -158,7 +156,7 @@ export default function EngineComparePanel({
       cache.set(targetKey, prev);
       return prev;
     });
-  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion, myMemoryEmail, targetKey]);
+  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, myMemoryEmail, targetKey]);
 
   const handleApply = (text: string, label: string, engine: string) => {
     if (!text) return;

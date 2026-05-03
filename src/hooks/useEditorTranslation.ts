@@ -30,8 +30,7 @@ interface UseEditorTranslationProps {
   setMyMemoryCharsUsed: React.Dispatch<React.SetStateAction<number>>;
   myMemoryDailyLimit: number;
   customPromptInstructions?: string;
-  userBedrockAccessKey: string;
-  userBedrockSecretKey: string;
+  userBedrockApiKey: string;
   userBedrockRegion: string;
 }
 
@@ -41,7 +40,7 @@ export function useEditorTranslation({
   geminiModel,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   customPromptInstructions,
-  userBedrockAccessKey, userBedrockSecretKey, userBedrockRegion,
+  userBedrockApiKey, userBedrockRegion,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -104,8 +103,7 @@ export function useEditorTranslation({
           context: contextEntries.length > 0 ? contextEntries : undefined,
           userApiKey: userGeminiKey || undefined,
           userClaudeKey: userClaudeKey || undefined,
-          userBedrockAccessKey: userBedrockAccessKey || undefined,
-          userBedrockSecretKey: userBedrockSecretKey || undefined,
+          userBedrockApiKey: userBedrockApiKey || undefined,
           userBedrockRegion: userBedrockRegion || undefined,
           translationEngine,
           translationQuality,
@@ -262,8 +260,7 @@ export function useEditorTranslation({
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
               userApiKey: userGeminiKey || undefined,
               userClaudeKey: userClaudeKey || undefined,
-              userBedrockAccessKey: userBedrockAccessKey || undefined,
-              userBedrockSecretKey: userBedrockSecretKey || undefined,
+              userBedrockApiKey: userBedrockApiKey || undefined,
               userBedrockRegion: userBedrockRegion || undefined,
               translationEngine,
               translationQuality,
@@ -391,8 +388,7 @@ export function useEditorTranslation({
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
             userApiKey: userGeminiKey || undefined,
             userClaudeKey: userClaudeKey || undefined,
-            userBedrockAccessKey: userBedrockAccessKey || undefined,
-            userBedrockSecretKey: userBedrockSecretKey || undefined,
+            userBedrockApiKey: userBedrockApiKey || undefined,
             userBedrockRegion: userBedrockRegion || undefined,
             translationEngine,
             translationQuality,
@@ -455,7 +451,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockAccessKey: userBedrockAccessKey || undefined, userBedrockSecretKey: userBedrockSecretKey || undefined, userBedrockRegion: userBedrockRegion || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -618,8 +614,7 @@ export function useEditorTranslation({
             glossary: activeGlossary,
             userApiKey: userGeminiKey || undefined,
             userClaudeKey: userClaudeKey || undefined,
-            userBedrockAccessKey: userBedrockAccessKey || undefined,
-            userBedrockSecretKey: userBedrockSecretKey || undefined,
+            userBedrockApiKey: userBedrockApiKey || undefined,
             userBedrockRegion: userBedrockRegion || undefined,
             translationEngine,
             translationQuality,

@@ -424,7 +424,7 @@ const Editor = () => {
                     { key: 'lovable', label: '🤖 Lovable AI', disabled: false },
                     { key: 'gemini', label: '✨ Gemini (شخصي)', disabled: !editor.userGeminiKey },
                     { key: 'claude', label: '🧠 Claude (شخصي)', disabled: !editor.userClaudeKey },
-                    { key: 'bedrock', label: '☁️ Amazon Bedrock', disabled: !(editor.userBedrockAccessKey && editor.userBedrockSecretKey) },
+                    { key: 'bedrock', label: '☁️ Amazon Bedrock', disabled: !editor.userBedrockApiKey },
                     { key: 'google', label: '🔤 Google Translate', disabled: false },
                     { key: 'mymemory', label: '🌐 MyMemory', disabled: false },
                   ].map(eng => (
@@ -502,17 +502,12 @@ const Editor = () => {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">☁️ Amazon Bedrock</span>
+                  <span className="text-sm font-display font-bold">☁️ مفتاح Amazon Bedrock API</span>
                 </div>
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex gap-2 flex-1">
-                    <input type="password" placeholder="AWS Access Key ID..." value={editor.userBedrockAccessKey}
-                      onChange={(e) => { editor.setUserBedrockAccessKey(e.target.value); if (e.target.value && editor.userBedrockSecretKey) editor.setTranslationEngine('bedrock'); }}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
-                  </div>
-                  <div className="flex gap-2 flex-1">
-                    <input type="password" placeholder="AWS Secret Access Key..." value={editor.userBedrockSecretKey}
-                      onChange={(e) => { editor.setUserBedrockSecretKey(e.target.value); if (e.target.value && editor.userBedrockAccessKey) editor.setTranslationEngine('bedrock'); }}
+                    <input type="password" placeholder="Bedrock API Key..." value={editor.userBedrockApiKey}
+                      onChange={(e) => { editor.setUserBedrockApiKey(e.target.value); if (e.target.value) editor.setTranslationEngine('bedrock'); }}
                       className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   </div>
                 </div>
@@ -524,19 +519,20 @@ const Editor = () => {
                     <option value="us-west-2">US West (Oregon)</option>
                     <option value="eu-west-1">EU (Ireland)</option>
                     <option value="eu-central-1">EU (Frankfurt)</option>
+                    <option value="eu-north-1">EU (Stockholm)</option>
                     <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
                     <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
                     <option value="ap-south-1">Asia Pacific (Mumbai)</option>
                     <option value="me-south-1">Middle East (Bahrain)</option>
                     <option value="me-central-1">Middle East (UAE)</option>
                   </select>
-                  {(editor.userBedrockAccessKey || editor.userBedrockSecretKey) && (
-                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserBedrockAccessKey(''); editor.setUserBedrockSecretKey(''); if (editor.translationEngine === 'bedrock') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                  {editor.userBedrockApiKey && (
+                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserBedrockApiKey(''); if (editor.translationEngine === 'bedrock') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
-                  <a href="https://console.aws.amazon.com/bedrock/home" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">فتح Amazon Bedrock ↗</a>
+                  <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">إنشاء مفتاح API ↗</a>
                 </div>
               </div>
-              {editor.userBedrockAccessKey && editor.userBedrockSecretKey && <p className="text-xs text-secondary font-body">مفاتيح Bedrock مفعّلة{editor.translationEngine === 'bedrock' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              {editor.userBedrockApiKey && <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل{editor.translationEngine === 'bedrock' ? ' — سيُستخدم للترجمة' : ''}</p>}
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
@@ -1166,7 +1162,7 @@ const Editor = () => {
         {engineCompareEntry && editor.state && (
           <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
             entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockAccessKey={editor.userBedrockAccessKey} userBedrockSecretKey={editor.userBedrockSecretKey} userBedrockRegion={editor.userBedrockRegion} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
+            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
         )}
         {editor.state && (
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}
