@@ -45,6 +45,15 @@ import {
   type UnifiedScanReport,
 } from "@/lib/quality-lab-scanner";
 import { buildEditorDictJSON } from "@/lib/translations-json";
+import {
+  loadDismissedIssues,
+  saveDismissedIssues,
+  loadDismissedPatterns,
+  saveDismissedPatterns,
+  patternSignature,
+  issueSignature,
+} from "@/lib/dismiss-store";
+import { Eye } from "lucide-react";
 
 const PAGE_SIZE = 30;
 
@@ -128,6 +137,9 @@ const QualityLab = () => {
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [tmOpen, setTmOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissedPatterns, setDismissedPatterns] = useState<Set<string>>(
+    () => loadDismissedPatterns(),
+  );
 
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("all");
@@ -146,6 +158,11 @@ const QualityLab = () => {
   useEffect(() => {
     void loadCustomDicts().then(setCustomDicts);
   }, []);
+
+  // Hydrate per-file dismissed issues whenever the source filename changes.
+  useEffect(() => {
+    setDismissed(loadDismissedIssues(sourceFilename));
+  }, [sourceFilename]);
 
   const scrollDown = () => {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -242,6 +259,7 @@ const QualityLab = () => {
     setSourceKeys(result.sourceKeys);
     setSourceFilename(result.sourceFilename);
     setCategory("all");
+    setDismissed(loadDismissedIssues(result.sourceFilename));
     void runScan(result.entries);
     setTimeout(() => {
       reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -264,7 +282,8 @@ const QualityLab = () => {
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const issueId = (it: LocalIssue): string => `${it.key}|${it.rule}|${it.issue}`;
+  const issueId = (it: LocalIssue): string =>
+    issueSignature(it.key, it.rule, it.issue);
 
   const applyOne = (key: string, newText: string) => {
     if (!entries.length) return;
@@ -277,8 +296,32 @@ const QualityLab = () => {
     setDismissed((prev) => {
       const next = new Set(prev);
       next.add(id);
+      saveDismissedIssues(sourceFilename, next);
       return next;
     });
+  };
+
+  const dismissPattern = (ruleId: string, issueText: string) => {
+    const sig = patternSignature(ruleId, issueText);
+    setDismissedPatterns((prev) => {
+      const next = new Set(prev);
+      next.add(sig);
+      saveDismissedPatterns(next);
+      return next;
+    });
+  };
+
+  const restoreAllDismissed = () => {
+    if (dismissed.size === 0 && dismissedPatterns.size === 0) {
+      toast.info("لا توجد تجاهلات لإعادتها");
+      return;
+    }
+    const total = dismissed.size + dismissedPatterns.size;
+    setDismissed(new Set());
+    setDismissedPatterns(new Set());
+    saveDismissedIssues(sourceFilename, new Set());
+    saveDismissedPatterns(new Set());
+    toast.success(`أعيدت إظهار ${total} تجاهل`);
   };
 
   const sortedIssues = useMemo<LocalIssue[]>(() => {
@@ -286,8 +329,9 @@ const QualityLab = () => {
     const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
     return [...report.issues]
       .filter((it) => !dismissed.has(issueId(it)))
+      .filter((it) => !dismissedPatterns.has(patternSignature(it.rule, it.issue)))
       .sort((a, b) => order[a.severity] - order[b.severity]);
-  }, [report, dismissed]);
+  }, [report, dismissed, dismissedPatterns]);
 
   const filteredIssues = useMemo<LocalIssue[]>(() => {
     if (sortedIssues.length === 0) return [];
@@ -542,6 +586,21 @@ const QualityLab = () => {
 
           <section className="px-4 max-w-6xl mx-auto w-full pb-3">
             <div className="flex flex-wrap gap-2 justify-end">
+              {(dismissed.size > 0 || dismissedPatterns.size > 0) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={restoreAllDismissed}
+                  className="gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                  title="إظهار جميع المشاكل المُتجاهَلة (للإدخالات والأنماط)"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>
+                    إعادة التجاهلات ({dismissed.size + dismissedPatterns.size})
+                  </span>
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -642,6 +701,7 @@ const QualityLab = () => {
                         issueId={id}
                         onApply={applyOne}
                         onDismiss={dismissOne}
+                        onDismissPattern={dismissPattern}
                       />
                     );
                   })}
