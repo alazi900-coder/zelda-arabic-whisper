@@ -2,7 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import QualityLabHero from "@/components/quality-lab/QualityLabHero";
-import InputZone, { type ScanEntry } from "@/components/quality-lab/InputZone";
+import InputZone, {
+  type ScanEntry,
+  type ScanLoadResult,
+  type ScanSourceFormat,
+} from "@/components/quality-lab/InputZone";
+import CategoryFilter from "@/components/quality-lab/CategoryFilter";
+import {
+  summarizeCategories,
+  categoryOfKey,
+} from "@/lib/category-summary";
 import StatsPanel from "@/components/quality-lab/StatsPanel";
 import IssueCard from "@/components/quality-lab/IssueCard";
 import FilterBar, {
@@ -35,6 +44,7 @@ import {
   type LocalIssue,
   type UnifiedScanReport,
 } from "@/lib/quality-lab-scanner";
+import { buildEditorDictJSON } from "@/lib/translations-json";
 
 const PAGE_SIZE = 30;
 
@@ -110,6 +120,10 @@ const QualityLab = () => {
   const [report, setReport] = useState<UnifiedScanReport | null>(null);
   const [shown, setShown] = useState(PAGE_SIZE);
 
+  const [sourceFormat, setSourceFormat] = useState<ScanSourceFormat>("unknown");
+  const [sourceKeys, setSourceKeys] = useState<string[] | undefined>(undefined);
+  const [sourceFilename, setSourceFilename] = useState<string | undefined>(undefined);
+
   const [customDicts, setCustomDicts] = useState<CustomDicts>(EMPTY_DICTS);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [tmOpen, setTmOpen] = useState(false);
@@ -119,6 +133,7 @@ const QualityLab = () => {
   const [severity, setSeverity] = useState<SeverityFilter>("all");
   const [rule, setRule] = useState<string>("all");
   const [fix, setFix] = useState<FixFilter>("all");
+  const [category, setCategory] = useState<string>("all");
 
   useEffect(() => {
     const prev = document.title;
@@ -222,8 +237,12 @@ const QualityLab = () => {
     return new Set(report.issues.map((i) => i.key));
   }, [report]);
 
-  const onLoaded = (loaded: ScanEntry[]) => {
-    void runScan(loaded);
+  const onLoaded = (result: ScanLoadResult) => {
+    setSourceFormat(result.sourceFormat);
+    setSourceKeys(result.sourceKeys);
+    setSourceFilename(result.sourceFilename);
+    setCategory("all");
+    void runScan(result.entries);
     setTimeout(() => {
       reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -237,7 +256,11 @@ const QualityLab = () => {
     setSeverity("all");
     setRule("all");
     setFix("all");
+    setCategory("all");
     setDismissed(new Set());
+    setSourceFormat("unknown");
+    setSourceKeys(undefined);
+    setSourceFilename(undefined);
     inputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -272,6 +295,7 @@ const QualityLab = () => {
     return sortedIssues.filter((it) => {
       if (severity !== "all" && it.severity !== severity) return false;
       if (rule !== "all" && it.rule !== rule) return false;
+      if (category !== "all" && categoryOfKey(it.key) !== category) return false;
       const fixable = it.suggestion && it.suggestion !== it.translation;
       if (fix === "fixable" && !fixable) return false;
       if (fix === "manual" && fixable) return false;
@@ -281,7 +305,12 @@ const QualityLab = () => {
       }
       return true;
     });
-  }, [sortedIssues, search, severity, rule, fix]);
+  }, [sortedIssues, search, severity, rule, fix, category]);
+
+  const categorySummaries = useMemo(
+    () => summarizeCategories(entries, keysWithLocalIssues),
+    [entries, keysWithLocalIssues],
+  );
 
   const ruleOptions = useMemo(() => {
     if (!report) return [];
@@ -368,6 +397,21 @@ const QualityLab = () => {
 
   const exportEntries = () => {
     if (entries.length === 0) return;
+    // Round-trip the editor's dictionary format (keys preserved in order, no
+    // synthetic original field) so the editor can re-import without changes.
+    if (sourceFormat === "dict-json") {
+      const text = buildEditorDictJSON(entries, sourceKeys);
+      const baseName = sourceFilename?.replace(/\.json$/i, "") ?? "translations";
+      const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${baseName}-fixed.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`صُدّر ${entries.length} إدخال بنفس صيغة المحرّر`);
+      return;
+    }
     downloadJson(`translations-${Date.now()}.json`, entries);
   };
 
@@ -449,7 +493,11 @@ const QualityLab = () => {
 
       {entries.length > 0 && report && (
         <AIScanPanel
-          entries={entries}
+          entries={
+            category === "all"
+              ? entries
+              : entries.filter((e) => categoryOfKey(e.key) === category)
+          }
           keysWithLocalIssues={keysWithLocalIssues}
           onResults={onAIResults}
         />
@@ -457,7 +505,10 @@ const QualityLab = () => {
 
       {entries.length > 0 && report && (
         <GoogleRoundTripPanel
-          entries={entries.map((e) => ({
+          entries={(category === "all"
+            ? entries
+            : entries.filter((e) => categoryOfKey(e.key) === category)
+          ).map((e) => ({
             key: e.key,
             originalEnglish: e.original,
             arabic: e.translation,
@@ -470,6 +521,15 @@ const QualityLab = () => {
       {report && (
         <div ref={reportRef} className="pb-16">
           <StatsPanel report={report} onReset={reset} />
+
+          <CategoryFilter
+            summaries={categorySummaries}
+            filterCategory={category}
+            setFilterCategory={(c) => {
+              setCategory(c);
+              setShown(PAGE_SIZE);
+            }}
+          />
 
           <ActionsBar
             totalIssues={report.total}

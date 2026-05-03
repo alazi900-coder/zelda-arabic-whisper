@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { parseTranslationsJSON } from "@/lib/translations-json";
 import {
   ClipboardPaste,
   FileUp,
@@ -17,8 +18,32 @@ export interface ScanEntry {
   translation: string;
 }
 
+/**
+ * The input source from which entries were loaded. Used to choose how the
+ * tool re-exports the data so the editor can re-import it round-trip.
+ */
+export type ScanSourceFormat =
+  | "dict-json" // {"path:idx": "translation", ...} — editor's translations.json
+  | "array-json" // [{key, original, translation}, ...]
+  | "csv"
+  | "tsv"
+  | "editor-import"
+  | "unknown";
+
+export interface ScanLoadResult {
+  entries: ScanEntry[];
+  sourceFormat: ScanSourceFormat;
+  /**
+   * For dict-json imports we capture the original key order so we can write
+   * back the file with exactly the same ordering and identical structure.
+   */
+  sourceKeys?: string[];
+  /** The original filename, when known. */
+  sourceFilename?: string;
+}
+
 interface InputZoneProps {
-  onLoaded: (entries: ScanEntry[]) => void;
+  onLoaded: (result: ScanLoadResult) => void;
 }
 
 const SAMPLE_PASTE = `# الصق هنا الإدخالات بصيغة:
@@ -69,29 +94,33 @@ const InputZone = ({ onLoaded }: InputZoneProps) => {
     return out;
   };
 
-  const parseJSON = (text: string): ScanEntry[] => {
-    const data = JSON.parse(text);
-    if (!Array.isArray(data)) {
-      throw new Error("JSON يجب أن يكون مصفوفة من الكائنات");
-    }
-    return data
-      .map((row, i) => ({
-        key: String(row.key ?? row.id ?? `entry:${i + 1}`),
-        original: String(row.original ?? row.source ?? row.en ?? ""),
-        translation: String(row.translation ?? row.target ?? row.ar ?? ""),
-      }))
-      .filter((r) => r.original || r.translation);
-  };
+  const parseJSON = parseTranslationsJSON;
 
   const handlePaste = () => {
     setBusy(true);
     try {
+      const trimmed = pasteText.trim();
+      // Detect if user pasted raw JSON instead of TSV.
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        const parsed = parseJSON(trimmed);
+        if (parsed.entries.length === 0) {
+          toast.error("لم نجد أيّ إدخال صالح. تأكّد من التنسيق.");
+          return;
+        }
+        onLoaded({
+          entries: parsed.entries,
+          sourceFormat: parsed.sourceFormat,
+          sourceKeys: parsed.sourceKeys,
+        });
+        toast.success(`تم تحميل ${parsed.entries.length} إدخال`);
+        return;
+      }
       const entries = parseTSV(pasteText);
       if (entries.length === 0) {
         toast.error("لم نجد أيّ إدخال صالح. تأكّد من التنسيق.");
         return;
       }
-      onLoaded(entries);
+      onLoaded({ entries, sourceFormat: "tsv" });
       toast.success(`تم تحميل ${entries.length} إدخال`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -105,20 +134,34 @@ const InputZone = ({ onLoaded }: InputZoneProps) => {
     try {
       const text = await file.text();
       const lower = file.name.toLowerCase();
-      let entries: ScanEntry[] = [];
+      let result: ScanLoadResult;
       if (lower.endsWith(".json")) {
-        entries = parseJSON(text);
+        const parsed = parseJSON(text);
+        result = {
+          entries: parsed.entries,
+          sourceFormat: parsed.sourceFormat,
+          sourceKeys: parsed.sourceKeys,
+          sourceFilename: file.name,
+        };
       } else if (lower.endsWith(".csv")) {
-        entries = parseCSV(text);
+        result = {
+          entries: parseCSV(text),
+          sourceFormat: "csv",
+          sourceFilename: file.name,
+        };
       } else {
-        entries = parseTSV(text);
+        result = {
+          entries: parseTSV(text),
+          sourceFormat: "tsv",
+          sourceFilename: file.name,
+        };
       }
-      if (entries.length === 0) {
+      if (result.entries.length === 0) {
         toast.error("لم نجد إدخالات في الملفّ");
         return;
       }
-      onLoaded(entries);
-      toast.success(`تم تحميل ${entries.length} إدخال من «${file.name}»`);
+      onLoaded(result);
+      toast.success(`تم تحميل ${result.entries.length} إدخال من «${file.name}»`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -151,7 +194,7 @@ const InputZone = ({ onLoaded }: InputZoneProps) => {
         toast.warning("لم نعثر على بيانات من المحرّر. افتح المحرّر أوّلاً وحمّل ملفّ .zs");
         return;
       }
-      onLoaded(found);
+      onLoaded({ entries: found, sourceFormat: "editor-import" });
       toast.success(`تم استيراد ${found.length} إدخال من المحرّر`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
