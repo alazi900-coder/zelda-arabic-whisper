@@ -11,6 +11,7 @@ import FilterBar, {
 } from "@/components/quality-lab/FilterBar";
 import ActionsBar from "@/components/quality-lab/ActionsBar";
 import GlossaryEditor from "@/components/quality-lab/GlossaryEditor";
+import AIScanPanel from "@/components/quality-lab/AIScanPanel";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import {
@@ -70,6 +71,8 @@ const RULE_LABELS: Record<string, string> = {
   dict_gaming_term: "مصطلح ألعاب",
   dict_proper_noun: "اسم علم",
   digit_mismatch: "أرقام مختلفة",
+  ai_grammar: "فحص بالنموذج",
+  ai_enhance: "تحسين أسلوبي",
 };
 
 const QualityLab = () => {
@@ -121,6 +124,48 @@ const QualityLab = () => {
       runScan(entries, next);
     }
   };
+
+  const onAIResults = (newIssues: LocalIssue[]) => {
+    if (!report) return;
+    if (newIssues.length === 0) return;
+    const seen = new Set<string>(
+      report.issues.map((it) => `${it.key}|${it.rule}|${it.issue}`),
+    );
+    const added: LocalIssue[] = [];
+    for (const it of newIssues) {
+      const sig = `${it.key}|${it.rule}|${it.issue}`;
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+      added.push(it);
+    }
+    if (added.length === 0) return;
+
+    const merged = [...report.issues, ...added];
+    const bySeverity = { high: 0, medium: 0, low: 0 } as Record<"high" | "medium" | "low", number>;
+    const byRule: Record<string, number> = {};
+    const byType: Record<string, number> = {};
+    const affected = new Set<string>();
+    for (const it of merged) {
+      bySeverity[it.severity] = (bySeverity[it.severity] ?? 0) + 1;
+      byRule[it.rule] = (byRule[it.rule] ?? 0) + 1;
+      byType[it.type] = (byType[it.type] ?? 0) + 1;
+      affected.add(it.key);
+    }
+    setReport({
+      issues: merged,
+      bySeverity,
+      byRule,
+      byType,
+      affectedEntries: affected.size,
+      totalScanned: report.totalScanned,
+      total: merged.length,
+    });
+  };
+
+  const keysWithLocalIssues = useMemo(() => {
+    if (!report) return new Set<string>();
+    return new Set(report.issues.map((i) => i.key));
+  }, [report]);
 
   const onLoaded = (loaded: ScanEntry[]) => {
     runScan(loaded);
@@ -280,6 +325,14 @@ const QualityLab = () => {
         onOpenChange={setGlossaryOpen}
         onSaved={onGlossarySaved}
       />
+
+      {entries.length > 0 && report && (
+        <AIScanPanel
+          entries={entries}
+          keysWithLocalIssues={keysWithLocalIssues}
+          onResults={onAIResults}
+        />
+      )}
 
       {report && (
         <div ref={reportRef} className="pb-16">
