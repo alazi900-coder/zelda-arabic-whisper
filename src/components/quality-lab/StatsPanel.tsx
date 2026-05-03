@@ -145,6 +145,8 @@ const RULE_LABELS: Record<string, string> = {
   hamza_pattern: "همزة شائعة",
   has_diacritics: "تشكيل",
   consistency: "اتساق المصطلحات",
+  dict_hamza: "همزة (قاموس)",
+  dict_ta_marbutah: "تاء مربوطة (قاموس)",
 };
 
 function ruleLabel(rule: string): string {

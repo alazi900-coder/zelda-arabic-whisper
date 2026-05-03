@@ -6,6 +6,7 @@ import {
   type IssueSeverity,
   type IssueType,
 } from "./local-enhance-scanner";
+import { scanAllWithDictionaries, type DictScanInput } from "./dict-scanner";
 
 export type { LocalIssue, LocalScanInput, IssueSeverity, IssueType };
 export { isGrammarIssue };
@@ -28,12 +29,29 @@ export interface UnifiedScanReport {
 }
 
 /**
- * Phase 1 of the unified Quality Lab scanner: runs the existing 17-rule
- * structural scanner and aggregates the results. Dictionary-based detection
- * (hamza, taa marbutah, gaming glossary, proper nouns) lands in later PRs.
+ * Unified Quality Lab scanner. Combines:
+ *  1. The structural 17-rule scanner from local-enhance-scanner.
+ *  2. Dictionary-based detection (hamza, taa marbutah — PR4; more later).
+ *
+ * Issues are deduplicated by (key | rule | issue label).
  */
 export function scanUnified(inputs: UnifiedScanInput[]): UnifiedScanReport {
-  const issues = scanAllLocally(inputs);
+  const ruleIssues = scanAllLocally(inputs);
+  const dictInputs: DictScanInput[] = inputs.map(({ key, original, translation }) => ({
+    key,
+    original,
+    translation,
+  }));
+  const dictIssues = scanAllWithDictionaries(dictInputs);
+
+  const seen = new Set<string>();
+  const issues: LocalIssue[] = [];
+  for (const it of [...ruleIssues, ...dictIssues]) {
+    const sig = `${it.key}|${it.rule}|${it.issue}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    issues.push(it);
+  }
 
   const bySeverity: Record<IssueSeverity, number> = { high: 0, medium: 0, low: 0 };
   const byRule: Record<string, number> = {};
