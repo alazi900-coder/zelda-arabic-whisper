@@ -4,6 +4,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { parseTranslationsJSON } from "@/lib/translations-json";
 import {
+  loadEditorState,
+  editorStateToScanEntries,
+} from "@/lib/editor-bridge";
+import {
   ClipboardPaste,
   FileUp,
   Database,
@@ -169,33 +173,23 @@ const InputZone = ({ onLoaded }: InputZoneProps) => {
     }
   };
 
-  const handleEditorImport = () => {
+  const handleEditorImport = async () => {
     setBusy(true);
     try {
-      // Try a few common storage keys used by the existing editor.
-      const candidates = [
-        "translations-cache",
-        "msbtCurrent",
-        "translation-entries",
-      ];
-      let found: ScanEntry[] = [];
-      for (const k of candidates) {
-        const raw = localStorage.getItem(k);
-        if (!raw) continue;
-        try {
-          const data = JSON.parse(raw);
-          const entries = extractEntriesFromObject(data);
-          if (entries.length > found.length) found = entries;
-        } catch {
-          // ignore
-        }
-      }
-      if (found.length === 0) {
-        toast.warning("لم نعثر على بيانات من المحرّر. افتح المحرّر أوّلاً وحمّل ملفّ .zs");
+      const editorState = await loadEditorState();
+      if (!editorState || editorState.entries.length === 0) {
+        toast.warning(
+          "لم نعثر على جلسة محرّر محفوظة. افتح /editor أوّلاً وحمّل ملفّ ‎.zs",
+        );
         return;
       }
-      onLoaded({ entries: found, sourceFormat: "editor-import" });
-      toast.success(`تم استيراد ${found.length} إدخال من المحرّر`);
+      const entries = editorStateToScanEntries(editorState);
+      if (entries.length === 0) {
+        toast.warning("جلسة المحرّر لا تحوي أيّ إدخال صالح");
+        return;
+      }
+      onLoaded({ entries, sourceFormat: "editor-import" });
+      toast.success(`تمّ استيراد ${entries.length} إدخال من جلسة المحرّر`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {

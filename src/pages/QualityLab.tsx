@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import QualityLabHero from "@/components/quality-lab/QualityLabHero";
@@ -45,6 +46,11 @@ import {
   type UnifiedScanReport,
 } from "@/lib/quality-lab-scanner";
 import { buildEditorDictJSON } from "@/lib/translations-json";
+import {
+  loadEditorState,
+  mergeIntoEditorState,
+  saveEditorState,
+} from "@/lib/editor-bridge";
 
 const PAGE_SIZE = 30;
 
@@ -113,8 +119,10 @@ const RULE_LABELS: Record<string, string> = {
 };
 
 const QualityLab = () => {
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [sendingToEditor, setSendingToEditor] = useState(false);
 
   const [entries, setEntries] = useState<ScanEntry[]>([]);
   const [report, setReport] = useState<UnifiedScanReport | null>(null);
@@ -341,6 +349,51 @@ const QualityLab = () => {
     setFix("all");
   };
 
+  const sendToEditor = async () => {
+    if (entries.length === 0 || sendingToEditor) return;
+    setSendingToEditor(true);
+    try {
+      const editorState = await loadEditorState();
+      if (!editorState || editorState.entries.length === 0) {
+        toast.warning(
+          "لا توجد جلسة محرّر محفوظة. افتح /editor واستورد ملفّ ‎.zs أوّلاً.",
+        );
+        return;
+      }
+      const updates = new Map<string, string>(
+        entries.map((e) => [e.key, e.translation]),
+      );
+      const merged = mergeIntoEditorState(editorState, updates);
+      if (merged.written === 0) {
+        toast.info(
+          merged.ignored > 0
+            ? `لا تطابق — ${merged.ignored} مفتاحاً غير موجود في جلسة المحرّر`
+            : "لا تغييرات لإرسالها (جلسة المحرّر متطابقة بالفعل)",
+        );
+        return;
+      }
+      await saveEditorState(merged.state);
+      const skipNote =
+        merged.ignored > 0 ? ` · تجاهل ${merged.ignored} مفتاح غير معروف` : "";
+      toast.success(
+        `أُرسل ${merged.written} ترجمة إلى جلسة المحرّر${skipNote}. افتح /editor لمتابعة التحرير.`,
+        {
+          action: {
+            label: "افتح المحرّر",
+            onClick: () => navigate("/editor"),
+          },
+          duration: 6000,
+        },
+      );
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "تعذّر الإرسال إلى المحرّر",
+      );
+    } finally {
+      setSendingToEditor(false);
+    }
+  };
+
   const applySafe = () => {
     if (!report || safeFixCount === 0) return;
     // For each entry, walk safe issues in order and chain their suggestions.
@@ -538,6 +591,9 @@ const QualityLab = () => {
             onApplySafe={applySafe}
             onExportIssues={exportIssues}
             onExportEntries={exportEntries}
+            onSendToEditor={sendToEditor}
+            canSendToEditor={entries.length > 0}
+            sendingToEditor={sendingToEditor}
           />
 
           <section className="px-4 max-w-6xl mx-auto w-full pb-3">
