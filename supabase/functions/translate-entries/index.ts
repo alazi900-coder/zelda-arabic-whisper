@@ -391,8 +391,8 @@ ${textsBlock}`;
       const region = (userBedrockRegion || 'us-east-1').trim();
 
       const bedrockModel = translationQuality === 'quality'
-        ? 'anthropic.claude-sonnet-4-20250514-v1:0'
-        : 'anthropic.claude-haiku-35-20241022-v1:0';
+        ? 'anthropic.claude-sonnet-4-6'
+        : 'anthropic.claude-haiku-4-5';
 
       const bedrockUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(bedrockModel)}/converse`;
 
