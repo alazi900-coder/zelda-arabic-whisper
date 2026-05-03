@@ -213,7 +213,6 @@ export default function EngineComparePanel({
                 </div>
               )}
             </div>
-          <div className="p-4 space-y-3">
             {results.length === 0 && !fetching && (
               <div className="text-center py-12 space-y-3">
                 <Columns className="w-12 h-12 text-muted-foreground/30 mx-auto" />
