@@ -11,7 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Link, useBlocker } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -110,7 +110,22 @@ const Editor = () => {
 
   const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
 
-  const blocker = useBlocker(editor.isPageLocked);
+  // Intercept in-app navigation when page is locked
+  React.useEffect(() => {
+    if (!editor.isPageLocked) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement)?.closest?.('a');
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#') || a.getAttribute('target') === '_blank') return;
+      if (!confirm('🔒 الصفحة مقفلة — هل تريد فعلاً مغادرة المحرر؟')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [editor.isPageLocked]);
 
   const handleEnhanceWithContext = React.useCallback(async () => {
     if (!editor.state || enhancing) return;
@@ -1077,22 +1092,6 @@ const Editor = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
               <AlertDialogAction onClick={() => { setShowFilterTranslateConfirm(false); editor.handleAutoTranslate(); }}>ترجمة {untranslatedCount} نص 🚀</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={blocker.state === 'blocked'}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>🔒 الصفحة مقفلة</AlertDialogTitle>
-              <AlertDialogDescription className="text-right">
-                <p>قفل الصفحة مفعّل — هل أنت متأكد من الخروج من المحرر؟</p>
-                <p className="text-xs text-muted-foreground mt-2">قد تفقد تغييرات غير محفوظة.</p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => blocker.reset?.()}>البقاء في المحرر</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { editor.setIsPageLocked(false); blocker.proceed?.(); }} className="bg-destructive hover:bg-destructive/90">خروج</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
