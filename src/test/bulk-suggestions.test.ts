@@ -17,7 +17,7 @@ const baseIssue = (
 ): LocalIssue => ({
   original: partial.original ?? "",
   reason: partial.reason ?? "",
-  type: partial.type ?? "spelling",
+  type: partial.type ?? "grammar",
   severity: partial.severity ?? "medium",
   ...partial,
 });
