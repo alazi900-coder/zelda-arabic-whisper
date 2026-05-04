@@ -390,9 +390,10 @@ ${textsBlock}`;
       const apiKey = userBedrockApiKey.trim();
       const region = (userBedrockRegion || 'us-east-1').trim();
 
+      // Use cross-region inference profiles (required for Claude 4 / 3.5 on-demand)
       const bedrockModel = translationQuality === 'quality'
-        ? 'anthropic.claude-sonnet-4-6'
-        : 'anthropic.claude-haiku-4-5';
+        ? 'us.anthropic.claude-sonnet-4-20250514-v1:0'
+        : 'us.anthropic.claude-3-5-haiku-20241022-v1:0';
 
       const bedrockUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(bedrockModel)}/converse`;
 
