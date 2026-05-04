@@ -503,8 +503,9 @@ ${textsBlock}`;
       });
     }
 
-    // === Amazon Bedrock translation engine (multi-model — Bearer Token API Key) ===
+    // === Amazon Bedrock translation engine v2 (multi-model — Bearer Token API Key) ===
     if (translationEngine === 'bedrock' && userBedrockApiKey?.trim()) {
+      console.log('[Bedrock v2] Model requested:', userBedrockModel, '| Region:', userBedrockRegion);
       const apiKey = userBedrockApiKey.trim();
       const region = (userBedrockRegion || 'us-east-1').trim();
 
@@ -605,7 +606,7 @@ ${textsBlock}`;
           }
           if (parsedMsg.includes('Operation not allowed') || parsedMsg.includes('not authorized') || parsedMsg.includes('AccessDeniedException')) {
             return new Response(JSON.stringify({
-              error: `نموذج ${modelInfo.label} غير مفعّل في حسابك. افتح لوحة تحكم Bedrock → Model access → فعّل النموذج، ثم حاول مرة أخرى.`
+              error: `نموذج ${modelInfo.label} غير مفعّل في حسابك. قد تحتاج التواصل مع دعم AWS لتفعيل Bedrock على حسابك (مشكلة شائعة في الحسابات الجديدة). جرّب محرك Google Translate أو Gemini كبديل.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           if (parsedMsg.includes('model identifier is invalid') || parsedMsg.includes('on-demand throughput')) {
