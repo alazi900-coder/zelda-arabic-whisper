@@ -99,11 +99,22 @@ function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: 
 const DiffView: React.FC<{ before: string; after: string }> = ({ before, after }) => {
   const parts = useMemo(() => diffWords(before, after), [before, after]);
   return (
-    <div className="text-sm leading-relaxed font-body" dir="rtl">
+    <div
+      className="text-sm leading-relaxed font-body whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word] max-w-full"
+      dir="rtl"
+    >
       {parts.map((p, i) =>
-        p.type === "same" ? <span key={i}>{p.text}</span>
-        : p.type === "del" ? <span key={i} className="bg-red-500/20 line-through text-red-600 rounded px-0.5">{p.text}</span>
-        : <span key={i} className="bg-green-500/20 text-green-700 rounded px-0.5">{p.text}</span>
+        p.type === "same" ? (
+          <span key={i}>{p.text}</span>
+        ) : p.type === "del" ? (
+          <span key={i} className="bg-red-500/20 line-through text-red-600 rounded px-0.5 mx-px inline">
+            {p.text}
+          </span>
+        ) : (
+          <span key={i} className="bg-green-500/20 text-green-700 rounded px-0.5 mx-px inline">
+            {p.text}
+          </span>
+        )
       )}
     </div>
   );
