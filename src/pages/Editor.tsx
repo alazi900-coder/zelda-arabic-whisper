@@ -1096,22 +1096,6 @@ const Editor = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={blocker.state === 'blocked'}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>🔒 الصفحة مقفلة</AlertDialogTitle>
-              <AlertDialogDescription className="text-right">
-                <p>قفل الصفحة مفعّل — هل أنت متأكد من الخروج من المحرر؟</p>
-                <p className="text-xs text-muted-foreground mt-2">قد تفقد تغييرات غير محفوظة.</p>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => blocker.reset?.()}>البقاء في المحرر</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { editor.setIsPageLocked(false); blocker.proceed?.(); }} className="bg-destructive hover:bg-destructive/90">خروج</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
         <BuildConfirmDialog open={editor.showBuildConfirm} onOpenChange={editor.setShowBuildConfirm} preview={editor.buildPreview} onConfirm={editor.handleBuild} building={editor.building} />
 
         {editor.fixPreview && (
