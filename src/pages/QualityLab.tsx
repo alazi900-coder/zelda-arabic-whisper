@@ -120,7 +120,6 @@ const RULE_LABELS: Record<string, string> = {
   ellipsis_chars: "ثلاث نقاط بدل الحذف",
   nbsp: "مسافات غير قابلة للكسر",
   length_anomaly: "تفاوت طول غير طبيعي",
-  punct_parity: "ترقيم غير متطابق",
 };
 
 const QualityLab = () => {
