@@ -519,8 +519,8 @@ ${textsBlock}`;
         'mistral-large': { id: 'mistral.mistral-large-2402-v1:0', supportsSystem: true, label: 'Mistral Large' },
       };
 
-      // Resolve model: explicit selection > quality-based fallback
-      const selectedModelKey = userBedrockModel || (translationQuality === 'quality' ? 'claude-sonnet' : 'claude-haiku');
+      // Resolve model: explicit selection > nova-pro fallback (Claude has geo-restrictions)
+      const selectedModelKey = userBedrockModel || 'nova-pro';
       const modelInfo = BEDROCK_MODEL_MAP[selectedModelKey] || BEDROCK_MODEL_MAP['nova-pro'];
       const bedrockModelId = modelInfo.id;
 
