@@ -603,9 +603,14 @@ ${textsBlock}`;
               error: `نموذج ${modelInfo.label} غير متاح في منطقتك الجغرافية. جرّب نموذجاً آخر مثل DeepSeek R1 أو Amazon Nova.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
-          if (parsedMsg.includes('not authorized') || parsedMsg.includes('AccessDeniedException')) {
+          if (parsedMsg.includes('Operation not allowed') || parsedMsg.includes('not authorized') || parsedMsg.includes('AccessDeniedException')) {
             return new Response(JSON.stringify({
-              error: `لم يتم تفعيل نموذج ${modelInfo.label} في منطقة ${region}. فعّل النموذج من لوحة تحكم Bedrock أو اختر نموذجاً آخر.`
+              error: `نموذج ${modelInfo.label} غير مفعّل في حسابك. افتح لوحة تحكم Bedrock → Model access → فعّل النموذج، ثم حاول مرة أخرى.`
+            }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          if (parsedMsg.includes('model identifier is invalid') || parsedMsg.includes('on-demand throughput')) {
+            return new Response(JSON.stringify({
+              error: `نموذج ${modelInfo.label} غير متوفر في منطقة ${region}. جرّب منطقة US East أو EU West، أو اختر نموذجاً آخر.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           return new Response(JSON.stringify({
