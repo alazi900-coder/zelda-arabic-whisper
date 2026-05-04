@@ -55,6 +55,91 @@ function postProcess(translation: string, original: string): string {
   return t;
 }
 
+// --- Built-in Zelda/gaming glossary for Google Translate enhancement ---
+const BUILTIN_GLOSSARY: ReadonlyArray<readonly [string, string]> = [
+  // Zelda proper nouns
+  ["Link", "لينك"], ["Zelda", "زيلدا"], ["Ganon", "غانون"], ["Ganondorf", "غاندورف"],
+  ["Hyrule", "هايرول"], ["Triforce", "تريفورس"], ["Master Sword", "سيف الماستر"],
+  ["Bokoblin", "بوكوبلين"], ["Moblin", "موبلين"], ["Lynel", "لينيل"], ["Hinox", "هينوكس"],
+  ["Guardian", "الحارس"], ["Sheikah", "شيكا"], ["Zonai", "زوناي"], ["Korok", "كوروك"],
+  ["Goron", "غورون"], ["Zora", "زورا"], ["Rito", "ريتو"], ["Gerudo", "غيرودو"],
+  ["Deku", "ديكو"], ["Kokiri", "كوكيري"], ["Navi", "نافي"], ["Epona", "إيبونا"],
+  ["Rupee", "روبية"], ["Rupees", "روبيات"],
+  ["Purah", "بورا"], ["Impa", "إمبا"], ["Robbie", "روبي"], ["Sidon", "سيدون"],
+  ["Riju", "ريجو"], ["Tulin", "تولين"], ["Yunobo", "يونوبو"], ["Mineru", "مينيرو"],
+  ["Rauru", "راؤرو"], ["Sonia", "سونيا"], ["Hestu", "هيستو"],
+  ["Death Mountain", "جبل الموت"], ["Kakariko", "كاكاريكو"], ["Hateno", "هاتينو"],
+  ["Rito Village", "قرية ريتو"], ["Goron City", "مدينة غورون"],
+  ["Zora's Domain", "مملكة زورا"], ["Gerudo Town", "بلدة غيرودو"],
+  ["Lookout Landing", "ميناء المراقبة"], ["Great Sky Island", "جزيرة السماء الكبرى"],
+  ["Depths", "الأعماق"], ["Sky", "السماء"], ["Surface", "السطح"],
+  // Gaming terms
+  ["HP", "الصحة"], ["heart", "قلب"], ["hearts", "قلوب"],
+  ["stamina", "القدرة"], ["stamina wheel", "عجلة القدرة"],
+  ["fast travel", "السفر السريع"], ["warp", "انتقال"],
+  ["shrine", "مزار"], ["temple", "معبد"], ["dungeon", "زنزانة"],
+  ["side quest", "مهمة جانبية"], ["main quest", "مهمة رئيسية"],
+  ["armor set", "طقم درع"], ["weapon", "سلاح"], ["shield", "درع"], ["bow", "قوس"],
+  ["arrow", "سهم"], ["arrows", "سهام"], ["bomb", "قنبلة"],
+  ["elixir", "إكسير"], ["potion", "جرعة"], ["meal", "وجبة"], ["recipe", "وصفة"],
+  ["ingredients", "المكونات"], ["cooking pot", "قدر الطبخ"],
+  ["fuse", "دمج"], ["attach", "إلحاق"], ["recall", "استرجاع"], ["ascend", "صعود"],
+  ["ultrahand", "اليد الفائقة"], ["autobuild", "البناء التلقائي"],
+  ["inventory", "المخزون"], ["quest log", "سجل المهام"], ["map", "خريطة"],
+  ["save", "حفظ"], ["load", "تحميل"], ["game over", "انتهت اللعبة"],
+  ["treasure chest", "صندوق كنز"], ["boss", "زعيم"], ["mini-boss", "زعيم صغير"],
+  ["enemy", "عدو"], ["enemies", "أعداء"], ["monster", "وحش"],
+  ["damage", "ضرر"], ["defense", "دفاع"], ["attack", "هجوم"],
+  ["critical hit", "ضربة حرجة"], ["sneak strike", "ضربة خفية"],
+  ["quest", "مهمة"], ["quest complete", "اكتملت المهمة"],
+  ["equip", "تجهيز"], ["unequip", "إزالة التجهيز"],
+  ["drop", "إسقاط"], ["pick up", "التقاط"],
+  ["paraglider", "المظلة الشراعية"], ["horse", "حصان"],
+  ["tower", "برج"], ["stable", "اسطبل"], ["village", "قرية"],
+  ["fairy", "جنية"], ["Great Fairy", "الجنية العظيمة"],
+  ["Blood Moon", "قمر الدم"], ["Star Fragment", "شظية نجم"],
+  ["Ancient", "قديم"], ["Royal", "ملكي"], ["Mighty", "عتيد"],
+];
+
+function buildGlossaryMap(glossaryText?: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [en, ar] of BUILTIN_GLOSSARY) {
+    map.set(en.toLowerCase(), ar);
+  }
+  if (glossaryText?.trim()) {
+    for (const line of glossaryText.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#') || t.startsWith('//')) continue;
+      const eqIdx = t.indexOf('=');
+      if (eqIdx < 0) continue;
+      const en = t.slice(0, eqIdx).trim();
+      const ar = t.slice(eqIdx + 1).trim();
+      if (en && ar) map.set(en.toLowerCase(), ar);
+    }
+  }
+  return map;
+}
+
+function applyGlossaryToTranslation(text: string, original: string, glossaryMap: Map<string, string>): string {
+  let result = text;
+  const sorted = [...glossaryMap.entries()].sort((a, b) => b[0].length - a[0].length);
+  for (const [en, ar] of sorted) {
+    const enRegex = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    if (!enRegex.test(original)) continue;
+    const enInTranslation = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    result = result.replace(enInTranslation, ar);
+  }
+  return result;
+}
+
+function enhanceArabicTranslation(text: string): string {
+  let t = text;
+  t = t.replace(/\u200F/g, '');
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  t = t.replace(/ه(\s|$)/g, 'ة$1');
+  return t;
+}
+
 // --- Build the system prompt based on category ---
 function buildSystemPrompt(category: string): string {
   const base = `أنت مترجم ألعاب فيديو محترف متخصص في سلسلة The Legend of Zelda. تترجم من الإنجليزية إلى العربية الفصحى المبسطة.
@@ -227,23 +312,51 @@ ${relevant.join('\n')}`;
 النصوص للترجمة:
 ${textsBlock}`;
 
-    // === Google Translate engine (free, no API key) ===
+    // === Google Translate engine (free, no API key) — enhanced with glossary ===
     if (translationEngine === 'google') {
+      const glossaryMap = buildGlossaryMap(glossary);
+      // Sort terms by length descending for correct replacement order
+      const sortedTerms = [...glossaryMap.entries()].sort((a, b) => b[0].length - a[0].length);
+
       const result: Record<string, string> = {};
       const CONCURRENT = 5;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
         const batch = protectedEntries.slice(i, i + CONCURRENT);
         const promises = batch.map(async (entry) => {
-          const text = encodeURIComponent(entry.cleaned);
+          // Pre-process: protect glossary terms with placeholders before sending to Google
+          let textToTranslate = entry.cleaned;
+          const termPlaceholders: Array<{ placeholder: string; arabic: string }> = [];
+          let termIdx = 0;
+          for (const [en, ar] of sortedTerms) {
+            const regex = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+            if (regex.test(textToTranslate)) {
+              const ph = `GLTERM_${termIdx++}`;
+              termPlaceholders.push({ placeholder: ph, arabic: ar });
+              textToTranslate = textToTranslate.replace(
+                new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'),
+                ph
+              );
+            }
+          }
+
+          const text = encodeURIComponent(textToTranslate);
           const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${text}`;
           try {
             const gtResponse = await fetch(url);
             if (!gtResponse.ok) return;
             const gtData = await gtResponse.json();
-            const translated = (gtData?.[0] as [string, string][] | undefined)
+            let translated = (gtData?.[0] as [string, string][] | undefined)
               ?.map((seg: [string, string]) => seg[0])
               .join('') || '';
             if (translated.trim()) {
+              // Post-process: restore glossary terms with correct Arabic translations
+              for (const { placeholder, arabic } of termPlaceholders) {
+                translated = translated.replace(new RegExp(placeholder, 'gi'), arabic);
+              }
+              // Apply any remaining glossary corrections (for terms Google changed)
+              translated = applyGlossaryToTranslation(translated, entry.original, glossaryMap);
+              // Enhance Arabic quality
+              translated = enhanceArabicTranslation(translated);
               const restored = restoreTags(translated, entry.tags);
               result[entry.key] = postProcess(restored, entry.original);
             }
@@ -259,23 +372,46 @@ ${textsBlock}`;
       });
     }
 
-    // === MyMemory translation engine ===
+    // === MyMemory translation engine — enhanced with glossary ===
     if (translationEngine === 'mymemory') {
+      const glossaryMap = buildGlossaryMap(glossary);
+      const sortedTerms = [...glossaryMap.entries()].sort((a, b) => b[0].length - a[0].length);
       const result: Record<string, string> = {};
       let totalChars = 0;
       const CONCURRENT = 5;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
         const batch = protectedEntries.slice(i, i + CONCURRENT);
         const promises = batch.map(async (entry) => {
-          const text = encodeURIComponent(entry.cleaned);
+          // Pre-process: protect glossary terms
+          let textToTranslate = entry.cleaned;
+          const termPlaceholders: Array<{ placeholder: string; arabic: string }> = [];
+          let termIdx = 0;
+          for (const [en, ar] of sortedTerms) {
+            const regex = new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+            if (regex.test(textToTranslate)) {
+              const ph = `GLTERM_${termIdx++}`;
+              termPlaceholders.push({ placeholder: ph, arabic: ar });
+              textToTranslate = textToTranslate.replace(
+                new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'),
+                ph
+              );
+            }
+          }
+          const text = encodeURIComponent(textToTranslate);
           let url = `https://api.mymemory.translated.net/get?q=${text}&langpair=en|ar`;
           if (myMemoryEmail) url += `&de=${encodeURIComponent(myMemoryEmail)}`;
           try {
             const mmResponse = await fetch(url);
             if (!mmResponse.ok) { await mmResponse.text(); return; }
             const mmData = await mmResponse.json();
-            const translated = mmData?.responseData?.translatedText;
+            let translated = mmData?.responseData?.translatedText;
             if (translated && translated.trim()) {
+              // Post-process: restore glossary terms
+              for (const { placeholder, arabic } of termPlaceholders) {
+                translated = translated.replace(new RegExp(placeholder, 'gi'), arabic);
+              }
+              translated = applyGlossaryToTranslation(translated, entry.original, glossaryMap);
+              translated = enhanceArabicTranslation(translated);
               const restored = restoreTags(translated, entry.tags);
               result[entry.key] = postProcess(restored, entry.original);
               totalChars += entry.cleaned.length;
