@@ -110,7 +110,22 @@ const Editor = () => {
 
   const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
 
-  const blocker = useBlocker(editor.isPageLocked);
+  // Intercept in-app navigation when page is locked
+  React.useEffect(() => {
+    if (!editor.isPageLocked) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement)?.closest?.('a');
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#') || a.getAttribute('target') === '_blank') return;
+      if (!confirm('🔒 الصفحة مقفلة — هل تريد فعلاً مغادرة المحرر؟')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [editor.isPageLocked]);
 
   const handleEnhanceWithContext = React.useCallback(async () => {
     if (!editor.state || enhancing) return;
