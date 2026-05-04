@@ -229,34 +229,112 @@ ${relevant.join('\n')}`;
 النصوص للترجمة:
 ${textsBlock}`;
 
-    // === Google Translate engine (free, no API key) ===
+    // === Google Translate engine (free, no API key) — enhanced ===
     if (translationEngine === 'google') {
       const result: Record<string, string> = {};
-      const CONCURRENT = 5;
-      for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
-        const batch = protectedEntries.slice(i, i + CONCURRENT);
-        const promises = batch.map(async (entry) => {
-          const text = encodeURIComponent(entry.cleaned);
-          const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${text}`;
-          try {
-            const gtResponse = await fetch(url);
-            if (!gtResponse.ok) return;
-            const gtData = await gtResponse.json();
-            const translated = (gtData?.[0] as [string, string][] | undefined)
-              ?.map((seg: [string, string]) => seg[0])
-              .join('') || '';
-            if (translated.trim()) {
-              const restored = restoreTags(translated, entry.tags);
-              result[entry.key] = postProcess(restored, entry.original);
-            }
-          } catch { /* skip */ }
-        });
-        await Promise.all(promises);
-        if (i + CONCURRENT < protectedEntries.length) {
-          await new Promise(r => setTimeout(r, 200));
+      let failedCount = 0;
+
+      // Parse glossary into EN→AR map
+      const glossaryMap = new Map<string, string>();
+      if (glossary && glossary.trim()) {
+        for (const line of glossary.trim().split('\n')) {
+          const eqIdx = line.indexOf('=');
+          if (eqIdx > 0) {
+            const en = line.slice(0, eqIdx).trim();
+            const ar = line.slice(eqIdx + 1).trim();
+            if (en && ar) glossaryMap.set(en, ar);
+          }
         }
       }
-      return new Response(JSON.stringify({ translations: result }), {
+
+      // Pre-translate glossary terms via Google to build a replacement cache
+      // (Google's Arabic for term → correct glossary Arabic)
+      const glossaryReplacements = new Map<string, string>();
+      if (glossaryMap.size > 0) {
+        // Find which glossary terms actually appear in the entries
+        const allText = protectedEntries.map(e => e.cleaned).join(' ').toLowerCase();
+        const relevantTerms = [...glossaryMap.entries()]
+          .filter(([en]) => allText.includes(en.toLowerCase()))
+          .slice(0, 50); // Cap at 50 to avoid too many requests
+
+        // Batch-translate relevant terms (8 concurrent)
+        for (let i = 0; i < relevantTerms.length; i += 8) {
+          const termBatch = relevantTerms.slice(i, i + 8);
+          await Promise.all(termBatch.map(async ([enTerm, arTerm]) => {
+            try {
+              const termUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${encodeURIComponent(enTerm)}`;
+              const resp = await fetch(termUrl);
+              if (resp.ok) {
+                const data = await resp.json();
+                const googleAr = (data?.[0] as [string, string][] | undefined)
+                  ?.map((seg: [string, string]) => seg[0]).join('') || '';
+                if (googleAr.trim() && googleAr !== arTerm) {
+                  glossaryReplacements.set(googleAr, arTerm);
+                }
+              }
+            } catch { /* best-effort */ }
+          }));
+          if (i + 8 < relevantTerms.length) await new Promise(r => setTimeout(r, 200));
+        }
+      }
+
+      // Helper: fetch from Google Translate with retry + fallback endpoint
+      const googleTranslate = async (text: string): Promise<string | null> => {
+        const encoded = encodeURIComponent(text);
+        const endpoints = [
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${encoded}`,
+          `https://translate.google.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${encoded}`,
+        ];
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const url = attempt < 2 ? endpoints[0] : endpoints[1];
+          try {
+            const resp = await fetch(url);
+            if (resp.status === 429) {
+              await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+              continue;
+            }
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            const translated = (data?.[0] as [string, string][] | undefined)
+              ?.map((seg: [string, string]) => seg[0]).join('') || '';
+            if (translated.trim()) return translated;
+          } catch {
+            await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+          }
+        }
+        return null;
+      };
+
+      // Translate entries in concurrent batches
+      const CONCURRENT = 8;
+      for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
+        const batch = protectedEntries.slice(i, i + CONCURRENT);
+        await Promise.all(batch.map(async (entry) => {
+          let translated = await googleTranslate(entry.cleaned);
+          if (!translated) { failedCount++; return; }
+
+          // Apply cached glossary replacements
+          for (const [googleAr, correctAr] of glossaryReplacements) {
+            if (translated.includes(googleAr)) {
+              translated = translated.replace(
+                new RegExp(googleAr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+                correctAr
+              );
+            }
+          }
+          const restored = restoreTags(translated, entry.tags);
+          result[entry.key] = postProcess(restored, entry.original);
+        }));
+        if (i + CONCURRENT < protectedEntries.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      const response: Record<string, unknown> = { translations: result };
+      if (failedCount > 0) {
+        response.warning = `فشلت ترجمة ${failedCount} نص من أصل ${protectedEntries.length}`;
+      }
+      return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

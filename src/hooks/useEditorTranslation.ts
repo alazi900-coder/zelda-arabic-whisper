@@ -296,6 +296,9 @@ export function useEditorTranslation({
           allTranslations = { ...allTranslations, ...fixedTranslations };
           setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...fixedTranslations } } : null);
         }
+        if (data.warning) {
+          console.warn('Translation warning:', data.warning);
+        }
         if (data.charsUsed) {
           setMyMemoryCharsUsed(prev => {
             const next = prev + data.charsUsed;
