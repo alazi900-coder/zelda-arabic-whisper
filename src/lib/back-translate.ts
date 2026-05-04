@@ -34,3 +34,70 @@ export function textSimilarity(a: string, b: string): number {
   const union = new Set([...aWords, ...bWords]).size;
   return Math.round((overlap / Math.max(union, 1)) * 100);
 }
+
+/** Tokenize a string into words (lowercase, strip punctuation). */
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
+}
+
+/** Build set of bigrams from tokens. */
+function bigrams(tokens: string[]): Set<string> {
+  const out = new Set<string>();
+  for (let i = 0; i < tokens.length - 1; i++) {
+    out.add(`${tokens[i]} ${tokens[i + 1]}`);
+  }
+  return out;
+}
+
+/**
+ * Sorensen-Dice similarity over unigrams + bigrams.
+ * Returns 0–1 (1 = identical).
+ */
+export function diceSimilarity(a: string, b: string): number {
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const setA = new Set<string>([...ta, ...bigrams(ta)]);
+  const setB = new Set<string>([...tb, ...bigrams(tb)]);
+  let inter = 0;
+  for (const x of setA) if (setB.has(x)) inter++;
+  return (2 * inter) / (setA.size + setB.size);
+}
+
+/**
+ * Batch back-translate Arabic texts with concurrency control.
+ * Returns array of { arabic, english, error? } in same order.
+ */
+export async function backTranslateBatch(
+  texts: string[],
+  concurrency = 3,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ arabic: string; english: string; error?: string }[]> {
+  const results: { arabic: string; english: string; error?: string }[] = new Array(texts.length);
+  let done = 0;
+
+  for (let i = 0; i < texts.length; i += concurrency) {
+    const chunk = texts.slice(i, i + concurrency);
+    const chunkResults = await Promise.all(
+      chunk.map(async (text, j) => {
+        try {
+          const english = await backTranslate(text);
+          return { arabic: text, english };
+        } catch (err) {
+          return { arabic: text, english: '', error: String(err) };
+        }
+      }),
+    );
+    for (let j = 0; j < chunkResults.length; j++) {
+      results[i + j] = chunkResults[j];
+    }
+    done += chunk.length;
+    onProgress?.(done, texts.length);
+  }
+
+  return results;
+}

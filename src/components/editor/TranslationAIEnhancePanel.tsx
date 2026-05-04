@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
@@ -22,6 +22,7 @@ import {
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
 import { scanAllLocally, isGrammarIssue, type LocalIssue } from "@/lib/local-enhance-scanner";
+import { backTranslateBatch, diceSimilarity } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -59,9 +60,10 @@ type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
 
-interface ModelOption { value: string; label: string; group: "google" | "openai" | "local"; }
+interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free"; }
 
 const MODEL_OPTIONS: ModelOption[] = [
+  { value: "google-translate-check", label: "Google Translate — فحص دقة (مجاني)", group: "free" },
   { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview (سريع — مُوصى)", group: "google" },
   { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview (دقة عالية)", group: "google" },
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (متوازن)", group: "google" },
@@ -72,6 +74,9 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "gpt-5-mini", label: "GPT-5 mini (متوازن — أرخص)", group: "openai" },
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
 ];
+
+const GOOGLE_CHECK_THRESHOLD = 0.55;
+const GOOGLE_CHECK_CONCURRENCY = 3;
 
 // --- Diff helper: word-level highlight ---
 function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: string }[] {
@@ -231,6 +236,78 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       toast({
         title: `🔌 فحص محلي بدون اتصال: ${chosen.length} مشكلة`,
         description: chosen.length === 0 ? "لا توجد مشاكل في النطاق المحدد" : "لا يتطلب اتصالاً ولا رصيداً"
+      });
+      return;
+    }
+
+    // ----- Google Translate accuracy check (free, no API key) -----
+    if (model === "google-translate-check") {
+      const inputs = translatedEntries.map(e => ({
+        key: `${e.msbtFile}:${e.index}`,
+        original: e.original,
+        translation: translations[`${e.msbtFile}:${e.index}`],
+      }));
+
+      setProgress({ current: 0, total: inputs.length });
+
+      const arabicTexts = inputs.map(i => i.translation);
+      const backResults = await backTranslateBatch(
+        arabicTexts,
+        GOOGLE_CHECK_CONCURRENCY,
+        (done, total) => {
+          if (abortRef.current) return;
+          setProgress({ current: done, total });
+        },
+      );
+
+      if (abortRef.current) {
+        setIsAnalyzing(false);
+        setProgress(null);
+        return;
+      }
+
+      const foundIssues: GrammarIssue[] = [];
+      for (let idx = 0; idx < inputs.length; idx++) {
+        const entry = inputs[idx];
+        const result = backResults[idx];
+        if (!result || result.error || !result.english) continue;
+
+        processedKeysRef.current.add(entry.key);
+
+        const score = diceSimilarity(entry.original, result.english);
+        if (score >= GOOGLE_CHECK_THRESHOLD) continue;
+
+        const pct = Math.round(score * 100);
+        const sev: "high" | "medium" | "low" =
+          score < GOOGLE_CHECK_THRESHOLD * 0.55 ? "high" :
+          score < GOOGLE_CHECK_THRESHOLD ? "medium" : "low";
+
+        foundIssues.push({
+          key: entry.key,
+          original: entry.original,
+          translation: entry.translation,
+          issue: `تباين دلالي (${pct}%) — الترجمة العكسية: "${result.english}"`,
+          suggestion: entry.translation,
+          severity: sev,
+          detail:
+            `ترجمنا النص العربي عكسياً عبر Google Translate فحصلنا على:\n«${result.english}»\n` +
+            `تشابهها مع الأصل الإنجليزي ${pct}% فقط. هذا مؤشّر على انحراف المعنى عن الأصل. راجع الترجمة يدوياً.`,
+        });
+      }
+      setProcessedCount(processedKeysRef.current.size);
+
+      setGrammarIssues(prev => [...prev, ...foundIssues]);
+      setActiveTab("grammar");
+      setIsAnalyzing(false);
+      setProgress(null);
+
+      toast({
+        title: foundIssues.length > 0
+          ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
+          : "✅ الترجمات دقيقة — لا توجد انحرافات",
+        description: foundIssues.length > 0
+          ? "ترجمات منخفضة التشابه مع الأصل عند الترجمة العكسية"
+          : `تم فحص ${inputs.length} ترجمة بنجاح`,
       });
       return;
     }
@@ -537,7 +614,18 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {MODEL_OPTIONS.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px]">مجاني</SelectLabel>
+                      {MODEL_OPTIONS.filter(m => m.group === "free").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px]">Google Gemini</SelectLabel>
+                      {MODEL_OPTIONS.filter(m => m.group === "google").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px]">OpenAI</SelectLabel>
+                      {MODEL_OPTIONS.filter(m => m.group === "openai").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
