@@ -123,6 +123,20 @@ export function useEditorState() {
     _setUserBedrockRegion(region);
     try { if (region) localStorage.setItem('userBedrockRegion', region); else localStorage.removeItem('userBedrockRegion'); } catch (e) { console.warn('localStorage userBedrockRegion:', e); }
   }, []);
+  const [bedrockModel, _setBedrockModel] = useState<string>(() => {
+    try { return localStorage.getItem('bedrockModel') || 'nova-pro'; } catch { return 'nova-pro'; }
+  });
+  const setBedrockModel = useCallback((model: string) => {
+    _setBedrockModel(model);
+    try { localStorage.setItem('bedrockModel', model); } catch (e) { console.warn('localStorage bedrockModel:', e); }
+  }, []);
+  const [bedrockProxyUrl, _setBedrockProxyUrl] = useState(() => {
+    try { return localStorage.getItem('bedrockProxyUrl') || ''; } catch { return ''; }
+  });
+  const setBedrockProxyUrl = useCallback((url: string) => {
+    _setBedrockProxyUrl(url);
+    try { if (url) localStorage.setItem('bedrockProxyUrl', url); else localStorage.removeItem('bedrockProxyUrl'); } catch (e) { console.warn('localStorage bedrockProxyUrl:', e); }
+  }, []);
   const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
     try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
   });
@@ -593,7 +607,7 @@ export function useEditorState() {
     geminiModel,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
     customPromptInstructions,
-    userBedrockApiKey, userBedrockRegion,
+    userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1157,7 +1171,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -1180,6 +1194,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
+    bedrockModel, setBedrockModel, bedrockProxyUrl, setBedrockProxyUrl,
     customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,

@@ -478,15 +478,39 @@ const Editor = () => {
                   </span>
                 </div>
               )}
-              {(editor.translationEngine === 'claude' || editor.translationEngine === 'bedrock') && (
+              {editor.translationEngine === 'claude' && (
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex items-center gap-2 shrink-0">
                     <BarChart3 className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-display font-bold">{editor.translationEngine === 'bedrock' ? 'جودة Bedrock' : 'جودة Claude'}</span>
+                    <span className="text-sm font-display font-bold">جودة Claude</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Haiku)</Button>
                     <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Sonnet)</Button>
+                  </div>
+                </div>
+              )}
+              {editor.translationEngine === 'bedrock' && (
+                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-display font-bold">☁️ نموذج Bedrock</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { key: 'deepseek-r1', label: '🧠 DeepSeek R1' },
+                      { key: 'nova-pro', label: '🚀 Nova Pro' },
+                      { key: 'nova-lite', label: '⚡ Nova Lite' },
+                      { key: 'llama-3-3-70b', label: '🦬 Llama 3.3 70B' },
+                      { key: 'mistral-large', label: '🌊 Mistral Large' },
+                      { key: 'claude-sonnet', label: '💎 Claude Sonnet' },
+                      { key: 'claude-haiku', label: '⚡ Claude Haiku' },
+                    ].map(m => (
+                      <Button key={m.key} variant={editor.bedrockModel === m.key ? 'default' : 'outline'} size="sm"
+                        onClick={() => editor.setBedrockModel(m.key)} className="text-xs font-body">
+                        {m.label}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -555,7 +579,20 @@ const Editor = () => {
                   <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">إنشاء مفتاح API ↗</a>
                 </div>
               </div>
-              {editor.userBedrockApiKey && <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل{editor.translationEngine === 'bedrock' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              {editor.userBedrockApiKey && (
+                <div className="space-y-1">
+                  <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل{editor.translationEngine === 'bedrock' ? ' — سيُستخدم للترجمة' : ''}</p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">🔗 Proxy URL (اختياري — لتجاوز القيود الجغرافية):</span>
+                    <input type="url" placeholder="https://your-proxy.example.com" value={editor.bedrockProxyUrl}
+                      onChange={(e) => editor.setBedrockProxyUrl(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs" dir="ltr" />
+                    {editor.bedrockProxyUrl && (
+                      <Button variant="ghost" size="sm" onClick={() => editor.setBedrockProxyUrl('')} className="text-xs text-destructive shrink-0">مسح</Button>
+                    )}
+                  </div>
+                </div>
+              )}
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
@@ -1190,7 +1227,7 @@ const Editor = () => {
         {engineCompareEntry && editor.state && (
           <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
             entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
+            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} bedrockModel={editor.bedrockModel} bedrockProxyUrl={editor.bedrockProxyUrl} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
         )}
         {editor.state && (
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}

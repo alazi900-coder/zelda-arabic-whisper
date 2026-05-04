@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
+    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
@@ -152,6 +152,8 @@ Deno.serve(async (req) => {
       userClaudeKey?: string;
       userBedrockApiKey?: string;
       userBedrockRegion?: string;
+      userBedrockModel?: string;
+      bedrockProxyUrl?: string;
       myMemoryEmail?: string;
       category?: string;
       filePath?: string;
@@ -385,23 +387,45 @@ ${textsBlock}`;
       });
     }
 
-    // === Amazon Bedrock translation engine (Claude via AWS — Bearer Token API Key) ===
+    // === Amazon Bedrock translation engine (multi-model — Bearer Token API Key) ===
     if (translationEngine === 'bedrock' && userBedrockApiKey?.trim()) {
       const apiKey = userBedrockApiKey.trim();
       const region = (userBedrockRegion || 'us-east-1').trim();
 
-      // Use cross-region inference profiles (required for Claude 4 / 3.5 on-demand)
-      const bedrockModel = translationQuality === 'quality'
-        ? 'us.anthropic.claude-sonnet-4-20250514-v1:0'
-        : 'us.anthropic.claude-3-5-haiku-20241022-v1:0';
+      // Model mapping — supports Claude, DeepSeek, Nova, Llama, Mistral
+      const BEDROCK_MODEL_MAP: Record<string, { id: string; supportsSystem: boolean }> = {
+        'claude-sonnet': { id: 'us.anthropic.claude-sonnet-4-20250514-v1:0', supportsSystem: true },
+        'claude-haiku': { id: 'us.anthropic.claude-3-5-haiku-20241022-v1:0', supportsSystem: true },
+        'deepseek-r1': { id: 'us.deepseek.r1-v1:0', supportsSystem: false },
+        'nova-pro': { id: 'us.amazon.nova-pro-v1:0', supportsSystem: true },
+        'nova-lite': { id: 'us.amazon.nova-lite-v1:0', supportsSystem: true },
+        'llama-3-3-70b': { id: 'us.meta.llama3-3-70b-instruct-v1:0', supportsSystem: true },
+        'mistral-large': { id: 'mistral.mistral-large-2402-v1:0', supportsSystem: true },
+      };
 
-      const bedrockUrl = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(bedrockModel)}/converse`;
+      // Resolve model: explicit selection > quality-based fallback (Claude)
+      let selectedModelKey = userBedrockModel || (translationQuality === 'quality' ? 'claude-sonnet' : 'claude-haiku');
+      const modelInfo = BEDROCK_MODEL_MAP[selectedModelKey] || BEDROCK_MODEL_MAP['nova-pro'];
+      const bedrockModelId = modelInfo.id;
 
-      const payload = JSON.stringify({
-        system: [{ text: systemPrompt }],
-        messages: [{ role: 'user', content: [{ text: userPrompt }] }],
-        inferenceConfig: { maxTokens: 4096, temperature: 0.2 },
-      });
+      // Build URL — use proxy if provided, otherwise direct AWS endpoint
+      const baseUrl = bedrockProxyUrl?.trim()
+        ? bedrockProxyUrl.trim().replace(/\/+$/, '')
+        : `https://bedrock-runtime.${region}.amazonaws.com`;
+      const bedrockUrl = `${baseUrl}/model/${encodeURIComponent(bedrockModelId)}/converse`;
+
+      // Build payload — some models don't support system field
+      const combinedPrompt = modelInfo.supportsSystem
+        ? userPrompt
+        : `${systemPrompt}\n\n${userPrompt}`;
+
+      const payloadObj: Record<string, unknown> = {
+        messages: [{ role: 'user', content: [{ text: combinedPrompt }] }],
+        inferenceConfig: { maxTokens: 8192, temperature: 0.2 },
+      };
+      if (modelInfo.supportsSystem) {
+        payloadObj.system = [{ text: systemPrompt }];
+      }
 
       const bedrockResponse = await fetch(bedrockUrl, {
         method: 'POST',
@@ -409,7 +433,7 @@ ${textsBlock}`;
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
         },
-        body: payload,
+        body: JSON.stringify(payloadObj),
       });
 
       if (!bedrockResponse.ok) {
@@ -419,6 +443,19 @@ ${textsBlock}`;
           return new Response(JSON.stringify({
             error: 'مفتاح Bedrock API غير صالح أو لا تملك صلاحية الوصول. تأكد من تفعيل النموذج في منطقة AWS المختارة.'
           }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (bedrockResponse.status === 400) {
+          let parsedMsg = '';
+          try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
+          // Anthropic geo-restriction
+          if (parsedMsg.includes('unsupported countries')) {
+            return new Response(JSON.stringify({
+              error: 'نماذج Anthropic غير متاحة في منطقتك الجغرافية. جرّب نموذجاً آخر مثل DeepSeek R1 أو Amazon Nova.'
+            }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          return new Response(JSON.stringify({
+            error: `خطأ Bedrock (400): ${parsedMsg || 'خطأ غير معروف'}`
+          }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         if (bedrockResponse.status === 429) {
           return new Response(JSON.stringify({
@@ -433,7 +470,11 @@ ${textsBlock}`;
       }
 
       const bedrockData = await bedrockResponse.json();
-      const content = bedrockData?.output?.message?.content?.[0]?.text || '';
+      let content = bedrockData?.output?.message?.content?.[0]?.text || '';
+
+      // Strip DeepSeek R1 <think>...</think> reasoning blocks
+      content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Failed to parse Bedrock response');
 

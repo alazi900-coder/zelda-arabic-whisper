@@ -32,6 +32,8 @@ interface UseEditorTranslationProps {
   customPromptInstructions?: string;
   userBedrockApiKey: string;
   userBedrockRegion: string;
+  bedrockModel: string;
+  bedrockProxyUrl: string;
 }
 
 export function useEditorTranslation({
@@ -40,7 +42,7 @@ export function useEditorTranslation({
   geminiModel,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   customPromptInstructions,
-  userBedrockApiKey, userBedrockRegion,
+  userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
 }: UseEditorTranslationProps) {
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -105,6 +107,8 @@ export function useEditorTranslation({
           userClaudeKey: userClaudeKey || undefined,
           userBedrockApiKey: userBedrockApiKey || undefined,
           userBedrockRegion: userBedrockRegion || undefined,
+          userBedrockModel: bedrockModel || undefined,
+          bedrockProxyUrl: bedrockProxyUrl || undefined,
           translationEngine,
           translationQuality,
           geminiModel,
@@ -262,6 +266,8 @@ export function useEditorTranslation({
               userClaudeKey: userClaudeKey || undefined,
               userBedrockApiKey: userBedrockApiKey || undefined,
               userBedrockRegion: userBedrockRegion || undefined,
+              userBedrockModel: bedrockModel || undefined,
+              bedrockProxyUrl: bedrockProxyUrl || undefined,
               translationEngine,
               translationQuality,
           geminiModel,
@@ -390,6 +396,8 @@ export function useEditorTranslation({
             userClaudeKey: userClaudeKey || undefined,
             userBedrockApiKey: userBedrockApiKey || undefined,
             userBedrockRegion: userBedrockRegion || undefined,
+            userBedrockModel: bedrockModel || undefined,
+            bedrockProxyUrl: bedrockProxyUrl || undefined,
             translationEngine,
             translationQuality,
           geminiModel,
@@ -451,7 +459,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -616,6 +624,8 @@ export function useEditorTranslation({
             userClaudeKey: userClaudeKey || undefined,
             userBedrockApiKey: userBedrockApiKey || undefined,
             userBedrockRegion: userBedrockRegion || undefined,
+            userBedrockModel: bedrockModel || undefined,
+            bedrockProxyUrl: bedrockProxyUrl || undefined,
             translationEngine,
             translationQuality,
           geminiModel,

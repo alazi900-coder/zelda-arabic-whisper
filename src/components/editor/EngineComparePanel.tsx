@@ -33,13 +33,15 @@ interface Props {
   userClaudeKey: string;
   userBedrockApiKey: string;
   userBedrockRegion: string;
+  bedrockModel: string;
+  bedrockProxyUrl: string;
   myMemoryEmail: string;
   onApplyTranslation: (key: string, translation: string) => void;
 }
 
 export default function EngineComparePanel({
   open, onClose, entry, entries, translations, glossary,
-  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, myMemoryEmail, onApplyTranslation,
+  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, onApplyTranslation,
 }: Props) {
   const [results, setResults] = useState<EngineResult[]>([]);
   const [applied, setApplied] = useState<string | null>(null);
@@ -123,6 +125,8 @@ export default function EngineComparePanel({
             userClaudeKey: eng.id === 'claude' ? userClaudeKey : undefined,
             userBedrockApiKey: eng.id === 'bedrock' ? userBedrockApiKey : undefined,
             userBedrockRegion: eng.id === 'bedrock' ? userBedrockRegion : undefined,
+            userBedrockModel: eng.id === 'bedrock' ? bedrockModel : undefined,
+            bedrockProxyUrl: eng.id === 'bedrock' ? bedrockProxyUrl : undefined,
             translationEngine: eng.id,
             translationQuality: 'quality',
             myMemoryEmail: eng.id === 'mymemory' ? myMemoryEmail : undefined,
@@ -156,7 +160,7 @@ export default function EngineComparePanel({
       cache.set(targetKey, prev);
       return prev;
     });
-  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, myMemoryEmail, targetKey]);
+  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, targetKey]);
 
   const handleApply = (text: string, label: string, engine: string) => {
     if (!text) return;
