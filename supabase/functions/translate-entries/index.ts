@@ -305,6 +305,37 @@ ${textsBlock}`;
         return null;
       };
 
+      // Detect remaining English words (excluding TAG_ placeholders and single letters)
+      const findEnglishWords = (text: string): string[] => {
+        // Remove TAG_N placeholders before checking
+        const cleaned = text.replace(/TAG_\d+/g, '');
+        // Match English words (2+ letters), excluding common abbreviations and single chars
+        const matches = cleaned.match(/\b[A-Za-z]{2,}\b/g) || [];
+        return [...new Set(matches)];
+      };
+
+      // Re-translate individual English words that Google left untranslated
+      const fixEnglishWords = async (translated: string, englishWords: string[]): Promise<string> => {
+        let fixed = translated;
+        // Batch translate remaining English words
+        for (const word of englishWords.slice(0, 10)) {
+          // Skip TAG placeholders and very short words
+          if (word.startsWith('TAG') || word.length < 2) continue;
+          // Check glossary first
+          const glossaryAr = glossaryMap.get(word) || glossaryMap.get(word.toLowerCase());
+          if (glossaryAr) {
+            fixed = fixed.replace(new RegExp(`\\b${word}\\b`, 'gi'), glossaryAr);
+            continue;
+          }
+          // Translate the individual word
+          const wordTranslated = await googleTranslate(word);
+          if (wordTranslated && wordTranslated.trim() && !/[A-Za-z]/.test(wordTranslated)) {
+            fixed = fixed.replace(new RegExp(`\\b${word}\\b`, 'g'), wordTranslated);
+          }
+        }
+        return fixed;
+      };
+
       // Translate entries in concurrent batches
       const CONCURRENT = 8;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
@@ -322,6 +353,13 @@ ${textsBlock}`;
               );
             }
           }
+
+          // Fix remaining English words in translation
+          const remainingEnglish = findEnglishWords(translated);
+          if (remainingEnglish.length > 0) {
+            translated = await fixEnglishWords(translated, remainingEnglish);
+          }
+
           const restored = restoreTags(translated, entry.tags);
           result[entry.key] = postProcess(restored, entry.original);
         }));
@@ -471,18 +509,18 @@ ${textsBlock}`;
       const region = (userBedrockRegion || 'us-east-1').trim();
 
       // Model mapping — supports Claude, DeepSeek, Nova, Llama, Mistral
-      const BEDROCK_MODEL_MAP: Record<string, { id: string; supportsSystem: boolean }> = {
-        'claude-sonnet': { id: 'us.anthropic.claude-sonnet-4-20250514-v1:0', supportsSystem: true },
-        'claude-haiku': { id: 'us.anthropic.claude-3-5-haiku-20241022-v1:0', supportsSystem: true },
-        'deepseek-r1': { id: 'us.deepseek.r1-v1:0', supportsSystem: false },
-        'nova-pro': { id: 'us.amazon.nova-pro-v1:0', supportsSystem: true },
-        'nova-lite': { id: 'us.amazon.nova-lite-v1:0', supportsSystem: true },
-        'llama-3-3-70b': { id: 'us.meta.llama3-3-70b-instruct-v1:0', supportsSystem: true },
-        'mistral-large': { id: 'mistral.mistral-large-2402-v1:0', supportsSystem: true },
+      const BEDROCK_MODEL_MAP: Record<string, { id: string; supportsSystem: boolean; label: string }> = {
+        'claude-sonnet': { id: 'us.anthropic.claude-sonnet-4-20250514-v1:0', supportsSystem: true, label: 'Claude Sonnet 4' },
+        'claude-haiku': { id: 'us.anthropic.claude-3-5-haiku-20241022-v1:0', supportsSystem: true, label: 'Claude 3.5 Haiku' },
+        'deepseek-r1': { id: 'us.deepseek.r1-v1:0', supportsSystem: false, label: 'DeepSeek R1' },
+        'nova-pro': { id: 'us.amazon.nova-pro-v1:0', supportsSystem: true, label: 'Amazon Nova Pro' },
+        'nova-lite': { id: 'us.amazon.nova-lite-v1:0', supportsSystem: true, label: 'Amazon Nova Lite' },
+        'llama-3-3-70b': { id: 'us.meta.llama3-3-70b-instruct-v1:0', supportsSystem: true, label: 'Meta Llama 3.3 70B' },
+        'mistral-large': { id: 'mistral.mistral-large-2402-v1:0', supportsSystem: true, label: 'Mistral Large' },
       };
 
-      // Resolve model: explicit selection > quality-based fallback (Claude)
-      let selectedModelKey = userBedrockModel || (translationQuality === 'quality' ? 'claude-sonnet' : 'claude-haiku');
+      // Resolve model: explicit selection > quality-based fallback
+      const selectedModelKey = userBedrockModel || (translationQuality === 'quality' ? 'claude-sonnet' : 'claude-haiku');
       const modelInfo = BEDROCK_MODEL_MAP[selectedModelKey] || BEDROCK_MODEL_MAP['nova-pro'];
       const bedrockModelId = modelInfo.id;
 
@@ -505,45 +543,87 @@ ${textsBlock}`;
         payloadObj.system = [{ text: systemPrompt }];
       }
 
-      const bedrockResponse = await fetch(bedrockUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payloadObj),
-      });
+      // Retry logic — up to 3 attempts with exponential backoff
+      let bedrockResponse: Response | null = null;
+      let lastError = '';
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          bedrockResponse = await fetch(bedrockUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payloadObj),
+          });
+
+          // Don't retry auth errors or geo-restrictions
+          if (bedrockResponse.status === 401 || bedrockResponse.status === 403) break;
+          if (bedrockResponse.status === 400) break;
+
+          // Retry on rate limit or server errors
+          if (bedrockResponse.status === 429 || bedrockResponse.status >= 500) {
+            if (attempt < 2) {
+              const waitSec = (attempt + 1) * 10;
+              console.log(`Bedrock ${bedrockResponse.status} — retry ${attempt + 1}/3 after ${waitSec}s`);
+              await new Promise(r => setTimeout(r, waitSec * 1000));
+              continue;
+            }
+          }
+          break;
+        } catch (fetchErr) {
+          lastError = (fetchErr as Error).message || 'Network error';
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, (attempt + 1) * 5000));
+            continue;
+          }
+        }
+      }
+
+      if (!bedrockResponse) {
+        return new Response(JSON.stringify({
+          error: `فشل الاتصال بـ Bedrock (${modelInfo.label}): ${lastError || 'خطأ في الشبكة'}. تأكد من المنطقة والاتصال.`
+        }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
 
       if (!bedrockResponse.ok) {
         const errText = await bedrockResponse.text();
-        console.error('Bedrock error:', errText);
+        console.error(`Bedrock error (${modelInfo.label}):`, errText);
+        let parsedMsg = '';
+        try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
+
         if (bedrockResponse.status === 403 || bedrockResponse.status === 401) {
           return new Response(JSON.stringify({
-            error: 'مفتاح Bedrock API غير صالح أو لا تملك صلاحية الوصول. تأكد من تفعيل النموذج في منطقة AWS المختارة.'
+            error: `مفتاح Bedrock API غير صالح أو لا تملك صلاحية الوصول لنموذج ${modelInfo.label}. تأكد من تفعيل النموذج في منطقة ${region}.`
           }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         if (bedrockResponse.status === 400) {
-          let parsedMsg = '';
-          try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
-          // Anthropic geo-restriction
           if (parsedMsg.includes('unsupported countries')) {
             return new Response(JSON.stringify({
-              error: 'نماذج Anthropic غير متاحة في منطقتك الجغرافية. جرّب نموذجاً آخر مثل DeepSeek R1 أو Amazon Nova.'
+              error: `نموذج ${modelInfo.label} غير متاح في منطقتك الجغرافية. جرّب نموذجاً آخر مثل DeepSeek R1 أو Amazon Nova.`
+            }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          if (parsedMsg.includes('Operation not allowed') || parsedMsg.includes('not authorized') || parsedMsg.includes('AccessDeniedException')) {
+            return new Response(JSON.stringify({
+              error: `نموذج ${modelInfo.label} غير مفعّل في حسابك. افتح لوحة تحكم Bedrock → Model access → فعّل النموذج، ثم حاول مرة أخرى.`
+            }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          if (parsedMsg.includes('model identifier is invalid') || parsedMsg.includes('on-demand throughput')) {
+            return new Response(JSON.stringify({
+              error: `نموذج ${modelInfo.label} غير متوفر في منطقة ${region}. جرّب منطقة US East أو EU West، أو اختر نموذجاً آخر.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           return new Response(JSON.stringify({
-            error: `خطأ Bedrock (400): ${parsedMsg || 'خطأ غير معروف'}`
+            error: `خطأ ${modelInfo.label} (400): ${parsedMsg || 'خطأ غير معروف'}`
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         if (bedrockResponse.status === 429) {
           return new Response(JSON.stringify({
-            error: 'تم تجاوز حد طلبات Amazon Bedrock، حاول لاحقاً.'
+            error: `تم تجاوز حد طلبات ${modelInfo.label}، حاول لاحقاً.`
           }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        let parsedMsg = '';
-        try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
         return new Response(JSON.stringify({
-          error: `خطأ Bedrock (${bedrockResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
+          error: `خطأ ${modelInfo.label} (${bedrockResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
         }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
@@ -553,11 +633,28 @@ ${textsBlock}`;
       // Strip DeepSeek R1 <think>...</think> reasoning blocks
       content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
+      // Try multiple JSON extraction strategies
+      let translations: string[] | null = null;
+      // Strategy 1: find JSON array
       const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('Failed to parse Bedrock response');
-
-      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-      const translations: string[] = JSON.parse(sanitized);
+      if (jsonMatch) {
+        try {
+          const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+          translations = JSON.parse(sanitized);
+        } catch { /* try next strategy */ }
+      }
+      // Strategy 2: find individual quoted strings (some models return numbered lists)
+      if (!translations) {
+        const lineMatches = content.match(/"([^"]+)"/g);
+        if (lineMatches && lineMatches.length >= protectedEntries.length) {
+          translations = lineMatches.map(m => m.slice(1, -1));
+        }
+      }
+      if (!translations || translations.length === 0) {
+        return new Response(JSON.stringify({
+          error: `فشل تحليل استجابة ${modelInfo.label}. جرّب نموذجاً آخر أو قلل عدد النصوص.`
+        }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
 
       const result: Record<string, string> = {};
       for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
