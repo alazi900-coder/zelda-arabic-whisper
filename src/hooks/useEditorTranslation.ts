@@ -4,6 +4,7 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ARABIC_REGEX } from "@/lib/arabic-processing";
 import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
 import { precomputeCandidates, buildBatchTmExamples, type TmCandidate, type PrecomputedCandidate } from "@/lib/tm-boost";
+import { trimGlossaryToBatch } from "@/lib/glossary-trim";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -128,7 +129,7 @@ export function useEditorTranslation({
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           entries: [{ key, original: entry.original, label: entry.label, maxBytes: entry.maxBytes }],
-          glossary: activeGlossary,
+          glossary: trimGlossaryToBatch(activeGlossary, [{ original: entry.original }]),
           context: contextEntries.length > 0 ? contextEntries : undefined,
           tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
           userApiKey: userGeminiKey || undefined,
@@ -299,7 +300,7 @@ export function useEditorTranslation({
             signal: abortControllerRef.current.signal,
             body: JSON.stringify({
               entries,
-              glossary: activeGlossary,
+              glossary: trimGlossaryToBatch(activeGlossary, entries),
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
               tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
               userApiKey: userGeminiKey || undefined,
@@ -442,7 +443,7 @@ export function useEditorTranslation({
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({
             entries,
-            glossary: activeGlossary,
+            glossary: trimGlossaryToBatch(activeGlossary, entries),
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
             tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
@@ -512,7 +513,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
+          body: JSON.stringify({ entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -682,7 +683,7 @@ export function useEditorTranslation({
           signal: abortControllerRef.current.signal,
           body: JSON.stringify({
             entries,
-            glossary: activeGlossary,
+            glossary: trimGlossaryToBatch(activeGlossary, entries),
             tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
             userClaudeKey: userClaudeKey || undefined,
