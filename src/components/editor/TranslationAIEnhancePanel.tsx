@@ -876,7 +876,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                         {showDiff ? (
                           <div className="p-2.5 rounded-lg bg-card border">
                             <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={s.current} after={s.suggested} />
+                            <DiffView before={s.current} after={s.suggested} mode={diffMode} />
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -977,7 +977,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                         {showDiff ? (
                           <div className="p-2.5 rounded-lg bg-card border">
                             <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={g.translation} after={g.suggestion} />
+                            <DiffView before={g.translation} after={g.suggestion} mode={diffMode} />
                           </div>
                         ) : (
                           <div className="space-y-2">
