@@ -78,10 +78,18 @@ const MODEL_OPTIONS: ModelOption[] = [
 const GOOGLE_CHECK_THRESHOLD = 0.55;
 const GOOGLE_CHECK_CONCURRENCY = 3;
 
-// --- Diff helper: word-level highlight ---
-function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: string }[] {
-  const aw = a.split(/(\s+)/);
-  const bw = b.split(/(\s+)/);
+// --- Diff helpers: word-level + sentence-level ---
+function splitTokens(s: string, mode: "word" | "sentence"): string[] {
+  if (mode === "sentence") {
+    // Split on . ! ? ؟ ، ؛ : newlines while keeping the delimiter attached
+    return s.split(/(?<=[\.\!\?\؟\،\؛\:\n])\s+/).filter(t => t.length > 0);
+  }
+  return s.split(/(\s+)/);
+}
+
+function diffTokens(a: string, b: string, mode: "word" | "sentence"): { type: "same" | "del" | "add"; text: string }[] {
+  const aw = splitTokens(a, mode);
+  const bw = splitTokens(b, mode);
   const m = aw.length, n = bw.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
   for (let i = m - 1; i >= 0; i--) {
@@ -101,8 +109,9 @@ function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: 
   return out;
 }
 
-const DiffView: React.FC<{ before: string; after: string }> = ({ before, after }) => {
-  const parts = useMemo(() => diffWords(before, after), [before, after]);
+const DiffView: React.FC<{ before: string; after: string; mode?: "word" | "sentence" }> = ({ before, after, mode = "word" }) => {
+  const parts = useMemo(() => diffTokens(before, after, mode), [before, after, mode]);
+  const sep = mode === "sentence" ? " " : "";
   return (
     <div
       className="text-sm leading-relaxed font-body whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word] max-w-full"
@@ -110,14 +119,14 @@ const DiffView: React.FC<{ before: string; after: string }> = ({ before, after }
     >
       {parts.map((p, i) =>
         p.type === "same" ? (
-          <span key={i}>{p.text}</span>
+          <span key={i}>{p.text}{sep}</span>
         ) : p.type === "del" ? (
           <span key={i} className="bg-red-500/20 line-through text-red-600 rounded px-0.5 mx-px inline">
-            {p.text}
+            {p.text}{sep}
           </span>
         ) : (
           <span key={i} className="bg-green-500/20 text-green-700 rounded px-0.5 mx-px inline">
-            {p.text}
+            {p.text}{sep}
           </span>
         )
       )}
