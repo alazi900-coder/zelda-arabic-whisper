@@ -1194,7 +1194,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
-    bedrockModel, setBedrockModel, bedrockProxyUrl, setBedrockProxyUrl,
+    setBedrockModel, setBedrockProxyUrl,
     customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,

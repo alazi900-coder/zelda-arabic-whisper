@@ -75,13 +75,21 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
 ];
 
-const GOOGLE_CHECK_THRESHOLD = 0.55;
+const GOOGLE_CHECK_THRESHOLD = 0.7;
 const GOOGLE_CHECK_CONCURRENCY = 3;
 
-// --- Diff helper: word-level highlight ---
-function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: string }[] {
-  const aw = a.split(/(\s+)/);
-  const bw = b.split(/(\s+)/);
+// --- Diff helpers: word-level + sentence-level ---
+function splitTokens(s: string, mode: "word" | "sentence"): string[] {
+  if (mode === "sentence") {
+    // Split on . ! ? ؟ ، ؛ : newlines while keeping the delimiter attached
+    return s.split(/(?<=[\.\!\?\؟\،\؛\:\n])\s+/).filter(t => t.length > 0);
+  }
+  return s.split(/(\s+)/);
+}
+
+function diffTokens(a: string, b: string, mode: "word" | "sentence"): { type: "same" | "del" | "add"; text: string }[] {
+  const aw = splitTokens(a, mode);
+  const bw = splitTokens(b, mode);
   const m = aw.length, n = bw.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
   for (let i = m - 1; i >= 0; i--) {
@@ -101,8 +109,9 @@ function diffWords(a: string, b: string): { type: "same" | "del" | "add"; text: 
   return out;
 }
 
-const DiffView: React.FC<{ before: string; after: string }> = ({ before, after }) => {
-  const parts = useMemo(() => diffWords(before, after), [before, after]);
+const DiffView: React.FC<{ before: string; after: string; mode?: "word" | "sentence" }> = ({ before, after, mode = "word" }) => {
+  const parts = useMemo(() => diffTokens(before, after, mode), [before, after, mode]);
+  const sep = mode === "sentence" ? " " : "";
   return (
     <div
       className="text-sm leading-relaxed font-body whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word] max-w-full"
@@ -110,14 +119,14 @@ const DiffView: React.FC<{ before: string; after: string }> = ({ before, after }
     >
       {parts.map((p, i) =>
         p.type === "same" ? (
-          <span key={i}>{p.text}</span>
+          <span key={i}>{p.text}{sep}</span>
         ) : p.type === "del" ? (
           <span key={i} className="bg-red-500/20 line-through text-red-600 rounded px-0.5 mx-px inline">
-            {p.text}
+            {p.text}{sep}
           </span>
         ) : (
           <span key={i} className="bg-green-500/20 text-green-700 rounded px-0.5 mx-px inline">
-            {p.text}
+            {p.text}{sep}
           </span>
         )
       )}
@@ -143,6 +152,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [scope, setScope] = useState<Scope>("all");
   const [model, setModel] = useState<string>("gemini-3-flash-preview");
   const [showDiff, setShowDiff] = useState(true);
+  const [diffMode, setDiffMode] = useState<"word" | "sentence">("word");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [showSettings, setShowSettings] = useState(false);
@@ -267,11 +277,16 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       }
 
       const foundIssues: GrammarIssue[] = [];
+      let failedCount = 0;
+      let okCount = 0;
       for (let idx = 0; idx < inputs.length; idx++) {
         const entry = inputs[idx];
         const result = backResults[idx];
-        if (!result || result.error || !result.english) continue;
-
+        if (!result || result.error || !result.english) {
+          failedCount++;
+          continue;
+        }
+        okCount++;
         processedKeysRef.current.add(entry.key);
 
         const score = diceSimilarity(entry.original, result.english);
@@ -279,8 +294,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
 
         const pct = Math.round(score * 100);
         const sev: "high" | "medium" | "low" =
-          score < GOOGLE_CHECK_THRESHOLD * 0.55 ? "high" :
-          score < GOOGLE_CHECK_THRESHOLD ? "medium" : "low";
+          score < 0.35 ? "high" :
+          score < 0.55 ? "medium" : "low";
 
         foundIssues.push({
           key: entry.key,
@@ -301,14 +316,22 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       setIsAnalyzing(false);
       setProgress(null);
 
-      toast({
-        title: foundIssues.length > 0
-          ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
-          : "✅ الترجمات دقيقة — لا توجد انحرافات",
-        description: foundIssues.length > 0
-          ? "ترجمات منخفضة التشابه مع الأصل عند الترجمة العكسية"
-          : `تم فحص ${inputs.length} ترجمة بنجاح`,
-      });
+      if (failedCount === inputs.length) {
+        toast({
+          title: "❌ فشل فحص Google",
+          description: "تعذّر الاتصال بـ Google Translate (CORS أو شبكة). جرّب محرّكاً آخر.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: foundIssues.length > 0
+            ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
+            : `✅ الترجمات دقيقة (عتبة ${Math.round(GOOGLE_CHECK_THRESHOLD * 100)}%)`,
+          description: failedCount > 0
+            ? `تم فحص ${okCount} بنجاح • فشل ${failedCount} • ${foundIssues.length} مشكلة`
+            : `تم فحص ${okCount} ترجمة • ${foundIssues.length} مشكلة`,
+        });
+      }
       return;
     }
 
@@ -647,6 +670,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               <input type="checkbox" checked={showDiff} onChange={(e) => setShowDiff(e.target.checked)} className="accent-primary" />
               عرض الفروقات (Diff) ملوّنة
             </label>
+            {showDiff && (
+              <div className="flex items-center gap-1.5 pr-5">
+                <span className="text-[10px] text-muted-foreground">طريقة المقارنة:</span>
+                <Button size="sm" variant={diffMode === "word" ? "default" : "outline"} className="h-6 px-2 text-[10px]" onClick={() => setDiffMode("word")}>
+                  بالكلمات
+                </Button>
+                <Button size="sm" variant={diffMode === "sentence" ? "default" : "outline"} className="h-6 px-2 text-[10px]" onClick={() => setDiffMode("sentence")}>
+                  بالجمل
+                </Button>
+              </div>
+            )}
 
             <label className="flex items-center gap-2 text-xs cursor-pointer pt-1 border-t pt-2">
               <input type="checkbox" checked={offlineMode} onChange={(e) => setOfflineMode(e.target.checked)} className="accent-primary" />
@@ -855,7 +889,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                         {showDiff ? (
                           <div className="p-2.5 rounded-lg bg-card border">
                             <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={s.current} after={s.suggested} />
+                            <DiffView before={s.current} after={s.suggested} mode={diffMode} />
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -956,7 +990,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                         {showDiff ? (
                           <div className="p-2.5 rounded-lg bg-card border">
                             <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={g.translation} after={g.suggestion} />
+                            <DiffView before={g.translation} after={g.suggestion} mode={diffMode} />
                           </div>
                         ) : (
                           <div className="space-y-2">
