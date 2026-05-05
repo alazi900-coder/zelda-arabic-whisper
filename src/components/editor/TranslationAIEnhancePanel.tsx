@@ -75,7 +75,7 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
 ];
 
-const GOOGLE_CHECK_THRESHOLD = 0.55;
+const GOOGLE_CHECK_THRESHOLD = 0.7;
 const GOOGLE_CHECK_CONCURRENCY = 3;
 
 // --- Diff helpers: word-level + sentence-level ---
