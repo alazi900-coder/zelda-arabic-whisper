@@ -5,6 +5,7 @@ import { ARABIC_REGEX } from "@/lib/arabic-processing";
 import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
 import { precomputeCandidates, buildBatchTmExamples, type TmCandidate, type PrecomputedCandidate } from "@/lib/tm-boost";
 import { trimGlossaryToBatch } from "@/lib/glossary-trim";
+import { parseEmailList, pickNextEmail } from "@/lib/mymemory-rotation";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -37,6 +38,14 @@ interface UseEditorTranslationProps {
   userBedrockRegion: string;
   bedrockModel: string;
   bedrockProxyUrl: string;
+  // Per-engine creativity (temperature) — defaults to 0.2 each.
+  geminiTemperature?: number;
+  claudeTemperature?: number;
+  bedrockTemperature?: number;
+  lovableTemperature?: number;
+  // MyMemory email rotation (round-robin index across parsed list).
+  myMemoryEmailIndex?: number;
+  setMyMemoryEmailIndex?: (idx: number) => void;
 }
 
 // Build the deduplicated candidate pool for TM Boost from the editor's
@@ -65,7 +74,29 @@ export function useEditorTranslation({
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   customPromptInstructions,
   userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
+  geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
+  myMemoryEmailIndex, setMyMemoryEmailIndex,
 }: UseEditorTranslationProps) {
+  // Pick the temperature for the active engine. Falls back to 0.2 (existing default).
+  const resolveTemperature = (): number => {
+    switch (translationEngine) {
+      case 'gemini': return geminiTemperature ?? 0.2;
+      case 'claude': return claudeTemperature ?? 0.2;
+      case 'bedrock': return bedrockTemperature ?? 0.2;
+      case 'lovable': return lovableTemperature ?? 0.2;
+      default: return 0.2;
+    }
+  };
+
+  // Resolve the next MyMemory email to use, advancing the rotation index.
+  // Falls back to the raw stored email when no valid addresses are parseable.
+  const resolveMyMemoryEmail = (): string => {
+    const list = parseEmailList(myMemoryEmail);
+    if (list.length === 0) return myMemoryEmail || '';
+    const r = pickNextEmail(list, myMemoryEmailIndex ?? 0);
+    if (setMyMemoryEmailIndex) setMyMemoryEmailIndex(r.nextIndex);
+    return r.email;
+  };
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
   const [tmStats, setTmStats] = useState<{ reused: number; sent: number } | null>(null);
@@ -141,7 +172,7 @@ export function useEditorTranslation({
           translationEngine,
           translationQuality,
           geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
-          myMemoryEmail: myMemoryEmail || undefined,
+          myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
           category: entryCategory,
           filePath: entry.msbtFile,
           extraInstructions: customPromptInstructions || undefined,
@@ -312,7 +343,7 @@ export function useEditorTranslation({
               translationEngine,
               translationQuality,
               geminiModel: resolveGeminiModel(geminiModel, entries),
-              myMemoryEmail: myMemoryEmail || undefined,
+              myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
               category: batchCategory,
               filePath: batchFilePath,
               extraInstructions: customPromptInstructions || undefined,
@@ -455,7 +486,7 @@ export function useEditorTranslation({
             translationEngine,
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
-            myMemoryEmail: myMemoryEmail || undefined,
+            myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
             category: batchCategory,
             filePath: batch[0].msbtFile,
             extraInstructions: customPromptInstructions || undefined,
@@ -513,7 +544,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
+          body: JSON.stringify({ entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(), extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -694,7 +725,7 @@ export function useEditorTranslation({
             translationEngine,
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
-            myMemoryEmail: myMemoryEmail || undefined,
+            myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
             category: batchCategory,
             filePath: batchFilePath,
             extraInstructions: customPromptInstructions || undefined,
