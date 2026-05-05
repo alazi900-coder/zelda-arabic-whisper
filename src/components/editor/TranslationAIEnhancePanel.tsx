@@ -657,6 +657,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               <input type="checkbox" checked={showDiff} onChange={(e) => setShowDiff(e.target.checked)} className="accent-primary" />
               عرض الفروقات (Diff) ملوّنة
             </label>
+            {showDiff && (
+              <div className="flex items-center gap-1.5 pr-5">
+                <span className="text-[10px] text-muted-foreground">طريقة المقارنة:</span>
+                <Button size="sm" variant={diffMode === "word" ? "default" : "outline"} className="h-6 px-2 text-[10px]" onClick={() => setDiffMode("word")}>
+                  بالكلمات
+                </Button>
+                <Button size="sm" variant={diffMode === "sentence" ? "default" : "outline"} className="h-6 px-2 text-[10px]" onClick={() => setDiffMode("sentence")}>
+                  بالجمل
+                </Button>
+              </div>
+            )}
 
             <label className="flex items-center gap-2 text-xs cursor-pointer pt-1 border-t pt-2">
               <input type="checkbox" checked={offlineMode} onChange={(e) => setOfflineMode(e.target.checked)} className="accent-primary" />
