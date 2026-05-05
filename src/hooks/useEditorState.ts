@@ -6,6 +6,7 @@ import { ARABIC_REGEX, processArabicText, hasArabicChars as hasArabicCharsProces
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { utf8ByteLength } from "@/lib/byte-utils";
+import { resolveGeminiModel } from "@/lib/gemini-router";
 import { useEditorGlossary } from "@/hooks/useEditorGlossary";
 import { useEditorFileIO } from "@/hooks/useEditorFileIO";
 import { useEditorQuality } from "@/hooks/useEditorQuality";
@@ -145,13 +146,14 @@ export function useEditorState() {
     try { localStorage.setItem('translationQuality', q); } catch (e) { console.warn('localStorage translationQuality:', e); }
   }, []);
   // Specific Gemini model selector (overrides translationQuality when engine is gemini/lovable)
-  const [geminiModel, _setGeminiModel] = useState<'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro'>(() => {
+  // 'auto' lets the front-end resolve per-batch by entry length (see lib/gemini-router).
+  const [geminiModel, _setGeminiModel] = useState<'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto'>(() => {
     try {
-      const v = localStorage.getItem('geminiModel') as 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | null;
+      const v = localStorage.getItem('geminiModel') as 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto' | null;
       return v || 'gemini-2.5-flash';
     } catch { return 'gemini-2.5-flash'; }
   });
-  const setGeminiModel = useCallback((m: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro') => {
+  const setGeminiModel = useCallback((m: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto') => {
     _setGeminiModel(m);
     try { localStorage.setItem('geminiModel', m); } catch (e) { console.warn('localStorage geminiModel:', e); }
   }, []);
@@ -887,7 +889,7 @@ export function useEditorState() {
     const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/review-translations`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entries: reviewEntries, glossary: activeGlossary, action, geminiModel, ...extraBody }),
+      body: JSON.stringify({ entries: reviewEntries, glossary: activeGlossary, action, geminiModel: resolveGeminiModel(geminiModel, reviewEntries), ...extraBody }),
     }, 120000);
     if (!response.ok) {
       const err = await response.json().catch(() => null);
@@ -1012,7 +1014,7 @@ export function useEditorState() {
           entries: [{ key: entryKey, original: entry.original, translation, maxBytes: entry.maxBytes || 0 }],
           glossary: activeGlossary,
           action: 'quick-alternatives',
-          geminiModel,
+          geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
           contextEntries: contextSlice,
         }),
       }, 60000);

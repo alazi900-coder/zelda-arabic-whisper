@@ -465,12 +465,15 @@ const Editor = () => {
                     <span className="text-sm font-display font-bold">نموذج Gemini</span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
+                    <Button variant={editor.geminiModel === 'auto' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('auto')} className="text-xs font-body">🤖 تلقائي</Button>
                     <Button variant={editor.geminiModel === 'gemini-2.0-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.0-flash')} className="text-xs font-body">⚡ 2.0 Flash</Button>
                     <Button variant={editor.geminiModel === 'gemini-2.5-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-flash')} className="text-xs font-body">✨ 2.5 Flash</Button>
                     <Button variant={editor.geminiModel === 'gemini-2.5-pro' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-pro')} className="text-xs font-body">💎 2.5 Pro</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
-                    {editor.geminiModel === 'gemini-2.0-flash'
+                    {editor.geminiModel === 'auto'
+                      ? 'اختيار آلي حسب طول النص — يوفّر التكلفة'
+                      : editor.geminiModel === 'gemini-2.0-flash'
                       ? 'أسرع نموذج — مجاني (1500/يوم)'
                       : editor.geminiModel === 'gemini-2.5-flash'
                       ? 'توازن بين السرعة والجودة'
