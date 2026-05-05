@@ -446,17 +446,22 @@ const Editor = () => {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { key: 'lovable', label: '🤖 Lovable AI', disabled: false },
-                    { key: 'gemini', label: '✨ Gemini (شخصي)', disabled: !editor.userGeminiKey },
-                    { key: 'claude', label: '🧠 Claude (شخصي)', disabled: !editor.userClaudeKey },
-                    { key: 'bedrock', label: '☁️ Amazon Bedrock', disabled: !editor.userBedrockApiKey },
-                    { key: 'openrouter', label: '🌍 OpenRouter', disabled: !editor.userOpenRouterKey },
-                    { key: 'google', label: '🔤 Google Translate', disabled: false },
-                    { key: 'mymemory', label: '🌐 MyMemory', disabled: false },
+                    // Personal-key engines stay clickable even without a key — selecting
+                    // the engine reveals its key field below. Lock-icon flags missing keys.
+                    { key: 'lovable', label: '🤖 Lovable AI', needsKey: false, hasKey: true },
+                    { key: 'gemini', label: '✨ Gemini (شخصي)', needsKey: true, hasKey: !!editor.userGeminiKey },
+                    { key: 'claude', label: '🧠 Claude (شخصي)', needsKey: true, hasKey: !!editor.userClaudeKey },
+                    { key: 'bedrock', label: '☁️ Amazon Bedrock', needsKey: true, hasKey: !!editor.userBedrockApiKey },
+                    { key: 'openrouter', label: '🌍 OpenRouter', needsKey: true, hasKey: !!editor.userOpenRouterKey },
+                    { key: 'google', label: '🔤 Google Translate', needsKey: false, hasKey: true },
+                    { key: 'mymemory', label: '🌐 MyMemory', needsKey: false, hasKey: true },
                   ].map(eng => (
                     <Button key={eng.key} variant={editor.translationEngine === eng.key ? 'default' : 'outline'} size="sm"
-                      onClick={() => editor.setTranslationEngine(eng.key as any)} className="text-xs font-body" disabled={eng.disabled}>
+                      onClick={() => editor.setTranslationEngine(eng.key as 'lovable' | 'gemini' | 'claude' | 'bedrock' | 'openrouter' | 'google' | 'mymemory')}
+                      className="text-xs font-body"
+                      title={eng.needsKey && !eng.hasKey ? 'يحتاج مفتاحاً — اضغط لاختياره ثم أدخل المفتاح' : undefined}>
                       {eng.label}
+                      {eng.needsKey && !eng.hasKey && <span className="mr-1 opacity-60">🔒</span>}
                     </Button>
                   ))}
                 </div>
@@ -566,6 +571,11 @@ const Editor = () => {
                   </div>
                 );
               })()}
+              {/* Show only the key field for the currently selected engine. Personal
+                  engines without a key still display their input here once selected,
+                  so the user can paste the key without first having to fill four boxes. */}
+              {editor.translationEngine === 'gemini' && (
+              <>
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -573,15 +583,21 @@ const Editor = () => {
                 </div>
                 <div className="flex gap-2 flex-1">
                   <input type="password" placeholder="الصق مفتاح API هنا للترجمة المجانية..." value={editor.userGeminiKey}
-                    onChange={(e) => { editor.setUserGeminiKey(e.target.value); if (e.target.value) editor.setTranslationEngine('gemini'); }}
+                    onChange={(e) => editor.setUserGeminiKey(e.target.value)}
                     className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   {editor.userGeminiKey && (
-                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserGeminiKey(''); if (editor.translationEngine === 'gemini') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                    <Button variant="ghost" size="sm" onClick={() => editor.setUserGeminiKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
                 </div>
                 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح مجاني ↗</a>
               </div>
-              {editor.userGeminiKey && <p className="text-xs text-secondary font-body">مفتاح Gemini مفعّل{editor.translationEngine === 'gemini' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              {editor.userGeminiKey
+                ? <p className="text-xs text-secondary font-body">مفتاح Gemini مفعّل — سيُستخدم للترجمة</p>
+                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Gemini للبدء، أو اختر محرّكاً آخر.</p>}
+              </>
+              )}
+              {editor.translationEngine === 'claude' && (
+              <>
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -589,15 +605,21 @@ const Editor = () => {
                 </div>
                 <div className="flex gap-2 flex-1">
                   <input type="password" placeholder="الصق مفتاح Anthropic API هنا..." value={editor.userClaudeKey}
-                    onChange={(e) => { editor.setUserClaudeKey(e.target.value); if (e.target.value) editor.setTranslationEngine('claude'); }}
+                    onChange={(e) => editor.setUserClaudeKey(e.target.value)}
                     className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   {editor.userClaudeKey && (
-                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserClaudeKey(''); if (editor.translationEngine === 'claude') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                    <Button variant="ghost" size="sm" onClick={() => editor.setUserClaudeKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
                 </div>
                 <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
               </div>
-              {editor.userClaudeKey && <p className="text-xs text-secondary font-body">مفتاح Claude مفعّل{editor.translationEngine === 'claude' ? ' — سيُستخدم للترجمة' : ''}</p>}
+              {editor.userClaudeKey
+                ? <p className="text-xs text-secondary font-body">مفتاح Claude مفعّل — سيُستخدم للترجمة</p>
+                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Claude للبدء، أو اختر محرّكاً آخر.</p>}
+              </>
+              )}
+              {editor.translationEngine === 'bedrock' && (
+              <>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -606,7 +628,7 @@ const Editor = () => {
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                   <div className="flex gap-2 flex-1">
                     <input type="password" placeholder="Bedrock API Key..." value={editor.userBedrockApiKey}
-                      onChange={(e) => { editor.setUserBedrockApiKey(e.target.value); if (e.target.value) editor.setTranslationEngine('bedrock'); }}
+                      onChange={(e) => editor.setUserBedrockApiKey(e.target.value)}
                       className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   </div>
                 </div>
@@ -626,14 +648,15 @@ const Editor = () => {
                     <option value="me-central-1">Middle East (UAE)</option>
                   </select>
                   {editor.userBedrockApiKey && (
-                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserBedrockApiKey(''); if (editor.translationEngine === 'bedrock') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                    <Button variant="ghost" size="sm" onClick={() => editor.setUserBedrockApiKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
                   <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">إنشاء مفتاح API ↗</a>
                 </div>
               </div>
-              {editor.userBedrockApiKey && (
+              {editor.userBedrockApiKey
+                ? (
                 <div className="space-y-1">
-                  <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل{editor.translationEngine === 'bedrock' ? ' — سيُستخدم للترجمة' : ''}</p>
+                  <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل — سيُستخدم للترجمة</p>
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                     <span className="text-xs font-body text-muted-foreground shrink-0">🔗 Proxy URL (اختياري — لتجاوز القيود الجغرافية):</span>
                     <input type="url" placeholder="https://your-proxy.example.com" value={editor.bedrockProxyUrl}
@@ -644,8 +667,13 @@ const Editor = () => {
                     )}
                   </div>
                 </div>
+                )
+                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Bedrock للبدء، أو اختر محرّكاً آخر.</p>}
+              </>
               )}
               {/* OpenRouter unified gateway (P0 #13). Opens 200+ models via one key. */}
+              {editor.translationEngine === 'openrouter' && (
+              <>
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -653,17 +681,18 @@ const Editor = () => {
                 </div>
                 <div className="flex gap-2 flex-1">
                   <input type="password" placeholder="sk-or-v1-..." value={editor.userOpenRouterKey}
-                    onChange={(e) => { editor.setUserOpenRouterKey(e.target.value); if (e.target.value) editor.setTranslationEngine('openrouter'); }}
+                    onChange={(e) => editor.setUserOpenRouterKey(e.target.value)}
                     className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
                   {editor.userOpenRouterKey && (
-                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserOpenRouterKey(''); if (editor.translationEngine === 'openrouter') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                    <Button variant="ghost" size="sm" onClick={() => editor.setUserOpenRouterKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
                   )}
                 </div>
                 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
               </div>
-              {editor.userOpenRouterKey && (
+              {editor.userOpenRouterKey
+                ? (
                 <div className="space-y-1">
-                  <p className="text-xs text-secondary font-body">مفتاح OpenRouter مفعّل{editor.translationEngine === 'openrouter' ? ' — سيُستخدم للترجمة' : ''}</p>
+                  <p className="text-xs text-secondary font-body">مفتاح OpenRouter مفعّل — سيُستخدم للترجمة</p>
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                     <span className="text-xs font-body text-muted-foreground shrink-0">🤖 معرّف النموذج (مثال:</span>
                     <input type="text" placeholder="anthropic/claude-3.5-sonnet" value={editor.openRouterModel}
@@ -676,6 +705,9 @@ const Editor = () => {
                     {' '}<span className="font-mono" dir="ltr">meta-llama/llama-3.1-405b-instruct:free</span>
                   </p>
                 </div>
+                )
+                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح OpenRouter للبدء، أو اختر محرّكاً آخر.</p>}
+              </>
               )}
               {/* Auto-fallback toggle (P0 #9): on failure, retry with the next engine in the chain. */}
               <div className="flex flex-col gap-2 pt-2 border-t border-border/30">
