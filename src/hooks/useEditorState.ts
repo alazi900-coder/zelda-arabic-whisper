@@ -96,10 +96,10 @@ export function useEditorState() {
       else localStorage.removeItem('customPromptInstructions');
     } catch (e) { console.warn('localStorage customPromptInstructions:', e); }
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock'>(() => {
-    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock') || 'lovable'; } catch { return 'lovable'; }
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter'>(() => {
+    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter') || 'lovable'; } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch (e) { console.warn('localStorage translationEngine:', e); }
   }, []);
@@ -109,6 +109,22 @@ export function useEditorState() {
   const setUserClaudeKey = useCallback((key: string) => {
     _setUserClaudeKey(key);
     try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch (e) { console.warn('localStorage userClaudeKey:', e); }
+  }, []);
+  // OpenRouter unified gateway: opens 200+ models (Mistral, Cohere, Llama, GPT-4, etc.)
+  // through one OpenAI-compatible API. User supplies key from openrouter.ai.
+  const [userOpenRouterKey, _setUserOpenRouterKey] = useState(() => {
+    try { return localStorage.getItem('userOpenRouterKey') || ''; } catch { return ''; }
+  });
+  const setUserOpenRouterKey = useCallback((key: string) => {
+    _setUserOpenRouterKey(key);
+    try { if (key) localStorage.setItem('userOpenRouterKey', key); else localStorage.removeItem('userOpenRouterKey'); } catch (e) { console.warn('localStorage userOpenRouterKey:', e); }
+  }, []);
+  const [openRouterModel, _setOpenRouterModel] = useState<string>(() => {
+    try { return localStorage.getItem('openRouterModel') || 'anthropic/claude-3.5-sonnet'; } catch { return 'anthropic/claude-3.5-sonnet'; }
+  });
+  const setOpenRouterModel = useCallback((model: string) => {
+    _setOpenRouterModel(model);
+    try { localStorage.setItem('openRouterModel', model); } catch (e) { console.warn('localStorage openRouterModel:', e); }
   }, []);
   const [userBedrockApiKey, _setUserBedrockApiKey] = useState(() => {
     try { return localStorage.getItem('userBedrockApiKey') || ''; } catch { return ''; }
@@ -663,6 +679,8 @@ export function useEditorState() {
     userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
     geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
     myMemoryEmailIndex, setMyMemoryEmailIndex,
+    userOpenRouterKey, openRouterModel,
+    autoFallback, fallbackChainRaw,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1227,6 +1245,7 @@ export function useEditorState() {
 
   return {
     state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
+    userOpenRouterKey, openRouterModel,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -1248,6 +1267,7 @@ export function useEditorState() {
     setFiltersOpen, togglePin, setIsPageLocked, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
+    setUserOpenRouterKey, setOpenRouterModel,
     geminiModel, setGeminiModel,
     setBedrockModel, setBedrockProxyUrl,
     customPromptInstructions, setCustomPromptInstructions,

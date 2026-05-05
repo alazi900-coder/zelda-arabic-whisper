@@ -450,6 +450,7 @@ const Editor = () => {
                     { key: 'gemini', label: '✨ Gemini (شخصي)', disabled: !editor.userGeminiKey },
                     { key: 'claude', label: '🧠 Claude (شخصي)', disabled: !editor.userClaudeKey },
                     { key: 'bedrock', label: '☁️ Amazon Bedrock', disabled: !editor.userBedrockApiKey },
+                    { key: 'openrouter', label: '🌍 OpenRouter', disabled: !editor.userOpenRouterKey },
                     { key: 'google', label: '🔤 Google Translate', disabled: false },
                     { key: 'mymemory', label: '🌐 MyMemory', disabled: false },
                   ].map(eng => (
@@ -644,6 +645,62 @@ const Editor = () => {
                   </div>
                 </div>
               )}
+              {/* OpenRouter unified gateway (P0 #13). Opens 200+ models via one key. */}
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Key className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-display font-bold">🌍 مفتاح OpenRouter API</span>
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <input type="password" placeholder="sk-or-v1-..." value={editor.userOpenRouterKey}
+                    onChange={(e) => { editor.setUserOpenRouterKey(e.target.value); if (e.target.value) editor.setTranslationEngine('openrouter'); }}
+                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
+                  {editor.userOpenRouterKey && (
+                    <Button variant="ghost" size="sm" onClick={() => { editor.setUserOpenRouterKey(''); if (editor.translationEngine === 'openrouter') editor.setTranslationEngine('lovable'); }} className="text-xs text-destructive shrink-0">مسح</Button>
+                  )}
+                </div>
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
+              </div>
+              {editor.userOpenRouterKey && (
+                <div className="space-y-1">
+                  <p className="text-xs text-secondary font-body">مفتاح OpenRouter مفعّل{editor.translationEngine === 'openrouter' ? ' — سيُستخدم للترجمة' : ''}</p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">🤖 معرّف النموذج (مثال:</span>
+                    <input type="text" placeholder="anthropic/claude-3.5-sonnet" value={editor.openRouterModel}
+                      onChange={(e) => editor.setOpenRouterModel(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs" dir="ltr" />
+                    <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">قائمة النماذج ↗</a>
+                  </div>
+                  <p className="text-xs font-body text-muted-foreground">
+                    نماذج مجانية متاحة (تنتهي بـ <span className="font-mono" dir="ltr">:free</span>) — مثلاً
+                    {' '}<span className="font-mono" dir="ltr">meta-llama/llama-3.1-405b-instruct:free</span>
+                  </p>
+                </div>
+              )}
+              {/* Auto-fallback toggle (P0 #9): on failure, retry with the next engine in the chain. */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-border/30">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!editor.autoFallback}
+                    onChange={(e) => editor.setAutoFallback(e.target.checked)}
+                    className="w-4 h-4" />
+                  <RotateCcw className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-display font-bold">🔁 احتياط تلقائي عند الفشل</span>
+                </label>
+                {editor.autoFallback && (
+                  <div className="flex flex-col gap-1 mr-6">
+                    <span className="text-xs font-body text-muted-foreground">
+                      الترتيب (افصل بفاصلة — يستخدم أول محرّك متاح):
+                    </span>
+                    <input type="text" value={editor.fallbackChainRaw}
+                      onChange={(e) => editor.setFallbackChainRaw(e.target.value)}
+                      placeholder="gemini,lovable,claude,mymemory,google"
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs font-mono" dir="ltr" />
+                    <span className="text-xs font-body text-muted-foreground">
+                      المحرّكات الصالحة: <span className="font-mono" dir="ltr">gemini, lovable, claude, bedrock, openrouter, mymemory, google</span>
+                    </span>
+                  </div>
+                )}
+              </div>
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col gap-2">
