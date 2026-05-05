@@ -13,7 +13,8 @@ export type EngineId =
   | "claude"
   | "bedrock"
   | "mymemory"
-  | "google";
+  | "google"
+  | "openrouter";
 
 export type ModelId =
   | "gemini-2.0-flash"
@@ -26,7 +27,8 @@ export type ModelId =
   | "bedrock-llama"
   | "lovable"
   | "mymemory"
-  | "google";
+  | "google"
+  | "openrouter-unknown";
 
 interface Pricing {
   input: number;
@@ -49,6 +51,10 @@ const PRICING: Readonly<Record<ModelId, Pricing>> = {
   "lovable": { input: 0, output: 0, free: true },
   "mymemory": { input: 0, output: 0, free: true },
   "google": { input: 0, output: 0, free: true },
+  // OpenRouter pricing varies wildly per model (free models exist; some
+  // are pricier than Claude). We use a conservative middle estimate; for an
+  // exact cost the user can check the model card on openrouter.ai.
+  "openrouter-unknown": { input: 1.0, output: 5.0 },
 };
 
 export interface CostEstimate {
@@ -97,6 +103,7 @@ export function resolveModelId(
     if (bedrockModel?.includes("llama")) return "bedrock-llama";
     return "bedrock-deepseek-r1";
   }
+  if (engine === "openrouter") return "openrouter-unknown";
   return "lovable";
 }
 
