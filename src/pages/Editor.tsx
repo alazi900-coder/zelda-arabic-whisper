@@ -701,6 +701,22 @@ const Editor = () => {
                   </div>
                 )}
               </div>
+              {/* Strict JSON via tool calling (P0 #24). Forces models to call a function
+                  with a fixed schema instead of returning loose text — eliminates parse
+                  failures from prose-prefixed JSON. Falls back to text parse if the
+                  model ignores the tool. Default ON; users can disable if a specific
+                  model misbehaves. */}
+              <div className="flex flex-col gap-1 pt-2 border-t border-border/30">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editor.userStrictJson !== false}
+                    onChange={(e) => editor.setUserStrictJson(e.target.checked)}
+                    className="w-4 h-4" />
+                  <span className="text-sm font-display font-bold">🛡️ وضع جيسون الصارم</span>
+                </label>
+                <span className="text-xs font-body text-muted-foreground mr-6">
+                  يجبر النموذج على إعادة الترجمة عبر استدعاء أداة بمخطط ثابت بدلاً من نصّ حرّ. يقلّل أخطاء «تعذّر تحليل الردّ». يطبَّق على جيمناي وكلود وأوبن راوتر ولافابل. لا يطبَّق على ماي ميموري وجوجل ترجمة وبيدروك.
+                </span>
+              </div>
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex flex-col gap-2">

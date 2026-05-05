@@ -25,6 +25,113 @@ function restoreTags(text: string, tags: Map<string, string>): string {
   return result;
 }
 
+// --- Strict JSON via tool calling (#24) ---
+// One logical schema, four provider-specific encodings. The model is asked to
+// invoke `submit_translations` with an array of strings in input order. If the
+// model ignores the tool, callers fall back to the existing text-parse path.
+const TOOL_NAME = 'submit_translations';
+const TOOL_DESCRIPTION =
+  'Submit the Arabic translations of the input entries. Provide one string per entry, in the same order they were given. Do not add explanations.';
+
+const openAITool = {
+  type: 'function',
+  function: {
+    name: TOOL_NAME,
+    description: TOOL_DESCRIPTION,
+    parameters: {
+      type: 'object',
+      properties: {
+        translations: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Arabic translations in input order, one per entry.',
+        },
+      },
+      required: ['translations'],
+    },
+  },
+} as const;
+
+const anthropicTool = {
+  name: TOOL_NAME,
+  description: TOOL_DESCRIPTION,
+  input_schema: {
+    type: 'object',
+    properties: {
+      translations: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['translations'],
+  },
+} as const;
+
+const geminiTool = {
+  function_declarations: [
+    {
+      name: TOOL_NAME,
+      description: TOOL_DESCRIPTION,
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          translations: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+          },
+        },
+        required: ['translations'],
+      },
+    },
+  ],
+} as const;
+
+// Extract a translations array from a tool-call response. Returns null if no
+// usable tool call is found (caller should fall back to text parsing).
+function extractTranslationsFromOpenAITool(
+  message: Record<string, unknown> | undefined,
+): string[] | null {
+  if (!message || typeof message !== 'object') return null;
+  const toolCalls = (message as { tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> }).tool_calls;
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return null;
+  const call = toolCalls.find((c) => c?.function?.name === TOOL_NAME) ?? toolCalls[0];
+  const argsStr = call?.function?.arguments;
+  if (typeof argsStr !== 'string' || argsStr.length === 0) return null;
+  try {
+    const parsed = JSON.parse(argsStr) as { translations?: unknown };
+    if (Array.isArray(parsed.translations) && parsed.translations.every((x) => typeof x === 'string')) {
+      return parsed.translations as string[];
+    }
+  } catch {
+    /* fall back to text parse */
+  }
+  return null;
+}
+
+function extractTranslationsFromAnthropicTool(
+  content: Array<{ type?: string; name?: string; input?: unknown }> | undefined,
+): string[] | null {
+  if (!Array.isArray(content)) return null;
+  const toolUse = content.find((b) => b?.type === 'tool_use' && b?.name === TOOL_NAME);
+  if (!toolUse) return null;
+  const input = toolUse.input as { translations?: unknown } | undefined;
+  if (input && Array.isArray(input.translations) && input.translations.every((x) => typeof x === 'string')) {
+    return input.translations as string[];
+  }
+  return null;
+}
+
+function extractTranslationsFromGeminiTool(
+  candidates: Array<{ content?: { parts?: Array<{ functionCall?: { name?: string; args?: unknown } }> } }> | undefined,
+): string[] | null {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const parts = candidates[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  const fnPart = parts.find((p) => p?.functionCall?.name === TOOL_NAME);
+  const args = fnPart?.functionCall?.args as { translations?: unknown } | undefined;
+  if (args && Array.isArray(args.translations) && args.translations.every((x) => typeof x === 'string')) {
+    return args.translations as string[];
+  }
+  return null;
+}
+
 // --- Post-processing: clean up AI output ---
 function postProcess(translation: string, original: string): string {
   let t = translation;
@@ -141,7 +248,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature, userOpenRouterKey, openRouterModel } = await req.json() as {
+    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature, userOpenRouterKey, openRouterModel, strictJson: rawStrictJson } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
@@ -163,7 +270,14 @@ Deno.serve(async (req) => {
       temperature?: number;
       userOpenRouterKey?: string;
       openRouterModel?: string;
+      strictJson?: boolean;
     };
+
+    // Strict JSON via tool calling (#24): default ON. When false, behave exactly
+    // as before. When true, the engine asks the model to invoke a tool and parses
+    // the structured payload first; falls back to text parsing if the model
+    // ignored the tool.
+    const strictJson: boolean = rawStrictJson !== false;
 
     // Clamp client-provided temperature to a safe range; default 0.2 for backward compat.
     const temperature: number = (() => {
@@ -443,6 +557,20 @@ ${textsBlock}`;
     if (translationEngine === 'openrouter' && userOpenRouterKey?.trim()) {
       const orKey = userOpenRouterKey.trim();
       const model = (openRouterModel || 'anthropic/claude-3.5-sonnet').trim();
+      const orBody: Record<string, unknown> = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature,
+        // Some OpenRouter providers strictly require an explicit cap.
+        max_tokens: 4096,
+      };
+      if (strictJson) {
+        orBody.tools = [openAITool];
+        orBody.tool_choice = { type: 'function', function: { name: TOOL_NAME } };
+      }
       const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -451,16 +579,7 @@ ${textsBlock}`;
           'HTTP-Referer': 'https://zelda-arabic-whisper.lovable.app',
           'X-Title': 'Zelda Arabic Whisper',
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature,
-          // Some OpenRouter providers strictly require an explicit cap.
-          max_tokens: 4096,
-        }),
+        body: JSON.stringify(orBody),
       });
 
       if (!orResponse.ok) {
@@ -504,24 +623,31 @@ ${textsBlock}`;
       }
 
       const orData = await orResponse.json();
-      const content = orData?.choices?.[0]?.message?.content || '';
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        return new Response(JSON.stringify({
-          error: 'تعذّر تحليل ردّ OpenRouter — تأكد من اختيار نموذج يدعم JSON.'
-        }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const orMessage = orData?.choices?.[0]?.message;
+      let translations: string[] | null = strictJson
+        ? extractTranslationsFromOpenAITool(orMessage)
+        : null;
+      if (!translations) {
+        const content = orMessage?.content || '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          return new Response(JSON.stringify({
+            error: 'تعذّر تحليل ردّ OpenRouter — تأكد من اختيار نموذج يدعم JSON.'
+          }), {
+            status: 502,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        // eslint-disable-next-line no-control-regex
+        const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+        translations = JSON.parse(sanitized);
       }
-      // eslint-disable-next-line no-control-regex
-      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-      const translations: string[] = JSON.parse(sanitized);
 
       const result: Record<string, string> = {};
-      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
-        if (translations[i]?.trim()) {
-          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+      const safeTranslations = translations ?? [];
+      for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
+        if (safeTranslations[i]?.trim()) {
+          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
@@ -545,6 +671,17 @@ ${textsBlock}`;
         });
       }
 
+      const claudeBody: Record<string, unknown> = {
+        model: translationQuality === 'quality' ? 'claude-sonnet-4-20250514' : 'claude-haiku-35-20241022',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        temperature,
+      };
+      if (strictJson) {
+        claudeBody.tools = [anthropicTool];
+        claudeBody.tool_choice = { type: 'tool', name: TOOL_NAME };
+      }
       const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -552,13 +689,7 @@ ${textsBlock}`;
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify({
-          model: translationQuality === 'quality' ? 'claude-sonnet-4-20250514' : 'claude-haiku-35-20241022',
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
-          temperature,
-        }),
+        body: JSON.stringify(claudeBody),
       });
 
       if (!claudeResponse.ok) {
@@ -604,17 +735,25 @@ ${textsBlock}`;
       }
 
       const claudeData = await claudeResponse.json();
-      const content = claudeData?.content?.[0]?.text || '';
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('Failed to parse Claude response');
-
-      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-      const translations: string[] = JSON.parse(sanitized);
+      let translations: string[] | null = strictJson
+        ? extractTranslationsFromAnthropicTool(claudeData?.content)
+        : null;
+      if (!translations) {
+        const textBlock = Array.isArray(claudeData?.content)
+          ? claudeData.content.find((b: { type?: string }) => b?.type === 'text')
+          : null;
+        const content = textBlock?.text || claudeData?.content?.[0]?.text || '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error('Failed to parse Claude response');
+        const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+        translations = JSON.parse(sanitized);
+      }
 
       const result: Record<string, string> = {};
-      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
-        if (translations[i]?.trim()) {
-          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+      const safeTranslations = translations ?? [];
+      for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
+        if (safeTranslations[i]?.trim()) {
+          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
@@ -799,21 +938,28 @@ ${textsBlock}`;
         || (translationQuality === 'quality' ? 'gemini-2.5-pro' : 'gemini-2.5-flash');
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedGeminiModel}:generateContent?key=${userApiKey.trim()}`;
       
+      const geminiBody: Record<string, unknown> = {
+        contents: [
+          { role: 'user', parts: [{ text: userPrompt }] }
+        ],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          temperature,
+          topP: 0.9,
+        },
+      };
+      if (strictJson) {
+        geminiBody.tools = [geminiTool];
+        geminiBody.tool_config = {
+          function_calling_config: { mode: 'ANY', allowed_function_names: [TOOL_NAME] },
+        };
+      }
       const geminiResponse = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: userPrompt }] }
-          ],
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          generationConfig: {
-            temperature,
-            topP: 0.9,
-          },
-        }),
+        body: JSON.stringify(geminiBody),
       });
 
       if (!geminiResponse.ok) {
@@ -839,18 +985,24 @@ ${textsBlock}`;
       }
 
       const geminiData = await geminiResponse.json();
-      const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('فشل في تحليل استجابة Gemini');
-      
-      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-      const translations: string[] = JSON.parse(sanitized);
-      
+      let translations: string[] | null = strictJson
+        ? extractTranslationsFromGeminiTool(geminiData?.candidates)
+        : null;
+      if (!translations) {
+        const parts = geminiData?.candidates?.[0]?.content?.parts;
+        const textPart = Array.isArray(parts) ? parts.find((p: { text?: string }) => typeof p?.text === 'string') : null;
+        const content = textPart?.text || parts?.[0]?.text || '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error('فشل في تحليل استجابة Gemini');
+        const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+        translations = JSON.parse(sanitized);
+      }
+
       const result: Record<string, string> = {};
-      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
-        if (translations[i] && translations[i].trim()) {
-          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+      const safeTranslations = translations ?? [];
+      for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
+        if (safeTranslations[i] && safeTranslations[i].trim()) {
+          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
@@ -866,20 +1018,25 @@ ${textsBlock}`;
       const gatewayModel = geminiModel
         ? `google/${geminiModel}`
         : (translationQuality === 'quality' ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash');
+      const lovableBody: Record<string, unknown> = {
+        model: gatewayModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature,
+      };
+      if (strictJson) {
+        lovableBody.tools = [openAITool];
+        lovableBody.tool_choice = { type: 'function', function: { name: TOOL_NAME } };
+      }
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: gatewayModel,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature,
-        }),
+        body: JSON.stringify(lovableBody),
       });
 
       if (!response.ok) {
@@ -891,18 +1048,23 @@ ${textsBlock}`;
       }
 
       data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('Failed to parse AI response');
-
-      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-      const translations: string[] = JSON.parse(sanitized);
+      const lovableMessage = data?.choices?.[0]?.message;
+      let translations: string[] | null = strictJson
+        ? extractTranslationsFromOpenAITool(lovableMessage)
+        : null;
+      if (!translations) {
+        const content = lovableMessage?.content || '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error('Failed to parse AI response');
+        const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+        translations = JSON.parse(sanitized);
+      }
 
       const result: Record<string, string> = {};
-      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
-        if (translations[i] && translations[i].trim()) {
-          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+      const safeTranslations = translations ?? [];
+      for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
+        if (safeTranslations[i] && safeTranslations[i].trim()) {
+          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
