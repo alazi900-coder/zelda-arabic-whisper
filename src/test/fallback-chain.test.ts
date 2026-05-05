@@ -29,6 +29,34 @@ describe("parseChain", () => {
   it("drops unknown engine names", () => {
     expect(parseChain("gemini,not-a-real-engine,claude")).toEqual(["gemini", "claude"]);
   });
+
+  it("accepts openrouter as a valid engine id", () => {
+    expect(parseChain("openrouter,gemini")).toEqual(["openrouter", "gemini"]);
+  });
+});
+
+describe("isEngineUsable (openrouter)", () => {
+  it("requires openrouter key", () => {
+    expect(isEngineUsable("openrouter", { openrouter: false })).toBe(false);
+    expect(isEngineUsable("openrouter", {})).toBe(false);
+    expect(isEngineUsable("openrouter", { openrouter: true })).toBe(true);
+  });
+});
+
+describe("buildCallOrder with openrouter", () => {
+  it("includes openrouter when key is present", () => {
+    const order = buildCallOrder("gemini", ["openrouter", "claude", "google"], {
+      gemini: true, openrouter: true, claude: false, google: true,
+    });
+    expect(order).toEqual(["gemini", "openrouter", "google"]);
+  });
+
+  it("skips openrouter when no key", () => {
+    const order = buildCallOrder("gemini", ["openrouter", "google"], {
+      gemini: true, openrouter: false, google: true,
+    });
+    expect(order).toEqual(["gemini", "google"]);
+  });
 });
 
 describe("serializeChain", () => {
@@ -92,7 +120,7 @@ describe("buildCallOrder", () => {
 
 describe("constants", () => {
   it("ALL_ENGINES covers expected ids", () => {
-    expect(new Set(ALL_ENGINES)).toEqual(new Set(["gemini", "lovable", "claude", "bedrock", "mymemory", "google"]));
+    expect(new Set(ALL_ENGINES)).toEqual(new Set(["gemini", "lovable", "claude", "bedrock", "mymemory", "google", "openrouter"]));
   });
 
   it("DEFAULT_FALLBACK_CHAIN is a valid chain", () => {

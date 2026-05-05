@@ -35,6 +35,7 @@ describe("resolveModelId", () => {
     expect(resolveModelId("bedrock", undefined, undefined, "deepseek-r1")).toBe("bedrock-deepseek-r1");
     expect(resolveModelId("bedrock", undefined, undefined, "claude-3-sonnet")).toBe("bedrock-claude-sonnet");
     expect(resolveModelId("bedrock", undefined, undefined, "llama-3")).toBe("bedrock-llama");
+    expect(resolveModelId("openrouter")).toBe("openrouter-unknown");
   });
 });
 

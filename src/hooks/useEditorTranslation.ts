@@ -6,6 +6,7 @@ import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router"
 import { precomputeCandidates, buildBatchTmExamples, type TmCandidate, type PrecomputedCandidate } from "@/lib/tm-boost";
 import { trimGlossaryToBatch } from "@/lib/glossary-trim";
 import { parseEmailList, pickNextEmail } from "@/lib/mymemory-rotation";
+import { parseChain, buildCallOrder, type EngineId } from "@/lib/fallback-chain";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -24,7 +25,7 @@ interface UseEditorTranslationProps {
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
   userClaudeKey: string;
-  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock';
+  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter';
   translationQuality: 'fast' | 'quality';
   geminiModel?: GeminiModelChoice;
   filteredEntries: ExtractedEntry[];
@@ -46,6 +47,12 @@ interface UseEditorTranslationProps {
   // MyMemory email rotation (round-robin index across parsed list).
   myMemoryEmailIndex?: number;
   setMyMemoryEmailIndex?: (idx: number) => void;
+  // OpenRouter unified gateway (P0 #13)
+  userOpenRouterKey?: string;
+  openRouterModel?: string;
+  // Auto-fallback chain (P0 #9)
+  autoFallback?: boolean;
+  fallbackChainRaw?: string;
 }
 
 // Build the deduplicated candidate pool for TM Boost from the editor's
@@ -76,6 +83,8 @@ export function useEditorTranslation({
   userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
   geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
   myMemoryEmailIndex, setMyMemoryEmailIndex,
+  userOpenRouterKey, openRouterModel,
+  autoFallback, fallbackChainRaw,
 }: UseEditorTranslationProps) {
   // Pick the temperature for the active engine. Falls back to 0.2 (existing default).
   const resolveTemperature = (): number => {
@@ -96,6 +105,61 @@ export function useEditorTranslation({
     const r = pickNextEmail(list, myMemoryEmailIndex ?? 0);
     if (setMyMemoryEmailIndex) setMyMemoryEmailIndex(r.nextIndex);
     return r.email;
+  };
+
+  // Build the ordered list of engines to try for a single translate call.
+  // When autoFallback is on, on failure we'll iterate through the chain.
+  const buildEngineCallOrder = (): EngineId[] => {
+    const primary = translationEngine as EngineId;
+    if (!autoFallback) return [primary];
+    const chain = parseChain(fallbackChainRaw);
+    return buildCallOrder(primary, chain, {
+      gemini: !!userGeminiKey,
+      lovable: true,
+      claude: !!userClaudeKey,
+      bedrock: !!userBedrockApiKey,
+      mymemory: true,
+      google: true,
+      openrouter: !!userOpenRouterKey,
+    });
+  };
+
+  // Send a translate-entries request, retrying through the fallback chain
+  // on transport errors (network failure or 5xx) when autoFallback is on.
+  // Returns the first successful Response. On total failure, throws the
+  // last error so existing call-site error handling continues to work.
+  const fetchTranslateWithFallback = async (
+    url: string,
+    headers: Record<string, string>,
+    body: Record<string, unknown>,
+    signal: AbortSignal | undefined,
+  ): Promise<Response> => {
+    const order = buildEngineCallOrder();
+    if (order.length === 0) {
+      // No usable engine — let the original engine path emit its own error.
+      return fetchWithTimeout(url, {
+        method: 'POST', headers, signal,
+        body: JSON.stringify({ ...body, translationEngine }),
+      });
+    }
+    let lastError: unknown = null;
+    for (let i = 0; i < order.length; i++) {
+      const engine = order[i];
+      try {
+        const r = await fetchWithTimeout(url, {
+          method: 'POST', headers, signal,
+          body: JSON.stringify({ ...body, translationEngine: engine }),
+        });
+        if (r.ok) return r;
+        // Retry only on 5xx; 4xx (e.g. bad payload) fail-fast.
+        if (r.status < 500 || r.status >= 600) return r;
+        lastError = new Error(`HTTP ${r.status}`);
+      } catch (e) {
+        lastError = e;
+        if ((e as { name?: string })?.name === 'AbortError') throw e;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('فشلت كل المحرّكات الاحتياطية');
   };
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -155,10 +219,9 @@ export function useEditorTranslation({
         ? buildBatchTmExamples([{ original: entry.original }], precomputeCandidates(tmCandidates))
         : [];
 
-      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+        { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+        {
           entries: [{ key, original: entry.original, label: entry.label, maxBytes: entry.maxBytes }],
           glossary: trimGlossaryToBatch(activeGlossary, [{ original: entry.original }]),
           context: contextEntries.length > 0 ? contextEntries : undefined,
@@ -173,11 +236,13 @@ export function useEditorTranslation({
           translationQuality,
           geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
           myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
           extraInstructions: customPromptInstructions || undefined,
-        }),
-      });
+        },
+        undefined,
+      );
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
         throw new Error(errData?.error || `خطأ ${response.status}`);
@@ -325,11 +390,9 @@ export function useEditorTranslation({
         let retries = 0;
         const maxRetries = 3;
         while (true) {
-          response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-            signal: abortControllerRef.current.signal,
-            body: JSON.stringify({
+          response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+            { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+            {
               entries,
               glossary: trimGlossaryToBatch(activeGlossary, entries),
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
@@ -344,11 +407,13 @@ export function useEditorTranslation({
               translationQuality,
               geminiModel: resolveGeminiModel(geminiModel, entries),
               myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
               category: batchCategory,
               filePath: batchFilePath,
               extraInstructions: customPromptInstructions || undefined,
-            }),
-          });
+            },
+            abortControllerRef.current.signal,
+          );
           if (response.status === 429 && retries < maxRetries) {
             retries++;
             const waitSec = retries * 20;
@@ -468,11 +533,9 @@ export function useEditorTranslation({
         const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({
+        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+          { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+          {
             entries,
             glossary: trimGlossaryToBatch(activeGlossary, entries),
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
@@ -487,11 +550,13 @@ export function useEditorTranslation({
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
             category: batchCategory,
             filePath: batch[0].msbtFile,
             extraInstructions: customPromptInstructions || undefined,
-          }),
-        });
+          },
+          abortControllerRef.current.signal,
+        );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           throw new Error(errData?.error || `خطأ ${response.status}`);
@@ -540,12 +605,12 @@ export function useEditorTranslation({
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original }));
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(), extraInstructions: customPromptInstructions || undefined }),
-        });
+        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+          { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+          { entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, extraInstructions: customPromptInstructions || undefined },
+          abortControllerRef.current.signal,
+        );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           throw new Error(errData?.error || `خطأ ${response.status}`);
@@ -708,11 +773,9 @@ export function useEditorTranslation({
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-        const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({
+        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+          { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
+          {
             entries,
             glossary: trimGlossaryToBatch(activeGlossary, entries),
             tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
@@ -726,11 +789,13 @@ export function useEditorTranslation({
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
             category: batchCategory,
             filePath: batchFilePath,
             extraInstructions: customPromptInstructions || undefined,
-          }),
-        });
+          },
+          abortControllerRef.current.signal,
+        );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
           throw new Error(errData?.error || `خطأ ${response.status}`);
