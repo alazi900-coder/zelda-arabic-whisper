@@ -14,7 +14,9 @@ import {
   Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
   RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight, Filter, Download,
   Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2, WifiOff, Wifi, Upload,
+  FolderOpen,
 } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -37,6 +39,8 @@ interface EnhanceSuggestion {
   original: string;
   current: string;
   suggested: string;
+  /** Alternative suggestions from the AI (up to 2). */
+  alternatives?: string[];
   /** Short reason (one line). */
   reason: string;
   /** Optional detailed explanation of WHY this is a problem. */
@@ -641,6 +645,29 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       .sort((a, b) => (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2));
   }, [grammarIssues, severityFilter, searchQuery]);
 
+  // ---- Group results by MSBT file ----
+  const extractFile = (key: string) => key.replace(/:\d+$/, '') || key;
+
+  const groupedSuggestions = useMemo(() => {
+    const map = new Map<string, EnhanceSuggestion[]>();
+    for (const s of filteredSuggestions) {
+      const file = extractFile(s.key);
+      const arr = map.get(file);
+      if (arr) arr.push(s); else map.set(file, [s]);
+    }
+    return map;
+  }, [filteredSuggestions]);
+
+  const groupedIssues = useMemo(() => {
+    const map = new Map<string, GrammarIssue[]>();
+    for (const g of filteredIssues) {
+      const file = extractFile(g.key);
+      const arr = map.get(file);
+      if (arr) arr.push(g); else map.set(file, [g]);
+    }
+    return map;
+  }, [filteredIssues]);
+
   const typeCounts: Record<string, number> = {};
   for (const s of suggestions) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
 
@@ -661,6 +688,179 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     high: { color: "text-red-500", label: "خطير", bg: "bg-red-500/10 border-red-500/20" },
     medium: { color: "text-amber-500", label: "متوسط", bg: "bg-amber-500/10 border-amber-500/20" },
     low: { color: "text-blue-500", label: "بسيط", bg: "bg-blue-500/10 border-blue-500/20" },
+  };
+
+  const renderIssueCard = (g: GrammarIssue, i: number) => {
+    const isEditing = editingKey === g.key;
+    return (
+      <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            {g.severity && (
+              <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
+                {severityConfig[g.severity]?.label}
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(g.key, g.suggestion)} title="تعديل">
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-green-500/10" onClick={() => applySuggestion(g)} title="تطبيق">
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-destructive/10" onClick={() => dismissSuggestion(g.key)} title="تجاهل">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{g.issue}</p>
+          {g.detail && g.detail !== g.issue && (
+            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+              <span className="font-bold text-foreground/70">لماذا؟ </span>{g.detail}
+            </p>
+          )}
+        </div>
+        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={g.key}>{g.key}</div>
+        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
+          <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
+          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{g.original}</p>
+        </div>
+        {showDiff ? (
+          <div className="p-2.5 rounded-lg bg-card border">
+            <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
+            <DiffView before={g.translation} after={g.suggestion} mode={diffMode} />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
+              <p className="text-[10px] text-red-500 mb-1 font-bold">به خطأ:</p>
+              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.translation}</p>
+            </div>
+            <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
+            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] text-green-600 font-bold">التصحيح:</p>
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(g.suggestion)}>
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.suggestion}</p>
+            </div>
+          </div>
+        )}
+        {isEditing && (
+          <div className="space-y-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+            <p className="text-[10px] text-primary font-bold">تعديل قبل التطبيق:</p>
+            <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} dir="rtl" className="text-sm min-h-[80px]" />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-7 text-xs">إلغاء</Button>
+              <Button size="sm" onClick={() => saveEdit(g)} className="h-7 text-xs gap-1">
+                <Check className="w-3 h-3" /> حفظ وتطبيق
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSuggestionCard = (s: EnhanceSuggestion, i: number) => {
+    const config = typeConfig[s.type];
+    const isEditing = editingKey === s.key;
+    return (
+      <div key={`${s.key}-${i}`} className="rounded-xl border bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="outline" className={`text-[10px] gap-1 shrink-0 ${config?.color || ''}`}>
+            {config?.icon}{config?.label || s.type}
+          </Badge>
+          <div className="flex gap-1 shrink-0">
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(s.key, s.suggested)} title="تعديل قبل التطبيق">
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-green-500/10" onClick={() => applySuggestion(s)} title="تطبيق">
+              <Check className="w-4 h-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-destructive/10" onClick={() => dismissSuggestion(s.key)} title="تجاهل">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{s.reason}</p>
+          {s.detail && s.detail !== s.reason && (
+            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+              <span className="font-bold text-foreground/70">لماذا؟ </span>{s.detail}
+            </p>
+          )}
+        </div>
+        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={s.key}>{s.key}</div>
+        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] text-muted-foreground">النص الأصلي:</p>
+            <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.original)}>
+              <Copy className="w-3 h-3" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{s.original}</p>
+        </div>
+        {showDiff ? (
+          <div className="p-2.5 rounded-lg bg-card border">
+            <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
+            <DiffView before={s.current} after={s.suggested} mode={diffMode} />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
+              <p className="text-[10px] text-red-500 mb-1 font-bold">الحالي:</p>
+              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.current}</p>
+            </div>
+            <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
+            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] text-green-600 font-bold">المقترح:</p>
+                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.suggested)}>
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.suggested}</p>
+            </div>
+          </div>
+        )}
+        {s.alternatives && s.alternatives.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] text-muted-foreground font-bold">بدائل أخرى:</p>
+            {s.alternatives.map((alt, ai) => (
+              <div key={ai} className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/5 border border-blue-500/10 overflow-hidden">
+                <p className="text-sm leading-relaxed flex-1 [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{alt}</p>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => copyToClipboard(alt)} title="نسخ">
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 text-green-500 hover:bg-green-500/10" onClick={() => applyOne(s.key, alt)} title="تطبيق هذا البديل">
+                    <Check className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {isEditing && (
+          <div className="space-y-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+            <p className="text-[10px] text-primary font-bold">تعديل قبل التطبيق:</p>
+            <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} dir="rtl" className="text-sm min-h-[80px]" />
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-7 text-xs">إلغاء</Button>
+              <Button size="sm" onClick={() => saveEdit(s)} className="h-7 text-xs gap-1">
+                <Check className="w-3 h-3" /> حفظ وتطبيق
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -903,91 +1103,22 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             {filteredSuggestions.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3 pr-1">
-                  {filteredSuggestions.map((s, i) => {
-                    const config = typeConfig[s.type];
-                    const isEditing = editingKey === s.key;
-                    return (
-                      <div key={`${s.key}-${i}`} className="rounded-xl border bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
-                        {/* Row 1: badge + action buttons */}
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant="outline" className={`text-[10px] gap-1 shrink-0 ${config?.color || ''}`}>
-                            {config?.icon}{config?.label || s.type}
-                          </Badge>
-                          <div className="flex gap-1 shrink-0">
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(s.key, s.suggested)} title="تعديل قبل التطبيق">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-green-500/10" onClick={() => applySuggestion(s)} title="تطبيق">
-                              <Check className="w-4 h-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-destructive/10" onClick={() => dismissSuggestion(s.key)} title="تجاهل">
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Row 2: issue title (full width, wraps) */}
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{s.reason}</p>
-                          {s.detail && s.detail !== s.reason && (
-                            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
-                              <span className="font-bold text-foreground/70">لماذا؟ </span>{s.detail}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Row 3: file path */}
-                        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={s.key}>{s.key}</div>
-
-                        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] text-muted-foreground">النص الأصلي:</p>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.original)}>
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{s.original}</p>
-                        </div>
-
-                        {showDiff ? (
-                          <div className="p-2.5 rounded-lg bg-card border">
-                            <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={s.current} after={s.suggested} mode={diffMode} />
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
-                              <p className="text-[10px] text-red-500 mb-1 font-bold">الحالي:</p>
-                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.current}</p>
-                            </div>
-                            <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
-                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-[10px] text-green-600 font-bold">المقترح:</p>
-                                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.suggested)}>
-                                  <Copy className="w-3 h-3" />
-                                </Button>
-                              </div>
-                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{s.suggested}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {isEditing && (
-                          <div className="space-y-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
-                            <p className="text-[10px] text-primary font-bold">تعديل قبل التطبيق:</p>
-                            <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} dir="rtl" className="text-sm min-h-[80px]" />
-                            <div className="flex gap-2 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-7 text-xs">إلغاء</Button>
-                              <Button size="sm" onClick={() => saveEdit(s)} className="h-7 text-xs gap-1">
-                                <Check className="w-3 h-3" /> حفظ وتطبيق
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {groupedSuggestions.size <= 1
+                    ? filteredSuggestions.map((s, i) => renderSuggestionCard(s, i))
+                    : Array.from(groupedSuggestions.entries()).map(([file, items]) => (
+                      <Collapsible key={file} defaultOpen>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-right">
+                          <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs font-medium truncate flex-1" dir="ltr">{file}</span>
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">{items.length}</Badge>
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 mt-2">
+                          {items.map((s, i) => renderSuggestionCard(s, i))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))
+                  }
                 </div>
               </ScrollArea>
             ) : (
@@ -1005,90 +1136,22 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             {filteredIssues.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3 pr-1">
-                  {filteredIssues.map((g, i) => {
-                    const isEditing = editingKey === g.key;
-                    return (
-                      <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
-                        {/* Row 1: severity + actions */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 shrink-0">
-                            <AlertTriangle className="w-4 h-4 text-red-500" />
-                            {g.severity && (
-                              <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
-                                {severityConfig[g.severity]?.label}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-primary/10" onClick={() => startEdit(g.key, g.suggestion)} title="تعديل">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-green-500/10" onClick={() => applySuggestion(g)} title="تطبيق">
-                              <Check className="w-4 h-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:bg-destructive/10" onClick={() => dismissSuggestion(g.key)} title="تجاهل">
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Row 2: title + reason */}
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{g.issue}</p>
-                          {g.detail && g.detail !== g.issue && (
-                            <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
-                              <span className="font-bold text-foreground/70">لماذا؟ </span>{g.detail}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Row 3: file path */}
-                        <div dir="ltr" className="text-[10px] text-muted-foreground/70 font-mono truncate" title={g.key}>{g.key}</div>
-
-                        <div className="bg-muted/30 rounded-lg p-2.5 overflow-hidden">
-                          <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="ltr">{g.original}</p>
-                        </div>
-
-                        {showDiff ? (
-                          <div className="p-2.5 rounded-lg bg-card border">
-                            <p className="text-[10px] text-muted-foreground mb-1 font-bold">الفرق:</p>
-                            <DiffView before={g.translation} after={g.suggestion} mode={diffMode} />
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="p-2.5 rounded-lg bg-red-500/5 border border-red-500/10 overflow-hidden">
-                              <p className="text-[10px] text-red-500 mb-1 font-bold">به خطأ:</p>
-                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.translation}</p>
-                            </div>
-                            <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground rotate-90" /></div>
-                            <div className="p-2.5 rounded-lg bg-green-500/5 border border-green-500/20 overflow-hidden">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-[10px] text-green-600 font-bold">التصحيح:</p>
-                                <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(g.suggestion)}>
-                                  <Copy className="w-3 h-3" />
-                                </Button>
-                              </div>
-                              <p className="text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap" dir="rtl">{g.suggestion}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {isEditing && (
-                          <div className="space-y-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
-                            <p className="text-[10px] text-primary font-bold">تعديل قبل التطبيق:</p>
-                            <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} dir="rtl" className="text-sm min-h-[80px]" />
-                            <div className="flex gap-2 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-7 text-xs">إلغاء</Button>
-                              <Button size="sm" onClick={() => saveEdit(g)} className="h-7 text-xs gap-1">
-                                <Check className="w-3 h-3" /> حفظ وتطبيق
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {groupedIssues.size <= 1
+                    ? filteredIssues.map((g, i) => renderIssueCard(g, i))
+                    : Array.from(groupedIssues.entries()).map(([file, items]) => (
+                      <Collapsible key={file} defaultOpen>
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-right">
+                          <FolderOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs font-medium truncate flex-1" dir="ltr">{file}</span>
+                          <Badge variant="destructive" className="text-[10px] h-4 px-1.5 shrink-0">{items.length}</Badge>
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 mt-2">
+                          {items.map((g, i) => renderIssueCard(g, i))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))
+                  }
                 </div>
               </ScrollArea>
             ) : (

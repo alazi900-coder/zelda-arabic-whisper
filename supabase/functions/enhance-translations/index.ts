@@ -183,7 +183,8 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
   "suggestions": [
     {
       "index": 0,
-      "suggested": "النص المحسن كاملاً",
+      "suggested": "النص المحسن كاملاً (الخيار الأفضل)",
+      "alternatives": ["بديل ثاني", "بديل ثالث"],
       "reason": "وصف مختصر للمشكلة (3-7 كلمات)",
       "detail": "شرح أطول يوضح لماذا هذه مشكلة وأي قاعدة خالفتها الترجمة الحالية",
       "type": "missing_char|grammar|terminology|accuracy|style|consistency|punctuation"
@@ -250,6 +251,7 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
       original: entries[s.index]?.original || '',
       current: entries[s.index]?.translation || '',
       suggested: s.suggested,
+      alternatives: Array.isArray(s.alternatives) ? s.alternatives.filter((a: unknown) => typeof a === 'string' && a.trim()) : [],
       reason: s.reason,
       detail: s.detail || '',
       type: s.type || 'style',
