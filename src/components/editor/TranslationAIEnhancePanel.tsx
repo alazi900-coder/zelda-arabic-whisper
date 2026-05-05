@@ -82,7 +82,7 @@ const GOOGLE_CHECK_CONCURRENCY = 3;
 function splitTokens(s: string, mode: "word" | "sentence"): string[] {
   if (mode === "sentence") {
     // Split on . ! ? ؟ ، ؛ : newlines while keeping the delimiter attached
-    return s.split(/(?<=[\.\!\?\؟\،\؛\:\n])\s+/).filter(t => t.length > 0);
+    return s.split(/(?<=[.!?؟،؛:\n])\s+/).filter(t => t.length > 0);
   }
   return s.split(/(\s+)/);
 }

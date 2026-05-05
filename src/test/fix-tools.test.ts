@@ -31,7 +31,7 @@ function fixSpaces(text: string): string {
 function fixHamza(text: string): string {
   let fixed = text;
   fixed = fixed.replace(/[أإآ]/g, 'ا');
-  fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\]\[」』】）》〉\u0000-\u001F]|$)/g, 'ي');
+  fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\][」』】）》〉\u0000-\u001F]|$)/g, 'ي');
   return fixed;
 }
 
