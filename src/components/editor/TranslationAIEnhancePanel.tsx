@@ -277,11 +277,16 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       }
 
       const foundIssues: GrammarIssue[] = [];
+      let failedCount = 0;
+      let okCount = 0;
       for (let idx = 0; idx < inputs.length; idx++) {
         const entry = inputs[idx];
         const result = backResults[idx];
-        if (!result || result.error || !result.english) continue;
-
+        if (!result || result.error || !result.english) {
+          failedCount++;
+          continue;
+        }
+        okCount++;
         processedKeysRef.current.add(entry.key);
 
         const score = diceSimilarity(entry.original, result.english);
@@ -289,8 +294,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
 
         const pct = Math.round(score * 100);
         const sev: "high" | "medium" | "low" =
-          score < GOOGLE_CHECK_THRESHOLD * 0.55 ? "high" :
-          score < GOOGLE_CHECK_THRESHOLD ? "medium" : "low";
+          score < 0.35 ? "high" :
+          score < 0.55 ? "medium" : "low";
 
         foundIssues.push({
           key: entry.key,
@@ -311,14 +316,22 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       setIsAnalyzing(false);
       setProgress(null);
 
-      toast({
-        title: foundIssues.length > 0
-          ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
-          : "✅ الترجمات دقيقة — لا توجد انحرافات",
-        description: foundIssues.length > 0
-          ? "ترجمات منخفضة التشابه مع الأصل عند الترجمة العكسية"
-          : `تم فحص ${inputs.length} ترجمة بنجاح`,
-      });
+      if (failedCount === inputs.length) {
+        toast({
+          title: "❌ فشل فحص Google",
+          description: "تعذّر الاتصال بـ Google Translate (CORS أو شبكة). جرّب محرّكاً آخر.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: foundIssues.length > 0
+            ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
+            : `✅ الترجمات دقيقة (عتبة ${Math.round(GOOGLE_CHECK_THRESHOLD * 100)}%)`,
+          description: failedCount > 0
+            ? `تم فحص ${okCount} بنجاح • فشل ${failedCount} • ${foundIssues.length} مشكلة`
+            : `تم فحص ${okCount} ترجمة • ${foundIssues.length} مشكلة`,
+        });
+      }
       return;
     }
 
