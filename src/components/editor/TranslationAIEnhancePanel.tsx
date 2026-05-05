@@ -163,7 +163,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const abortRef = useRef(false);
-  const processedKeysRef = useRef<Set<string>>(new Set());
+  /** Maps key → translation text at the time of last scan. */
+  const processedKeysRef = useRef<Map<string, string>>(new Map());
 
   // Load persistent review memory once
   React.useEffect(() => {
@@ -171,7 +172,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   }, []);
 
   const resetProcessedKeys = useCallback(() => {
-    processedKeysRef.current = new Set();
+    processedKeysRef.current = new Map();
     setProcessedCount(0);
   }, []);
 
@@ -191,6 +192,20 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   }, [scope, reviewMem]);
 
   const analyzeTranslations = async (mode: "enhance" | "grammar") => {
+    // Detect entries that changed since last scan and clear stale results
+    const changedKeys = new Set<string>();
+    for (const [key, oldText] of processedKeysRef.current) {
+      const current = translations[key];
+      if (current !== oldText) {
+        changedKeys.add(key);
+        processedKeysRef.current.delete(key);
+      }
+    }
+    if (changedKeys.size > 0) {
+      setSuggestions(prev => prev.filter(s => !changedKeys.has(s.key)));
+      setGrammarIssues(prev => prev.filter(g => !changedKeys.has(g.key)));
+    }
+
     const translatedEntries = entries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
       const t = translations[key];
@@ -198,7 +213,12 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     });
 
     if (translatedEntries.length === 0) {
-      toast({ title: "لا توجد نصوص جديدة للفحص", description: "جرب تغيير النطاق أو اضغط 🔄 لإعادة الفحص" });
+      toast({
+        title: "لا توجد نصوص جديدة للفحص",
+        description: changedKeys.size > 0
+          ? `تم إزالة ${changedKeys.size} نتيجة قديمة لنصوص تغيّرت. اضغط فحص مرة أخرى.`
+          : "جرب تغيير النطاق أو اضغط 🔄 لإعادة الفحص",
+      });
       return;
     }
 
@@ -250,7 +270,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         return;
       }
 
-      for (const t of inputs) processedKeysRef.current.add(t.key);
+      for (const t of inputs) processedKeysRef.current.set(t.key, t.translation);
       setProcessedCount(processedKeysRef.current.size);
 
       // Final fallback: if no issues in the target mode, show the other mode's issues
@@ -319,7 +339,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               continue;
             }
             okCount++;
-            processedKeysRef.current.add(entry.key);
+            processedKeysRef.current.set(entry.key, entry.translation);
             const score = diceSimilarity(entry.original, result.english);
             if (score >= GOOGLE_CHECK_THRESHOLD) continue;
             totalIssues++;
@@ -404,7 +424,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             toast({ title: data.error, variant: "destructive" });
             return { data: null, count: textsToAnalyze.length };
           }
-          for (const t of textsToAnalyze) processedKeysRef.current.add(t.key);
+          for (const t of textsToAnalyze) processedKeysRef.current.set(t.key, t.translation);
           setProcessedCount(processedKeysRef.current.size);
           return { data, count: textsToAnalyze.length };
         } catch (err) {
@@ -415,7 +435,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               const { data } = await supabase.functions.invoke('enhance-translations', {
                 body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model },
               });
-              for (const t of textsToAnalyze) processedKeysRef.current.add(t.key);
+              for (const t of textsToAnalyze) processedKeysRef.current.set(t.key, t.translation);
               setProcessedCount(processedKeysRef.current.size);
               return { data, count: textsToAnalyze.length };
             } catch { return { data: null, count: textsToAnalyze.length }; }
@@ -593,21 +613,32 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     punctuation: { label: "ترقيم", icon: <Type className="w-3 h-3" />, color: "bg-pink-500/10 text-pink-600 border-pink-500/20" },
   };
 
-  // ---- Filters: type + severity + text search ----
+  // ---- Filters + sort by severity (high → medium → low) ----
+  const severityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const typeToSeverity: Record<string, number> = {
+    missing_char: 0, accuracy: 0, grammar: 0,
+    consistency: 1, terminology: 1, punctuation: 1,
+    style: 2,
+  };
+
   const filteredSuggestions = useMemo(() => {
-    return suggestions.filter(s => {
-      if (filterType && s.type !== filterType) return false;
-      if (searchQuery && !(`${s.key} ${s.original} ${s.current} ${s.suggested} ${s.reason}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      return true;
-    });
+    return suggestions
+      .filter(s => {
+        if (filterType && s.type !== filterType) return false;
+        if (searchQuery && !(`${s.key} ${s.original} ${s.current} ${s.suggested} ${s.reason}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => (typeToSeverity[a.type] ?? 2) - (typeToSeverity[b.type] ?? 2));
   }, [suggestions, filterType, searchQuery]);
 
   const filteredIssues = useMemo(() => {
-    return grammarIssues.filter(g => {
-      if (severityFilter && g.severity !== severityFilter) return false;
-      if (searchQuery && !(`${g.key} ${g.original} ${g.translation} ${g.suggestion} ${g.issue}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      return true;
-    });
+    return grammarIssues
+      .filter(g => {
+        if (severityFilter && g.severity !== severityFilter) return false;
+        if (searchQuery && !(`${g.key} ${g.original} ${g.translation} ${g.suggestion} ${g.issue}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2));
   }, [grammarIssues, severityFilter, searchQuery]);
 
   const typeCounts: Record<string, number> = {};
