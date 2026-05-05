@@ -26,6 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useEditorState } from "@/hooks/useEditorState";
 import { Slider } from "@/components/ui/slider";
 import { estimateBatchCost, formatCostEstimate, resolveModelId } from "@/lib/cost-estimator";
+import { OPENROUTER_PRESETS, isFreeModelId, findPreset } from "@/lib/openrouter-models";
 import { PAGE_SIZE, isTechnicalText, type ExtractedEntry } from "@/components/editor/types";
 import DebouncedInput from "@/components/editor/DebouncedInput";
 import CategoryProgress from "@/components/editor/CategoryProgress";
@@ -691,19 +692,61 @@ const Editor = () => {
               </div>
               {editor.userOpenRouterKey
                 ? (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <p className="text-xs text-secondary font-body">مفتاح OpenRouter مفعّل — سيُستخدم للترجمة</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">🤖 معرّف النموذج (مثال:</span>
-                    <input type="text" placeholder="anthropic/claude-3.5-sonnet" value={editor.openRouterModel}
+                  {/* Active-model line: shows what will be sent to OpenRouter,
+                      with a free/paid badge so users don't accidentally burn
+                      credits on a paid model. */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">🤖 النموذج النشط:</span>
+                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-background border border-border" dir="ltr">{editor.openRouterModel}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isFreeModelId(editor.openRouterModel) ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-secondary/15 text-secondary border border-secondary/30'}`}>
+                      {isFreeModelId(editor.openRouterModel) ? '🆓 مجاني' : '💰 مدفوع'}
+                    </span>
+                    {!findPreset(editor.openRouterModel) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">مخصّص</span>
+                    )}
+                  </div>
+                  {/* Quick-pick presets, grouped by tier. Clicking a button
+                      replaces the active model. The free-text input below stays
+                      as an escape hatch for any of OpenRouter's 200+ models. */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-body text-muted-foreground">🆓 نماذج مجانية:</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {OPENROUTER_PRESETS.filter(p => p.tier === 'free').map(p => (
+                        <Button key={p.id}
+                          variant={editor.openRouterModel === p.id ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => editor.setOpenRouterModel(p.id)}
+                          className="text-[11px] font-body h-7"
+                          title={p.hint}>
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-body text-muted-foreground">💰 نماذج مدفوعة (أعلى جودة):</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {OPENROUTER_PRESETS.filter(p => p.tier === 'paid').map(p => (
+                        <Button key={p.id}
+                          variant={editor.openRouterModel === p.id ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => editor.setOpenRouterModel(p.id)}
+                          className="text-[11px] font-body h-7"
+                          title={p.hint}>
+                          {p.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-1 border-t border-border/30">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">أو اكتب معرّف نموذج آخر:</span>
+                    <input type="text" placeholder="provider/model-name[:free]" value={editor.openRouterModel}
                       onChange={(e) => editor.setOpenRouterModel(e.target.value)}
                       className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs" dir="ltr" />
                     <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">قائمة النماذج ↗</a>
                   </div>
-                  <p className="text-xs font-body text-muted-foreground">
-                    نماذج مجانية متاحة (تنتهي بـ <span className="font-mono" dir="ltr">:free</span>) — مثلاً
-                    {' '}<span className="font-mono" dir="ltr">meta-llama/llama-3.1-405b-instruct:free</span>
-                  </p>
                 </div>
                 )
                 : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح OpenRouter للبدء، أو اختر محرّكاً آخر.</p>}
