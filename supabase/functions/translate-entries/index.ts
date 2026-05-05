@@ -141,13 +141,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature } = await req.json() as {
+    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature, userOpenRouterKey, openRouterModel } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       tmExamples?: { original: string; translation: string; sim?: number }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock';
+      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter';
       translationQuality?: 'fast' | 'quality';
       geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
       userClaudeKey?: string;
@@ -161,6 +161,8 @@ Deno.serve(async (req) => {
       labels?: string[];
       extraInstructions?: string;
       temperature?: number;
+      userOpenRouterKey?: string;
+      openRouterModel?: string;
     };
 
     // Clamp client-provided temperature to a safe range; default 0.2 for backward compat.
@@ -431,6 +433,100 @@ ${textsBlock}`;
         }
       }
       return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === OpenRouter unified gateway (P0 #13) ===
+    // Routes to any of 200+ models via the OpenAI-compatible /chat/completions API.
+    // Free models on OpenRouter cost $0; paid ones bill the user's OpenRouter account.
+    if (translationEngine === 'openrouter' && userOpenRouterKey?.trim()) {
+      const orKey = userOpenRouterKey.trim();
+      const model = (openRouterModel || 'anthropic/claude-3.5-sonnet').trim();
+      const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${orKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://zelda-arabic-whisper.lovable.app',
+          'X-Title': 'Zelda Arabic Whisper',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature,
+          // Some OpenRouter providers strictly require an explicit cap.
+          max_tokens: 4096,
+        }),
+      });
+
+      if (!orResponse.ok) {
+        const err = await orResponse.text();
+        console.error('OpenRouter error:', err);
+        if (orResponse.status === 401) {
+          return new Response(JSON.stringify({
+            error: 'مفتاح OpenRouter API غير صالح. احصل على مفتاح من openrouter.ai/keys.'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (orResponse.status === 429) {
+          return new Response(JSON.stringify({
+            error: 'تم تجاوز حد طلبات OpenRouter للنموذج المختار، حاول لاحقاً.'
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (orResponse.status === 402) {
+          return new Response(JSON.stringify({
+            error: 'رصيد حساب OpenRouter غير كافٍ للنموذج المختار. أضف رصيداً من openrouter.ai/credits أو اختر نموذجاً مجانياً (يحتوي على ":free").'
+          }), {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        let parsedMsg = '';
+        try {
+          const j = JSON.parse(err);
+          parsedMsg = j?.error?.message || '';
+        } catch { /* ignore */ }
+        return new Response(JSON.stringify({
+          error: `خطأ OpenRouter (${orResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
+        }), {
+          status: orResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const orData = await orResponse.json();
+      const content = orData?.choices?.[0]?.message?.content || '';
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return new Response(JSON.stringify({
+          error: 'تعذّر تحليل ردّ OpenRouter — تأكد من اختيار نموذج يدعم JSON.'
+        }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      // eslint-disable-next-line no-control-regex
+      const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+      const translations: string[] = JSON.parse(sanitized);
+
+      const result: Record<string, string> = {};
+      for (let i = 0; i < Math.min(protectedEntries.length, translations.length); i++) {
+        if (translations[i]?.trim()) {
+          const restored = restoreTags(translations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
+        }
+      }
+
+      return new Response(JSON.stringify({ translations: result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

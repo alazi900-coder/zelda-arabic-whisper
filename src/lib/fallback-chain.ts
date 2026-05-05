@@ -11,7 +11,8 @@ export type EngineId =
   | "claude"
   | "bedrock"
   | "mymemory"
-  | "google";
+  | "google"
+  | "openrouter";
 
 export const ALL_ENGINES: ReadonlyArray<EngineId> = [
   "gemini",
@@ -20,6 +21,7 @@ export const ALL_ENGINES: ReadonlyArray<EngineId> = [
   "bedrock",
   "mymemory",
   "google",
+  "openrouter",
 ];
 
 /** Sensible default fallback order: best free → best cheap → free APIs. */
@@ -40,6 +42,8 @@ export interface EngineKeyAvailability {
   /** MyMemory and Google work without keys (anon limits apply). */
   mymemory?: boolean;
   google?: boolean;
+  /** OpenRouter requires a user-provided API key from openrouter.ai. */
+  openrouter?: boolean;
 }
 
 /** Whether an engine has the credentials needed to be invokable in this session. */
@@ -51,6 +55,8 @@ export function isEngineUsable(engine: EngineId, avail: EngineKeyAvailability): 
       return avail.claude ?? false;
     case "bedrock":
       return avail.bedrock ?? false;
+    case "openrouter":
+      return avail.openrouter ?? false;
     case "lovable":
     case "mymemory":
     case "google":
