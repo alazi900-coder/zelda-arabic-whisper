@@ -126,6 +126,19 @@ export function useEditorState() {
     _setOpenRouterModel(model);
     try { localStorage.setItem('openRouterModel', model); } catch (e) { console.warn('localStorage openRouterModel:', e); }
   }, []);
+  // Strict JSON via tool calling (#24): default ON. The edge function falls
+  // back to text parsing when the model ignores the tool, so leaving this on
+  // is safe; the toggle is provided for the rare model that breaks under tools.
+  const [userStrictJson, _setUserStrictJson] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('userStrictJson');
+      return raw === null ? true : raw === '1' || raw === 'true';
+    } catch { return true; }
+  });
+  const setUserStrictJson = useCallback((on: boolean) => {
+    _setUserStrictJson(on);
+    try { localStorage.setItem('userStrictJson', on ? '1' : '0'); } catch (e) { console.warn('localStorage userStrictJson:', e); }
+  }, []);
   const [userBedrockApiKey, _setUserBedrockApiKey] = useState(() => {
     try { return localStorage.getItem('userBedrockApiKey') || ''; } catch { return ''; }
   });
@@ -681,6 +694,7 @@ export function useEditorState() {
     myMemoryEmailIndex, setMyMemoryEmailIndex,
     userOpenRouterKey, openRouterModel,
     autoFallback, fallbackChainRaw,
+    userStrictJson,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1281,6 +1295,7 @@ export function useEditorState() {
     myMemoryEmailIndex, setMyMemoryEmailIndex,
     autoFallback, setAutoFallback,
     fallbackChainRaw, setFallbackChainRaw,
+    userStrictJson, setUserStrictJson,
 
     // Handlers
     toggleProtection, toggleTechnicalBypass,

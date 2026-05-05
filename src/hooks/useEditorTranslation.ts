@@ -53,6 +53,8 @@ interface UseEditorTranslationProps {
   // Auto-fallback chain (P0 #9)
   autoFallback?: boolean;
   fallbackChainRaw?: string;
+  // Strict JSON via tool calling (P0 #24). Defaults to true on the server.
+  userStrictJson?: boolean;
 }
 
 // Build the deduplicated candidate pool for TM Boost from the editor's
@@ -85,6 +87,7 @@ export function useEditorTranslation({
   myMemoryEmailIndex, setMyMemoryEmailIndex,
   userOpenRouterKey, openRouterModel,
   autoFallback, fallbackChainRaw,
+  userStrictJson,
 }: UseEditorTranslationProps) {
   // Pick the temperature for the active engine. Falls back to 0.2 (existing default).
   const resolveTemperature = (): number => {
@@ -237,6 +240,7 @@ export function useEditorTranslation({
           geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
           myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
               userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              strictJson: userStrictJson !== false,
           category: entryCategory,
           filePath: entry.msbtFile,
           extraInstructions: customPromptInstructions || undefined,
@@ -408,6 +412,7 @@ export function useEditorTranslation({
               geminiModel: resolveGeminiModel(geminiModel, entries),
               myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
               userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              strictJson: userStrictJson !== false,
               category: batchCategory,
               filePath: batchFilePath,
               extraInstructions: customPromptInstructions || undefined,
@@ -551,6 +556,7 @@ export function useEditorTranslation({
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
               userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batch[0].msbtFile,
             extraInstructions: customPromptInstructions || undefined,
@@ -608,7 +614,7 @@ export function useEditorTranslation({
         const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
           { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           { entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, extraInstructions: customPromptInstructions || undefined },
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, strictJson: userStrictJson !== false, extraInstructions: customPromptInstructions || undefined },
           abortControllerRef.current.signal,
         );
         if (!response.ok) {
@@ -790,6 +796,7 @@ export function useEditorTranslation({
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
               userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batchFilePath,
             extraInstructions: customPromptInstructions || undefined,
