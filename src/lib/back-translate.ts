@@ -68,22 +68,29 @@ export function diceSimilarity(a: string, b: string): number {
   return (2 * inter) / (setA.size + setB.size);
 }
 
+export type BackTranslateResult = { arabic: string; english: string; error?: string };
+
 /**
  * Batch back-translate Arabic texts with concurrency control.
- * Returns array of { arabic, english, error? } in same order.
+ * Returns array of results in same order as input.
+ * Pass `shouldAbort` to allow early termination between chunks.
+ * `onChunkDone` fires after each chunk with the chunk's results and start index.
  */
 export async function backTranslateBatch(
   texts: string[],
   concurrency = 3,
   onProgress?: (done: number, total: number) => void,
-): Promise<{ arabic: string; english: string; error?: string }[]> {
-  const results: { arabic: string; english: string; error?: string }[] = new Array(texts.length);
+  shouldAbort?: () => boolean,
+  onChunkDone?: (chunkResults: BackTranslateResult[], startIdx: number) => void,
+): Promise<BackTranslateResult[]> {
+  const results: BackTranslateResult[] = new Array(texts.length);
   let done = 0;
 
   for (let i = 0; i < texts.length; i += concurrency) {
+    if (shouldAbort?.()) break;
     const chunk = texts.slice(i, i + concurrency);
     const chunkResults = await Promise.all(
-      chunk.map(async (text, j) => {
+      chunk.map(async (text) => {
         try {
           const english = await backTranslate(text);
           return { arabic: text, english };
@@ -97,6 +104,7 @@ export async function backTranslateBatch(
     }
     done += chunk.length;
     onProgress?.(done, texts.length);
+    onChunkDone?.(chunkResults, i);
   }
 
   return results;

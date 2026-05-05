@@ -97,10 +97,23 @@ function ruleLeadingTrailingSpaces(t: string): { fix: string; matched: boolean }
 // Repetition rules
 // ============================================================================
 
-function ruleRepeatedWord(t: string): { fix: string; matched: boolean } {
+function ruleRepeatedWord(t: string, orig: string): { fix: string; matched: boolean } {
   // \b doesn't work for Arabic in JS regex, so we use whitespace/start/end boundaries.
-  const fixed = t.replace(/(^|\s)(\S{2,})(\s+)\2(?=\s|[.,!?؟،؛:]|$)/gu, "$1$2");
-  return { fix: fixed, matched: fixed !== t };
+  const re = /(^|\s)(\S{2,})(\s+)\2(?=\s|[.,!?؟،؛:]|$)/gu;
+  let matched = false;
+  let fixed = t;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t)) !== null) {
+    const word = m[2];
+    // Skip if the original text also has the same word repeated
+    const origRe = new RegExp(`(^|\\s)${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+)${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|[.,!?؟،؛:]|$)`, 'u');
+    if (origRe.test(orig)) continue;
+    matched = true;
+  }
+  if (matched) {
+    fixed = t.replace(re, "$1$2");
+  }
+  return { fix: fixed, matched };
 }
 
 function ruleRepeatedChar(t: string): { match: RegExpMatchArray | null; fix: string } {
@@ -472,7 +485,7 @@ export function scanEntryLocally(
   }
 
   // 10. Repetition
-  const rep = ruleRepeatedWord(t);
+  const rep = ruleRepeatedWord(t, orig);
   if (rep.matched) {
     issues.push({
       key, original: orig, translation: t, suggestion: rep.fix,
@@ -614,6 +627,43 @@ export function scanAllLocally(entries: LocalScanInput[]): LocalIssue[] {
       ...scanEntryLocally(e.key, e.original, e.translation, consistency, { maxBytes: e.maxBytes }, dupKeys),
     );
   }
+  return all;
+}
+
+const LOCAL_SCAN_BATCH = 50;
+
+/**
+ * Async version of scanAllLocally that yields to the event loop between
+ * batches, preventing UI freezes on large entry sets.
+ */
+export async function scanAllLocallyAsync(
+  entries: LocalScanInput[],
+  onProgress?: (done: number, total: number) => void,
+  shouldAbort?: () => boolean,
+  onBatchDone?: (issues: LocalIssue[]) => void,
+): Promise<LocalIssue[]> {
+  const consistency = buildConsistencyMap(entries);
+  const dupMap = buildDuplicateMap(entries);
+  const all: LocalIssue[] = [];
+
+  for (let i = 0; i < entries.length; i += LOCAL_SCAN_BATCH) {
+    if (shouldAbort?.()) break;
+    const batch = entries.slice(i, i + LOCAL_SCAN_BATCH);
+    const batchIssues: LocalIssue[] = [];
+    for (const e of batch) {
+      const norm = STRIP_FILLER(e.translation).trim().toLowerCase();
+      const dupKeys = norm.length >= 5 ? dupMap.get(norm) : undefined;
+      batchIssues.push(
+        ...scanEntryLocally(e.key, e.original, e.translation, consistency, { maxBytes: e.maxBytes }, dupKeys),
+      );
+    }
+    all.push(...batchIssues);
+    onProgress?.(Math.min(i + LOCAL_SCAN_BATCH, entries.length), entries.length);
+    onBatchDone?.(batchIssues);
+    // Yield to the event loop so the browser can repaint
+    await new Promise<void>((r) => setTimeout(r, 0));
+  }
+
   return all;
 }
 

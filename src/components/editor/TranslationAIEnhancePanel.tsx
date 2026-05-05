@@ -21,7 +21,7 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { scanAllLocally, isGrammarIssue, type LocalIssue } from "@/lib/local-enhance-scanner";
+import { scanAllLocallyAsync, isGrammarIssue, type LocalIssue } from "@/lib/local-enhance-scanner";
 import { backTranslateBatch, diceSimilarity } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
@@ -214,35 +214,69 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         translation: translations[`${e.msbtFile}:${e.index}`],
         maxBytes: e.maxBytes ?? 0,
       }));
-      const allIssues = scanAllLocally(inputs);
+      setProgress({ current: 0, total: inputs.length });
+
+      const allIssues = await scanAllLocallyAsync(
+        inputs,
+        (done, total) => {
+          if (abortRef.current) return;
+          setProgress({ current: done, total });
+        },
+        () => abortRef.current,
+        (batchIssues) => {
+          if (abortRef.current) return;
+          const grammarBatch = batchIssues.filter(i => isGrammarIssue(i.type));
+          const styleBatch = batchIssues.filter(i => !isGrammarIssue(i.type));
+          const target = mode === "grammar" ? grammarBatch : styleBatch;
+          if (mode === "grammar" && target.length > 0) {
+            setGrammarIssues(prev => [...prev, ...target.map(i => ({
+              key: i.key, original: i.original, translation: i.translation,
+              issue: i.issue, suggestion: i.suggestion, severity: i.severity,
+              detail: i.reason,
+            }))]);
+          } else if (mode !== "grammar" && target.length > 0) {
+            setSuggestions(prev => [...prev, ...target.map(i => ({
+              key: i.key, original: i.original, current: i.translation,
+              suggested: i.suggestion, reason: i.issue, detail: i.reason,
+              type: i.type === "grammar" ? "style" : i.type,
+            }))]);
+          }
+        },
+      );
+
+      if (abortRef.current) {
+        setIsAnalyzing(false);
+        setProgress(null);
+        return;
+      }
+
       for (const t of inputs) processedKeysRef.current.add(t.key);
       setProcessedCount(processedKeysRef.current.size);
 
-      // Split issues by mode: grammar vs style/enhance
-      const grammarBucket: LocalIssue[] = [];
-      const styleBucket: LocalIssue[] = [];
-      for (const it of allIssues) {
-        if (isGrammarIssue(it.type)) grammarBucket.push(it);
-        else styleBucket.push(it);
-      }
+      // Final fallback: if no issues in the target mode, show the other mode's issues
+      const grammarBucket = allIssues.filter(i => isGrammarIssue(i.type));
+      const styleBucket = allIssues.filter(i => !isGrammarIssue(i.type));
       const targetBucket = mode === "grammar" ? grammarBucket : styleBucket;
       const fallbackBucket = mode === "grammar" ? styleBucket : grammarBucket;
-      const chosen = targetBucket.length > 0 ? targetBucket : fallbackBucket;
-
-      if (mode === "grammar") {
-        setGrammarIssues(prev => [...prev, ...chosen.map(i => ({
-          key: i.key, original: i.original, translation: i.translation,
-          issue: i.issue, suggestion: i.suggestion, severity: i.severity,
-          detail: i.reason,
-        }))]);
-      } else {
-        setSuggestions(prev => [...prev, ...chosen.map(i => ({
-          key: i.key, original: i.original, current: i.translation,
-          suggested: i.suggestion, reason: i.issue, detail: i.reason,
-          type: i.type === "grammar" ? "style" : i.type,
-        }))]);
+      if (targetBucket.length === 0 && fallbackBucket.length > 0) {
+        if (mode === "grammar") {
+          setSuggestions(prev => [...prev, ...fallbackBucket.map(i => ({
+            key: i.key, original: i.original, current: i.translation,
+            suggested: i.suggestion, reason: i.issue, detail: i.reason,
+            type: i.type === "grammar" ? "style" as const : i.type,
+          }))]);
+        } else {
+          setGrammarIssues(prev => [...prev, ...fallbackBucket.map(i => ({
+            key: i.key, original: i.original, translation: i.translation,
+            issue: i.issue, suggestion: i.suggestion, severity: i.severity,
+            detail: i.reason,
+          }))]);
+        }
       }
+
+      const chosen = targetBucket.length > 0 ? targetBucket : fallbackBucket;
       setIsAnalyzing(false);
+      setProgress(null);
       toast({
         title: `🔌 فحص محلي بدون اتصال: ${chosen.length} مشكلة`,
         description: chosen.length === 0 ? "لا توجد مشاكل في النطاق المحدد" : "لا يتطلب اتصالاً ولا رصيداً"
@@ -259,62 +293,60 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       }));
 
       setProgress({ current: 0, total: inputs.length });
+      setActiveTab("grammar");
 
       const arabicTexts = inputs.map(i => i.translation);
-      const backResults = await backTranslateBatch(
+      let failedCount = 0;
+      let okCount = 0;
+      let totalIssues = 0;
+
+      await backTranslateBatch(
         arabicTexts,
         GOOGLE_CHECK_CONCURRENCY,
         (done, total) => {
           if (abortRef.current) return;
           setProgress({ current: done, total });
         },
+        () => abortRef.current,
+        (chunkResults, startIdx) => {
+          if (abortRef.current) return;
+          const newIssues: GrammarIssue[] = [];
+          for (let j = 0; j < chunkResults.length; j++) {
+            const entry = inputs[startIdx + j];
+            const result = chunkResults[j];
+            if (!result || result.error || !result.english) {
+              failedCount++;
+              continue;
+            }
+            okCount++;
+            processedKeysRef.current.add(entry.key);
+            const score = diceSimilarity(entry.original, result.english);
+            if (score >= GOOGLE_CHECK_THRESHOLD) continue;
+            totalIssues++;
+            const pct = Math.round(score * 100);
+            const sev: "high" | "medium" | "low" =
+              score < 0.35 ? "high" :
+              score < 0.55 ? "medium" : "low";
+            newIssues.push({
+              key: entry.key, original: entry.original, translation: entry.translation,
+              issue: `تباين دلالي (${pct}%) — الترجمة العكسية: "${result.english}"`,
+              suggestion: entry.translation, severity: sev,
+              detail:
+                `ترجمنا النص العربي عكسياً عبر Google Translate فحصلنا على:\n«${result.english}»\n` +
+                `تشابهها مع الأصل الإنجليزي ${pct}% فقط. هذا مؤشّر على انحراف المعنى عن الأصل. راجع الترجمة يدوياً.`,
+            });
+          }
+          if (newIssues.length > 0) {
+            setGrammarIssues(prev => [...prev, ...newIssues]);
+          }
+          setProcessedCount(processedKeysRef.current.size);
+        },
       );
 
-      if (abortRef.current) {
-        setIsAnalyzing(false);
-        setProgress(null);
-        return;
-      }
-
-      const foundIssues: GrammarIssue[] = [];
-      let failedCount = 0;
-      let okCount = 0;
-      for (let idx = 0; idx < inputs.length; idx++) {
-        const entry = inputs[idx];
-        const result = backResults[idx];
-        if (!result || result.error || !result.english) {
-          failedCount++;
-          continue;
-        }
-        okCount++;
-        processedKeysRef.current.add(entry.key);
-
-        const score = diceSimilarity(entry.original, result.english);
-        if (score >= GOOGLE_CHECK_THRESHOLD) continue;
-
-        const pct = Math.round(score * 100);
-        const sev: "high" | "medium" | "low" =
-          score < 0.35 ? "high" :
-          score < 0.55 ? "medium" : "low";
-
-        foundIssues.push({
-          key: entry.key,
-          original: entry.original,
-          translation: entry.translation,
-          issue: `تباين دلالي (${pct}%) — الترجمة العكسية: "${result.english}"`,
-          suggestion: entry.translation,
-          severity: sev,
-          detail:
-            `ترجمنا النص العربي عكسياً عبر Google Translate فحصلنا على:\n«${result.english}»\n` +
-            `تشابهها مع الأصل الإنجليزي ${pct}% فقط. هذا مؤشّر على انحراف المعنى عن الأصل. راجع الترجمة يدوياً.`,
-        });
-      }
-      setProcessedCount(processedKeysRef.current.size);
-
-      setGrammarIssues(prev => [...prev, ...foundIssues]);
-      setActiveTab("grammar");
       setIsAnalyzing(false);
       setProgress(null);
+
+      if (abortRef.current) return;
 
       if (failedCount === inputs.length) {
         toast({
@@ -324,12 +356,12 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         });
       } else {
         toast({
-          title: foundIssues.length > 0
-            ? `🔍 Google: ${foundIssues.length} ترجمة بحاجة مراجعة`
+          title: totalIssues > 0
+            ? `🔍 Google: ${totalIssues} ترجمة بحاجة مراجعة`
             : `✅ الترجمات دقيقة (عتبة ${Math.round(GOOGLE_CHECK_THRESHOLD * 100)}%)`,
           description: failedCount > 0
-            ? `تم فحص ${okCount} بنجاح • فشل ${failedCount} • ${foundIssues.length} مشكلة`
-            : `تم فحص ${okCount} ترجمة • ${foundIssues.length} مشكلة`,
+            ? `تم فحص ${okCount} بنجاح • فشل ${failedCount} • ${totalIssues} مشكلة`
+            : `تم فحص ${okCount} ترجمة • ${totalIssues} مشكلة`,
         });
       }
       return;
