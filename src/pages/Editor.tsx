@@ -24,6 +24,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useEditorState } from "@/hooks/useEditorState";
+import { Slider } from "@/components/ui/slider";
+import { estimateBatchCost, formatCostEstimate, resolveModelId } from "@/lib/cost-estimator";
 import { PAGE_SIZE, isTechnicalText, type ExtractedEntry } from "@/components/editor/types";
 import DebouncedInput from "@/components/editor/DebouncedInput";
 import CategoryProgress from "@/components/editor/CategoryProgress";
@@ -517,6 +519,52 @@ const Editor = () => {
                   </div>
                 </div>
               )}
+              {/* Per-engine creativity (temperature) — affects diversity of AI output. */}
+              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable' || editor.translationEngine === 'claude' || editor.translationEngine === 'bedrock') && (() => {
+                const eng = editor.translationEngine;
+                const temp =
+                  eng === 'gemini' ? editor.geminiTemperature
+                  : eng === 'claude' ? editor.claudeTemperature
+                  : eng === 'bedrock' ? editor.bedrockTemperature
+                  : editor.lovableTemperature;
+                const setTemp =
+                  eng === 'gemini' ? editor.setGeminiTemperature
+                  : eng === 'claude' ? editor.setClaudeTemperature
+                  : eng === 'bedrock' ? editor.setBedrockTemperature
+                  : editor.setLovableTemperature;
+                return (
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-2 border-t border-border/30">
+                    <div className="flex items-center gap-2 shrink-0 min-w-[140px]">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-display font-bold">🌡️ الإبداع</span>
+                      <span className="text-xs font-mono text-muted-foreground">{temp.toFixed(1)}</span>
+                    </div>
+                    <div className="flex-1">
+                      <Slider min={0} max={1} step={0.1} value={[temp]} onValueChange={(v) => setTemp(v[0] ?? 0.2)} />
+                    </div>
+                    <span className="text-xs text-muted-foreground font-body shrink-0">
+                      {temp <= 0.2 ? 'محافظ — ثابت' : temp <= 0.5 ? 'متوازن' : temp <= 0.8 ? 'متنوّع' : 'إبداعي — قد ينحرف'}
+                    </span>
+                  </div>
+                );
+              })()}
+              {/* Cost estimate for the upcoming "Translate All" run on filtered untranslated entries. */}
+              {(() => {
+                const remaining = editor.filteredEntries.filter((e) => !editor.state?.translations?.[`${e.msbtFile}:${e.index}`]);
+                if (remaining.length === 0) return null;
+                const modelId = resolveModelId(editor.translationEngine, editor.geminiModel, editor.translationQuality, editor.bedrockModel);
+                const est = estimateBatchCost(remaining, modelId);
+                return (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                    <BarChart3 className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-sm font-display font-bold">💰 تقدير التكلفة</span>
+                    <span className="text-sm font-mono text-foreground/90">{formatCostEstimate(est)}</span>
+                    <span className="text-xs text-muted-foreground font-body">
+                      ({remaining.length.toLocaleString()} نص — ~{est.inputTokens.toLocaleString()} توكن إدخال)
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
                 <div className="flex items-center gap-2 shrink-0">
                   <Key className="w-4 h-4 text-primary" />
@@ -598,10 +646,15 @@ const Editor = () => {
               )}
               {editor.translationEngine === 'mymemory' && (
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">📧 بريد إلكتروني (اختياري — يرفع الحد لـ 50,000 حرف/يوم):</span>
-                    <input type="email" placeholder="your@email.com" value={editor.myMemoryEmail} onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">📧 عناوين البريد (سطر/فاصلة لكل بريد — تُستخدم بالتناوب لرفع السقف اليومي):</span>
+                    <textarea
+                      placeholder="user1@example.com&#10;user2@example.com"
+                      value={editor.myMemoryEmail}
+                      onChange={(e) => editor.setMyMemoryEmail(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr"
+                    />
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs font-body text-muted-foreground">

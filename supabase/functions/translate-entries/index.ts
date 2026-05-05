@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
+    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
@@ -160,7 +160,17 @@ Deno.serve(async (req) => {
       filePath?: string;
       labels?: string[];
       extraInstructions?: string;
+      temperature?: number;
     };
+
+    // Clamp client-provided temperature to a safe range; default 0.2 for backward compat.
+    const temperature: number = (() => {
+      const t = Number(rawTemperature);
+      if (!Number.isFinite(t)) return 0.2;
+      if (t < 0) return 0;
+      if (t > 2) return 2;
+      return t;
+    })();
 
     if (!entries || entries.length === 0) {
       return new Response(JSON.stringify({ error: 'لا توجد نصوص للترجمة' }), {
@@ -451,7 +461,7 @@ ${textsBlock}`;
           max_tokens: 4096,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
-          temperature: 0.2,
+          temperature,
         }),
       });
 
@@ -553,7 +563,7 @@ ${textsBlock}`;
 
       const payloadObj: Record<string, unknown> = {
         messages: [{ role: 'user', content: [{ text: combinedPrompt }] }],
-        inferenceConfig: { maxTokens: 8192, temperature: 0.2 },
+        inferenceConfig: { maxTokens: 8192, temperature },
       };
       if (modelInfo.supportsSystem) {
         payloadObj.system = [{ text: systemPrompt }];
@@ -704,7 +714,7 @@ ${textsBlock}`;
             parts: [{ text: systemPrompt }]
           },
           generationConfig: {
-            temperature: 0.2,
+            temperature,
             topP: 0.9,
           },
         }),
@@ -772,7 +782,7 @@ ${textsBlock}`;
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
-          temperature: 0.2,
+          temperature,
         }),
       });
 

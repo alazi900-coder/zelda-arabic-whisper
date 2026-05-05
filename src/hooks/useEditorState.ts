@@ -164,6 +164,57 @@ export function useEditorState() {
     _setMyMemoryEmail(email);
     try { if (email) localStorage.setItem('myMemoryEmail', email); else localStorage.removeItem('myMemoryEmail'); } catch (e) { console.warn('localStorage myMemoryEmail:', e); }
   }, []);
+  // MyMemory: round-robin rotation index across the parsed email list.
+  const [myMemoryEmailIndex, _setMyMemoryEmailIndex] = useState<number>(() => {
+    try { return Number(localStorage.getItem('myMemoryEmailIndex')) || 0; } catch { return 0; }
+  });
+  const setMyMemoryEmailIndex = useCallback((idx: number) => {
+    _setMyMemoryEmailIndex(idx);
+    try { localStorage.setItem('myMemoryEmailIndex', String(idx)); } catch (e) { console.warn('localStorage myMemoryEmailIndex:', e); }
+  }, []);
+  // Per-engine creativity (temperature). Default 0.2 matches edge default.
+  const _readTemp = (key: string): number => {
+    try {
+      const v = Number(localStorage.getItem(key));
+      if (!Number.isFinite(v) || v < 0 || v > 2) return 0.2;
+      return v;
+    } catch { return 0.2; }
+  };
+  const [geminiTemperature, _setGeminiTemperature] = useState<number>(() => _readTemp('geminiTemperature'));
+  const setGeminiTemperature = useCallback((t: number) => {
+    _setGeminiTemperature(t);
+    try { localStorage.setItem('geminiTemperature', String(t)); } catch (e) { console.warn('localStorage geminiTemperature:', e); }
+  }, []);
+  const [claudeTemperature, _setClaudeTemperature] = useState<number>(() => _readTemp('claudeTemperature'));
+  const setClaudeTemperature = useCallback((t: number) => {
+    _setClaudeTemperature(t);
+    try { localStorage.setItem('claudeTemperature', String(t)); } catch (e) { console.warn('localStorage claudeTemperature:', e); }
+  }, []);
+  const [bedrockTemperature, _setBedrockTemperature] = useState<number>(() => _readTemp('bedrockTemperature'));
+  const setBedrockTemperature = useCallback((t: number) => {
+    _setBedrockTemperature(t);
+    try { localStorage.setItem('bedrockTemperature', String(t)); } catch (e) { console.warn('localStorage bedrockTemperature:', e); }
+  }, []);
+  const [lovableTemperature, _setLovableTemperature] = useState<number>(() => _readTemp('lovableTemperature'));
+  const setLovableTemperature = useCallback((t: number) => {
+    _setLovableTemperature(t);
+    try { localStorage.setItem('lovableTemperature', String(t)); } catch (e) { console.warn('localStorage lovableTemperature:', e); }
+  }, []);
+  // Auto-fallback toggle + chain order (comma-separated engine ids).
+  const [autoFallback, _setAutoFallback] = useState<boolean>(() => {
+    try { return localStorage.getItem('autoFallback') === '1'; } catch { return false; }
+  });
+  const setAutoFallback = useCallback((v: boolean) => {
+    _setAutoFallback(v);
+    try { localStorage.setItem('autoFallback', v ? '1' : '0'); } catch (e) { console.warn('localStorage autoFallback:', e); }
+  }, []);
+  const [fallbackChainRaw, _setFallbackChainRaw] = useState<string>(() => {
+    try { return localStorage.getItem('fallbackChain') || 'gemini,lovable,claude,mymemory,google'; } catch { return 'gemini,lovable,claude,mymemory,google'; }
+  });
+  const setFallbackChainRaw = useCallback((v: string) => {
+    _setFallbackChainRaw(v);
+    try { localStorage.setItem('fallbackChain', v); } catch (e) { console.warn('localStorage fallbackChain:', e); }
+  }, []);
   const [myMemoryCharsUsed, setMyMemoryCharsUsed] = useState(() => {
     try {
       const stored = localStorage.getItem('myMemoryCharsUsed');
@@ -610,6 +661,8 @@ export function useEditorState() {
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
     customPromptInstructions,
     userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
+    geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
+    myMemoryEmailIndex, setMyMemoryEmailIndex,
   });
   const {
     translating, translatingSingle, tmStats,
@@ -1200,6 +1253,14 @@ export function useEditorState() {
     customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
+    // Engine controls (per-engine creativity, MyMemory rotation, fallback chain)
+    geminiTemperature, setGeminiTemperature,
+    claudeTemperature, setClaudeTemperature,
+    bedrockTemperature, setBedrockTemperature,
+    lovableTemperature, setLovableTemperature,
+    myMemoryEmailIndex, setMyMemoryEmailIndex,
+    autoFallback, setAutoFallback,
+    fallbackChainRaw, setFallbackChainRaw,
 
     // Handlers
     toggleProtection, toggleTechnicalBypass,
