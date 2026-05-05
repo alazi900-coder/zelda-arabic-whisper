@@ -340,11 +340,11 @@ export function categorizeFile(filePath: string, label?: string): string {
 export { isArabicChar, hasArabicChars, reverseBidi as unReverseBidi } from "@/lib/arabic-processing";
 
 export function isTechnicalText(text: string): boolean {
-  if (/^[0-9A-Fa-f\-\._:\/]+$/.test(text.trim())) return true;
+  if (/^[0-9A-Fa-f\-._:/]+$/.test(text.trim())) return true;
   if (/\[[^\]]*\]/.test(text) && text.length < 50) return true;
   if (/<[^>]+>/.test(text)) return true;
-  if (/[\\/][\w\-]+[\\/]/i.test(text)) return true;
-  if (text.length < 10 && /[{}()\[\]<>|&%$#@!]/.test(text)) return true;
+  if (/[\\/][\w-]+[\\/]/i.test(text)) return true;
+  if (text.length < 10 && /[{}()[\]<>|&%$#@!]/.test(text)) return true;
   if (/^[a-z]+([A-Z][a-z]*)+$|^[a-z]+(_[a-z]+)+$/.test(text.trim())) return true;
   return false;
 }
