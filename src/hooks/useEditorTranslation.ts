@@ -3,6 +3,7 @@ import { toast } from "@/hooks/use-toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ARABIC_REGEX } from "@/lib/arabic-processing";
 import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
+import { precomputeCandidates, buildBatchTmExamples, type TmCandidate, type PrecomputedCandidate } from "@/lib/tm-boost";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -35,6 +36,25 @@ interface UseEditorTranslationProps {
   userBedrockRegion: string;
   bedrockModel: string;
   bedrockProxyUrl: string;
+}
+
+// Build the deduplicated candidate pool for TM Boost from the editor's
+// already-translated entries. Excludes keys passed in `excludeKeys` (e.g.
+// the entries currently being sent to the AI on this run).
+function buildTmCandidates(
+  state: EditorState,
+  excludeKeys?: Set<string>,
+): TmCandidate[] {
+  const map = new Map<string, string>();
+  for (const e of state.entries) {
+    if (!e.original.trim()) continue;
+    const key = `${e.msbtFile}:${e.index}`;
+    if (excludeKeys?.has(key)) continue;
+    const t = state.translations[key];
+    if (!t || !t.trim()) continue;
+    if (!map.has(e.original)) map.set(e.original, t);
+  }
+  return Array.from(map.entries()).map(([original, translation]) => ({ original, translation }));
 }
 
 export function useEditorTranslation({
@@ -97,6 +117,12 @@ export function useEditorTranslation({
         .map(n => ({ key: `${n.msbtFile}:${n.index}`, original: n.original, translation: state.translations[`${n.msbtFile}:${n.index}`] }));
       const entryCategory = categorizeFile(entry.msbtFile, entry.label);
 
+      // TM Boost: top-K already-translated entries most similar to this one.
+      const tmCandidates = buildTmCandidates(state, new Set([key]));
+      const tmExamples = tmCandidates.length > 0
+        ? buildBatchTmExamples([{ original: entry.original }], precomputeCandidates(tmCandidates))
+        : [];
+
       const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/translate-entries`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
@@ -104,6 +130,7 @@ export function useEditorTranslation({
           entries: [{ key, original: entry.original, label: entry.label, maxBytes: entry.maxBytes }],
           glossary: activeGlossary,
           context: contextEntries.length > 0 ? contextEntries : undefined,
+          tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
           userApiKey: userGeminiKey || undefined,
           userClaudeKey: userClaudeKey || undefined,
           userBedrockApiKey: userBedrockApiKey || undefined,
@@ -218,6 +245,14 @@ export function useEditorTranslation({
     let allTranslations: Record<string, string> = {};
     abortControllerRef.current = new AbortController();
 
+    // TM Boost: precompute the candidate pool once for the whole run
+    // (excluding entries we're about to translate so we don't suggest them).
+    const aiKeys = new Set(needsAI.map(e => `${e.msbtFile}:${e.index}`));
+    const tmCandidates = buildTmCandidates(state, aiKeys);
+    const tmPrecomputed: PrecomputedCandidate[] = tmCandidates.length > 0
+      ? precomputeCandidates(tmCandidates)
+      : [];
+
     try {
       for (let b = 0; b < totalBatches; b++) {
         if (abortControllerRef.current.signal.aborted) {
@@ -229,6 +264,9 @@ export function useEditorTranslation({
         setTranslateProgress(`🔄 ترجمة الدفعة ${b + 1}/${totalBatches} (${batch.length} نص)...`);
 
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, label: e.label, maxBytes: e.maxBytes }));
+        const tmExamples = tmPrecomputed.length > 0
+          ? buildBatchTmExamples(entries, tmPrecomputed)
+          : [];
         const contextEntries: { key: string; original: string; translation?: string }[] = [];
         const contextKeys = new Set<string>();
         for (const e of batch) {
@@ -263,6 +301,7 @@ export function useEditorTranslation({
               entries,
               glossary: activeGlossary,
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
+              tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
               userApiKey: userGeminiKey || undefined,
               userClaudeKey: userClaudeKey || undefined,
               userBedrockApiKey: userBedrockApiKey || undefined,
@@ -359,6 +398,12 @@ export function useEditorTranslation({
     setPreviousTranslations(old => ({ ...old, ...prevTrans }));
     setTranslating(true);
     abortControllerRef.current = new AbortController();
+    // TM Boost: precompute candidates once, excluding entries we're about to overwrite.
+    const aiKeys = new Set(entriesToRetranslate.map(e => `${e.msbtFile}:${e.index}`));
+    const tmCandidates = buildTmCandidates(state, aiKeys);
+    const tmPrecomputed: PrecomputedCandidate[] = tmCandidates.length > 0
+      ? precomputeCandidates(tmCandidates)
+      : [];
     try {
       const totalBatches = Math.ceil(entriesToRetranslate.length / AI_BATCH_SIZE);
       for (let b = 0; b < totalBatches; b++) {
@@ -370,6 +415,9 @@ export function useEditorTranslation({
         const batch = entriesToRetranslate.slice(b * AI_BATCH_SIZE, (b + 1) * AI_BATCH_SIZE);
         setTranslateProgress(`🔄 إعادة ترجمة الدفعة ${b + 1}/${totalBatches} (${batch.length} نص)...`);
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, label: e.label, maxBytes: e.maxBytes }));
+        const tmExamples = tmPrecomputed.length > 0
+          ? buildBatchTmExamples(entries, tmPrecomputed)
+          : [];
         const contextEntries: { key: string; original: string; translation?: string }[] = [];
         const contextKeys = new Set<string>();
         for (const e of batch) {
@@ -396,6 +444,7 @@ export function useEditorTranslation({
             entries,
             glossary: activeGlossary,
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
+            tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
             userClaudeKey: userClaudeKey || undefined,
             userBedrockApiKey: userBedrockApiKey || undefined,
@@ -599,6 +648,13 @@ export function useEditorTranslation({
 
     const entryMap = new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
 
+    // TM Boost: precompute candidates once, excluding entries we're about to translate.
+    const aiKeys = new Set(candidates.map(e => `${e.msbtFile}:${e.index}`));
+    const tmCandidates = buildTmCandidates(state, aiKeys);
+    const tmPrecomputed: PrecomputedCandidate[] = tmCandidates.length > 0
+      ? precomputeCandidates(tmCandidates)
+      : [];
+
     try {
       const totalBatches = Math.ceil(candidates.length / PAGE_AI_BATCH);
       for (let b = 0; b < totalBatches; b++) {
@@ -611,6 +667,9 @@ export function useEditorTranslation({
         setTranslateProgress(`🔄 ترجمة الدفعة ${b + 1}/${totalBatches} (${batch.length} نص)...`);
 
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original, label: e.label, maxBytes: e.maxBytes }));
+        const tmExamples = tmPrecomputed.length > 0
+          ? buildBatchTmExamples(entries, tmPrecomputed)
+          : [];
         const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
         const batchFilePath = batch[0].msbtFile;
 
@@ -624,6 +683,7 @@ export function useEditorTranslation({
           body: JSON.stringify({
             entries,
             glossary: activeGlossary,
+            tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
             userClaudeKey: userClaudeKey || undefined,
             userBedrockApiKey: userBedrockApiKey || undefined,

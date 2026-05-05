@@ -141,10 +141,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
+    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
+      tmExamples?: { original: string; translation: string; sim?: number }[];
       userApiKey?: string;
       translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock';
       translationQuality?: 'fast' | 'quality';
@@ -188,6 +189,20 @@ ${contextLines}`;
       }
     }
 
+    // TM Boost: similar already-translated entries injected as few-shot examples
+    let tmExamplesSection = '';
+    if (tmExamples && tmExamples.length > 0) {
+      const tmLines = tmExamples
+        .filter(t => t.original?.trim() && t.translation?.trim())
+        .slice(0, 10)
+        .map(t => `EN: "${t.original}" → AR: "${t.translation}"`)
+        .join('\n');
+      if (tmLines) {
+        tmExamplesSection = `\n\nأمثلة من ترجماتك السابقة لجمل مشابهة (حافظ على نفس المصطلحات والأسلوب):
+${tmLines}`;
+      }
+    }
+
     // Build glossary section with better formatting
     let glossarySection = '';
     if (glossary && glossary.trim()) {
@@ -224,7 +239,7 @@ ${relevant.join('\n')}`;
       ? `\n\nتعليمات إضافية من المستخدم (أولوية عليا — تتقدّم على الإعدادات الافتراضية إذا تعارضت):\n${trimmedExtra}`
       : '';
 
-    const userPrompt = `ترجم النصوص التالية من الإنجليزية إلى العربية. أعد فقط مصفوفة JSON تحتوي على النصوص المترجمة بنفس الترتيب، بدون أي شرح أو تعليقات.${metadataSection}${glossarySection}${contextSection}${extraInstructionsSection}
+    const userPrompt = `ترجم النصوص التالية من الإنجليزية إلى العربية. أعد فقط مصفوفة JSON تحتوي على النصوص المترجمة بنفس الترتيب، بدون أي شرح أو تعليقات.${metadataSection}${glossarySection}${tmExamplesSection}${contextSection}${extraInstructionsSection}
 
 النصوص للترجمة:
 ${textsBlock}`;
