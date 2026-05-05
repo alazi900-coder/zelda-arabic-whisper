@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ARABIC_REGEX } from "@/lib/arabic-processing";
+import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
@@ -22,7 +23,7 @@ interface UseEditorTranslationProps {
   userClaudeKey: string;
   translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock';
   translationQuality: 'fast' | 'quality';
-  geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  geminiModel?: GeminiModelChoice;
   filteredEntries: ExtractedEntry[];
   isFilterActive: boolean;
   myMemoryEmail: string;
@@ -111,7 +112,7 @@ export function useEditorTranslation({
           bedrockProxyUrl: bedrockProxyUrl || undefined,
           translationEngine,
           translationQuality,
-          geminiModel,
+          geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
           myMemoryEmail: myMemoryEmail || undefined,
           category: entryCategory,
           filePath: entry.msbtFile,
@@ -270,7 +271,7 @@ export function useEditorTranslation({
               bedrockProxyUrl: bedrockProxyUrl || undefined,
               translationEngine,
               translationQuality,
-          geminiModel,
+              geminiModel: resolveGeminiModel(geminiModel, entries),
               myMemoryEmail: myMemoryEmail || undefined,
               category: batchCategory,
               filePath: batchFilePath,
@@ -403,7 +404,7 @@ export function useEditorTranslation({
             bedrockProxyUrl: bedrockProxyUrl || undefined,
             translationEngine,
             translationQuality,
-          geminiModel,
+            geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batch[0].msbtFile,
@@ -462,7 +463,7 @@ export function useEditorTranslation({
           method: 'POST',
           headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel, myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
+          body: JSON.stringify({ entries, glossary: activeGlossary, userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: myMemoryEmail || undefined, extraInstructions: customPromptInstructions || undefined }),
         });
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -631,7 +632,7 @@ export function useEditorTranslation({
             bedrockProxyUrl: bedrockProxyUrl || undefined,
             translationEngine,
             translationQuality,
-          geminiModel,
+            geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: myMemoryEmail || undefined,
             category: batchCategory,
             filePath: batchFilePath,
