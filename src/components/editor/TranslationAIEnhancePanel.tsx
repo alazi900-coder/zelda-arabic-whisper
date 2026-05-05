@@ -152,6 +152,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [scope, setScope] = useState<Scope>("all");
   const [model, setModel] = useState<string>("gemini-3-flash-preview");
   const [showDiff, setShowDiff] = useState(true);
+  const [diffMode, setDiffMode] = useState<"word" | "sentence">("word");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [showSettings, setShowSettings] = useState(false);
