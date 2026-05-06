@@ -924,42 +924,56 @@ ${textsBlock}`;
 
       if (!bedrockResponse.ok) {
         const errText = await bedrockResponse.text();
-        console.error(`Bedrock error (${modelInfo.label}):`, errText);
+        console.error(`Bedrock error (${modelInfo.label}) [${bedrockModelId}]:`, errText);
         let parsedMsg = '';
         try { const j = JSON.parse(errText); parsedMsg = j?.message || ''; } catch { /* ignore */ }
+        const isAnthropicModel = bedrockModelId.includes('anthropic');
+        const modelTag = `${modelInfo.label} [${bedrockModelId}]`;
+
+        // Special case: AWS returned an Anthropic-specific message for a NON-Anthropic model.
+        // This is almost always a sign the API key is scoped to Anthropic only in AWS IAM,
+        // OR the request is being intercepted by a proxy/router. Surface it explicitly.
+        if (!isAnthropicModel && /Anthropic/i.test(parsedMsg)) {
+          return new Response(JSON.stringify({
+            error: `استجابة غير متوقعة من Bedrock: طلبتَ ${modelTag} لكن AWS ردّ برسالة خاصة بـ Anthropic. السبب الأرجح: مفتاح Bedrock API الخاص بك مُقيَّد بصلاحيات Anthropic فقط في IAM. أعد إنشاء المفتاح في AWS Console مع تفعيل صلاحية invokeModel لكل النماذج (Nova / DeepSeek / Llama / Mistral). الرسالة الأصلية: ${parsedMsg}`
+          }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
 
         if (bedrockResponse.status === 403 || bedrockResponse.status === 401) {
           return new Response(JSON.stringify({
-            error: `مفتاح Bedrock API غير صالح أو لا تملك صلاحية الوصول لنموذج ${modelInfo.label}. تأكد من تفعيل النموذج في منطقة ${region}.`
+            error: `مفتاح Bedrock API غير صالح أو لا يملك صلاحية الوصول لنموذج ${modelTag} في منطقة ${region}. تحقق من سياسة IAM وتفعيل النموذج.`
           }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         if (bedrockResponse.status === 400) {
           if (parsedMsg.includes('unsupported countries')) {
+            const hint = isAnthropicModel
+              ? `هذا قيد جغرافي تفرضه Anthropic. جرّب نموذجاً غير-Anthropic مثل Amazon Nova Pro أو DeepSeek R1 أو Llama 3.3.`
+              : `قيد جغرافي على ${modelTag}. جرّب نموذجاً آخر أو منطقة مختلفة.`;
             return new Response(JSON.stringify({
-              error: `نموذج ${modelInfo.label} غير متاح في منطقتك الجغرافية. جرّب نموذجاً آخر مثل DeepSeek R1 أو Amazon Nova.`
+              error: `نموذج ${modelTag} غير متاح في منطقتك الجغرافية. ${hint}`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           if (parsedMsg.includes('Operation not allowed') || parsedMsg.includes('not authorized') || parsedMsg.includes('AccessDeniedException')) {
             return new Response(JSON.stringify({
-              error: `نموذج ${modelInfo.label} غير مفعّل في حسابك. قد تحتاج التواصل مع دعم AWS لتفعيل Bedrock على حسابك (مشكلة شائعة في الحسابات الجديدة). جرّب محرك Google Translate أو Gemini كبديل.`
+              error: `نموذج ${modelTag} غير مفعّل/غير مصرّح به على حسابك. فعّله من Bedrock → Model access في منطقة ${region}، وتأكد أن سياسة IAM تسمح بـ bedrock:InvokeModel على هذا النموذج.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           if (parsedMsg.includes('model identifier is invalid') || parsedMsg.includes('on-demand throughput')) {
             return new Response(JSON.stringify({
-              error: `نموذج ${modelInfo.label} غير متوفر في منطقة ${region}. جرّب منطقة US East أو EU West، أو اختر نموذجاً آخر.`
+              error: `نموذج ${modelTag} غير متوفر في منطقة ${region}. جرّب us-east-1 أو us-west-2.`
             }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           return new Response(JSON.stringify({
-            error: `خطأ ${modelInfo.label} (400): ${parsedMsg || 'خطأ غير معروف'}`
+            error: `خطأ ${modelTag} (400): ${parsedMsg || 'خطأ غير معروف'}`
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         if (bedrockResponse.status === 429) {
           return new Response(JSON.stringify({
-            error: `تم تجاوز حد طلبات ${modelInfo.label}، حاول لاحقاً.`
+            error: `تم تجاوز حد طلبات ${modelTag}، حاول لاحقاً.`
           }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         return new Response(JSON.stringify({
-          error: `خطأ ${modelInfo.label} (${bedrockResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
+          error: `خطأ ${modelTag} (${bedrockResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
         }), { status: bedrockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
