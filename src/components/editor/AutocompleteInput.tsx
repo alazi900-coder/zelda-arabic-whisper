@@ -146,6 +146,8 @@ const AutocompleteInput = memo(({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={className}
+        dir="rtl"
+        style={{ unicodeBidi: 'plaintext' }}
       />
       {hasSuggestions && (
         <div className="absolute z-40 top-full mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
