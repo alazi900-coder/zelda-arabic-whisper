@@ -247,7 +247,11 @@ export function displayOriginal(text: string): React.ReactNode {
           elements.push(
             <Tooltip key={keyIdx++}>
               <TooltipTrigger asChild>
-                <span className="inline-block px-1 rounded border text-xs cursor-help mx-0.5 bg-blue-500/20 text-blue-400 border-blue-500/30">
+                <span
+                  dir="ltr"
+                  style={{ unicodeBidi: "isolate" }}
+                  className="inline-block px-1 rounded border text-xs cursor-help mx-0.5 bg-blue-500/20 text-blue-400 border-blue-500/30 align-baseline"
+                >
                   🏷{tagNum}
                 </span>
               </TooltipTrigger>
@@ -266,7 +270,11 @@ export function displayOriginal(text: string): React.ReactNode {
       elements.push(
         <Tooltip key={keyIdx++}>
           <TooltipTrigger asChild>
-            <span className={`inline-block px-1 rounded border text-xs cursor-help mx-0.5 ${tagType.color}`}>
+            <span
+              dir="ltr"
+              style={{ unicodeBidi: "isolate" }}
+              className={`inline-block px-1 rounded border text-xs cursor-help mx-0.5 align-baseline ${tagType.color}`}
+            >
               {tagType.label}
             </span>
           </TooltipTrigger>
