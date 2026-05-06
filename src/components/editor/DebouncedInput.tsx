@@ -34,6 +34,8 @@ const DebouncedInput = memo(({ value, onChange, placeholder, className, autoFocu
       placeholder={placeholder}
       className={className}
       autoFocus={autoFocus}
+      dir="rtl"
+      style={{ unicodeBidi: "plaintext" }}
     />
   );
 });
