@@ -8,7 +8,7 @@ import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X, RefreshCw } from "l
 import { toast } from "@/hooks/use-toast";
 import { utf16leByteLength } from "@/lib/byte-utils";
 import type { ExtractedEntry } from "./types";
-import { categorizeFile } from "./types";
+import { categorizeFile, displayOriginal } from "./types";
 
 interface EngineResult {
   engine: string;
@@ -205,7 +205,7 @@ export default function EngineComparePanel({
             <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-1">النص الأصلي:</p>
-                <p className="text-sm font-body break-words whitespace-pre-wrap" dir="ltr">{entry.original}</p>
+                <p className="text-sm font-body break-words whitespace-pre-wrap" dir="ltr">{displayOriginal(entry.original)}</p>
               </div>
               {translations[targetKey] && (
                 <div className="pt-2 border-t border-border/20">
@@ -220,7 +220,7 @@ export default function EngineComparePanel({
                       );
                     })()}
                   </div>
-                  <p className="text-sm font-body text-primary/80 break-words whitespace-pre-wrap" dir="rtl">{translations[targetKey]}</p>
+                  <p className="text-sm font-body text-primary/80 break-words whitespace-pre-wrap" dir="rtl">{displayOriginal(translations[targetKey])}</p>
                 </div>
               )}
             </div>
@@ -292,7 +292,7 @@ export default function EngineComparePanel({
                   ) : (
                     <>
                       <p className="text-sm font-body leading-relaxed mb-2" dir="rtl">
-                        {r.translation || <span className="text-muted-foreground">لم يتم الحصول على ترجمة</span>}
+                        {r.translation ? displayOriginal(r.translation) : <span className="text-muted-foreground">لم يتم الحصول على ترجمة</span>}
                       </p>
                       {r.translation && (
                         <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-border/20">

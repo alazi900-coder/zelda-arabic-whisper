@@ -25,6 +25,60 @@ function restoreTags(text: string, tags: Map<string, string>): string {
   return result;
 }
 
+// --- Free-engine helpers: strip TAG_N before translation, reinsert after ---
+// Google Translate and MyMemory mangle or drop TAG_N placeholders. Strip them
+// before sending, then reinsert the original characters at approximate positions.
+function stripTagsForFreeEngine(
+  text: string,
+  tags: Map<string, string>,
+): { cleanText: string; tagInserts: Array<{ value: string; fraction: number }> } {
+  const tagInserts: Array<{ value: string; fraction: number }> = [];
+  const tagRegex = /TAG_\d+/g;
+  let m;
+  while ((m = tagRegex.exec(text)) !== null) {
+    const tagKey = m[0];
+    tagInserts.push({
+      value: tags.get(tagKey) || tagKey,
+      fraction: m.index / Math.max(text.length, 1),
+    });
+  }
+  const cleanText = text
+    .replace(/\s*TAG_\d+\s*/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return { cleanText, tagInserts };
+}
+
+function reinsertTags(
+  translated: string,
+  tagInserts: ReadonlyArray<{ value: string; fraction: number }>,
+): string {
+  if (tagInserts.length === 0) return translated;
+  const sorted = [...tagInserts].sort((a, b) => a.fraction - b.fraction);
+  const parts: string[] = [];
+  let lastPos = 0;
+  for (const { value, fraction } of sorted) {
+    let target = Math.round(fraction * translated.length);
+    // Snap to the nearest word boundary (space)
+    if (target > 0 && target < translated.length) {
+      const spaceBefore = translated.lastIndexOf(' ', target);
+      const spaceAfter = translated.indexOf(' ', target);
+      if (spaceBefore >= lastPos && target - spaceBefore <= 5) {
+        target = spaceBefore;
+      } else if (spaceAfter >= 0 && spaceAfter - target <= 5) {
+        target = spaceAfter;
+      }
+    }
+    target = Math.max(target, lastPos);
+    target = Math.min(target, translated.length);
+    parts.push(translated.slice(lastPos, target));
+    parts.push(value);
+    lastPos = target;
+  }
+  parts.push(translated.slice(lastPos));
+  return parts.join('');
+}
+
 // --- Strict JSON via tool calling (#24) ---
 // One logical schema, four provider-specific encodings. The model is asked to
 // invoke `submit_translations` with an array of strings in input order. If the
@@ -175,10 +229,14 @@ const BUILTIN_GLOSSARY: ReadonlyArray<readonly [string, string]> = [
   ["Purah", "بورا"], ["Impa", "إمبا"], ["Robbie", "روبي"], ["Sidon", "سيدون"],
   ["Riju", "ريجو"], ["Tulin", "تولين"], ["Yunobo", "يونوبو"], ["Mineru", "مينيرو"],
   ["Rauru", "راؤرو"], ["Sonia", "سونيا"], ["Hestu", "هيستو"],
+  ["Hoz", "هوز"], ["Addison", "أديسون"], ["Kilton", "كيلتون"], ["Beedle", "بيدل"],
+  ["Bolson", "بولسون"], ["Hudson", "هدسون"], ["Kass", "كاس"],
   ["Death Mountain", "جبل الموت"], ["Kakariko", "كاكاريكو"], ["Hateno", "هاتينو"],
   ["Rito Village", "قرية ريتو"], ["Goron City", "مدينة غورون"],
   ["Zora's Domain", "مملكة زورا"], ["Gerudo Town", "بلدة غيرودو"],
   ["Lookout Landing", "ميناء المراقبة"], ["Great Sky Island", "جزيرة السماء الكبرى"],
+  ["Fort Hateno", "حصن هاتينو"], ["Firone", "فيرون"], ["Akkala", "أكالا"],
+  ["Eldin", "إلدين"], ["Lanayru", "لاناييرو"], ["Tabantha", "تابانثا"],
   ["Depths", "الأعماق"], ["Sky", "السماء"], ["Surface", "السطح"],
   // Gaming terms
   ["HP", "الصحة"], ["heart", "قلب"], ["hearts", "قلوب"],
@@ -195,7 +253,8 @@ const BUILTIN_GLOSSARY: ReadonlyArray<readonly [string, string]> = [
   ["inventory", "المخزون"], ["quest log", "سجل المهام"], ["map", "خريطة"],
   ["save", "حفظ"], ["load", "تحميل"], ["game over", "انتهت اللعبة"],
   ["treasure chest", "صندوق كنز"], ["boss", "زعيم"], ["mini-boss", "زعيم صغير"],
-  ["enemy", "عدو"], ["enemies", "أعداء"], ["monster", "وحش"],
+  ["enemy", "عدو"], ["enemies", "أعداء"], ["monster", "وحش"], ["monsters", "وحوش"],
+  ["monster-control crew", "وحدة مكافحة الوحوش"],
   ["damage", "ضرر"], ["defense", "دفاع"], ["attack", "هجوم"],
   ["critical hit", "ضربة حرجة"], ["sneak strike", "ضربة خفية"],
   ["quest", "مهمة"], ["quest complete", "اكتملت المهمة"],
@@ -537,7 +596,9 @@ ${textsBlock}`;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
         const batch = protectedEntries.slice(i, i + CONCURRENT);
         await Promise.all(batch.map(async (entry) => {
-          let translated = await googleTranslate(entry.cleaned);
+          // Strip TAG_N before sending to Google (Google drops or mangles them)
+          const { cleanText, tagInserts } = stripTagsForFreeEngine(entry.cleaned, entry.tags);
+          let translated = await googleTranslate(cleanText);
           if (!translated) { failedCount++; return; }
 
           // Apply cached glossary replacements
@@ -556,7 +617,8 @@ ${textsBlock}`;
             translated = await fixEnglishWords(translated, remainingEnglish);
           }
 
-          const restored = restoreTags(translated, entry.tags);
+          // Reinsert original tags at approximate positions
+          const restored = reinsertTags(translated, tagInserts);
           result[entry.key] = postProcess(restored, entry.original);
         }));
         if (i + CONCURRENT < protectedEntries.length) {
@@ -583,8 +645,11 @@ ${textsBlock}`;
       for (let i = 0; i < protectedEntries.length; i += CONCURRENT) {
         const batch = protectedEntries.slice(i, i + CONCURRENT);
         const promises = batch.map(async (entry) => {
+          // Strip TAG_N before sending to MyMemory (it preserves them as literal text)
+          const { cleanText, tagInserts } = stripTagsForFreeEngine(entry.cleaned, entry.tags);
+
           // Pre-process: protect glossary terms with placeholders
-          let textToTranslate = entry.cleaned;
+          let textToTranslate = cleanText;
           const termPlaceholders: Array<{ placeholder: string; arabic: string }> = [];
           let termIdx = 0;
           for (const [en, ar] of sortedTerms) {
@@ -610,7 +675,8 @@ ${textsBlock}`;
               for (const { placeholder, arabic } of termPlaceholders) {
                 translated = translated.replace(new RegExp(placeholder, 'gi'), arabic);
               }
-              const restored = restoreTags(translated, entry.tags);
+              // Reinsert original tags at approximate positions
+              const restored = reinsertTags(translated, tagInserts);
               result[entry.key] = postProcess(restored, entry.original);
               totalChars += entry.cleaned.length;
             }
@@ -1008,64 +1074,93 @@ ${textsBlock}`;
     let data: any;
 
     if (userApiKey && userApiKey.trim()) {
-      // Use user's own Gemini API key — prefer explicit geminiModel; fallback to quality
+      // Use user's own Gemini API key — try requested model, auto-fallback on quota errors
       const resolvedGeminiModel = geminiModel
         || (translationQuality === 'quality' ? 'gemini-2.5-pro' : 'gemini-2.5-flash');
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedGeminiModel}:generateContent?key=${userApiKey.trim()}`;
-      
-      const geminiBody: Record<string, unknown> = {
-        contents: [
-          { role: 'user', parts: [{ text: userPrompt }] }
-        ],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        generationConfig: {
-          temperature,
-          topP: 0.9,
-        },
-      };
-      if (strictJson) {
-        geminiBody.tools = [geminiTool];
-        geminiBody.tool_config = {
-          function_calling_config: { mode: 'ANY', allowed_function_names: [TOOL_NAME] },
-        };
-      }
-      const geminiResponse = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(geminiBody),
-      });
 
-      if (!geminiResponse.ok) {
+      // Model fallback chain: try requested model first, then cheaper alternatives
+      const GEMINI_FALLBACK_CHAIN = [
+        resolvedGeminiModel,
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+      ].filter((m, i, arr) => arr.indexOf(m) === i); // deduplicate
+
+      let lastError = '';
+      let geminiData: Record<string, unknown> | null = null;
+      let usedModel = resolvedGeminiModel;
+
+      for (const tryModel of GEMINI_FALLBACK_CHAIN) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${tryModel}:generateContent?key=${userApiKey.trim()}`;
+
+        const geminiBody: Record<string, unknown> = {
+          contents: [
+            { role: 'user', parts: [{ text: userPrompt }] }
+          ],
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          generationConfig: {
+            temperature,
+            topP: 0.9,
+          },
+        };
+        if (strictJson) {
+          geminiBody.tools = [geminiTool];
+          geminiBody.tool_config = {
+            function_calling_config: { mode: 'ANY', allowed_function_names: [TOOL_NAME] },
+          };
+        }
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiBody),
+        });
+
+        if (geminiResponse.ok) {
+          geminiData = await geminiResponse.json();
+          usedModel = tryModel;
+          break;
+        }
+
         const errText = await geminiResponse.text();
-        console.error('Gemini API error:', errText);
+        console.error(`Gemini API error (${tryModel}):`, errText);
+
         if (geminiResponse.status === 400 || geminiResponse.status === 403) {
           return new Response(JSON.stringify({ error: 'مفتاح API غير صالح أو منتهي الصلاحية. تأكد من المفتاح في Google AI Studio.' }), {
             status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
+
         if (geminiResponse.status === 429) {
           const isQuotaZero = errText.includes('limit: 0');
-          const msg = isQuotaZero
-            ? 'حصة مفتاح Gemini المجاني نفدت بالكامل. أنشئ مفتاحاً جديداً من مشروع Google Cloud جديد، أو فعّل الفوترة على ai.google.dev'
-            : 'تم تجاوز حد الطلبات المؤقت، حاول مرة أخرى بعد دقيقة';
-          return new Response(JSON.stringify({ error: msg }), {
-            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          if (isQuotaZero) {
+            lastError = `نموذج ${tryModel} غير متاح في الطبقة المجانية (limit: 0)`;
+            continue; // try next model in fallback chain
+          }
+          lastError = 'تم تجاوز حد الطلبات المؤقت، حاول مرة أخرى بعد دقيقة';
+          continue;
         }
-        return new Response(JSON.stringify({ error: `خطأ Gemini: ${geminiResponse.status}` }), {
+
+        // Non-retriable error
+        return new Response(JSON.stringify({ error: `خطأ Gemini (${tryModel}): ${geminiResponse.status}` }), {
           status: geminiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const geminiData = await geminiResponse.json();
+      if (!geminiData) {
+        return new Response(JSON.stringify({
+          error: `فشلت جميع نماذج Gemini (${GEMINI_FALLBACK_CHAIN.join('، ')}). ${lastError}. فعّل الفوترة على ai.google.dev أو استخدم محرك ترجمة آخر.`
+        }), {
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       let translations: string[] | null = strictJson
-        ? extractTranslationsFromGeminiTool(geminiData?.candidates)
+        ? extractTranslationsFromGeminiTool(geminiData?.candidates as Array<{ content?: { parts?: Array<{ functionCall?: { name?: string; args?: unknown } }> } }> | undefined)
         : null;
       if (!translations) {
-        const parts = geminiData?.candidates?.[0]?.content?.parts;
-        const textPart = Array.isArray(parts) ? parts.find((p: { text?: string }) => typeof p?.text === 'string') : null;
+        const parts = (geminiData?.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined)?.[0]?.content?.parts;
+        const textPart = Array.isArray(parts) ? parts.find((p) => typeof p?.text === 'string') : null;
         const content = textPart?.text || parts?.[0]?.text || '';
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('فشل في تحليل استجابة Gemini');
@@ -1082,7 +1177,11 @@ ${textsBlock}`;
         }
       }
       
-      return new Response(JSON.stringify({ translations: result }), {
+      const responseBody: Record<string, unknown> = { translations: result };
+      if (usedModel !== resolvedGeminiModel) {
+        responseBody.fallbackModel = usedModel;
+      }
+      return new Response(JSON.stringify(responseBody), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
