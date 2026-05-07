@@ -170,7 +170,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
               ↑ {adjacentContext.prev}
             </p>
           )}
-          <p className="font-body text-sm mb-2 break-words" dir="ltr" style={{ unicodeBidi: "plaintext", textAlign: "start" }}>{displayOriginal(entry.original)}</p>
+          <p className="font-body text-sm mb-2 break-words" dir="auto">{displayOriginal(entry.original)}</p>
           {adjacentContext?.next && (
             <p className="text-[10px] text-muted-foreground/50 mb-1 truncate italic" dir="ltr" title="النص التالي">
               ↓ {adjacentContext.next}
