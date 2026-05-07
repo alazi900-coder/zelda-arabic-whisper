@@ -643,14 +643,21 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   }, [suggestions, filterType, searchQuery]);
 
   const filteredIssues = useMemo(() => {
+    const catOrder: Record<string, number> = { wrong: 0, reorder: 1, weak: 2 };
     return grammarIssues
       .filter(g => {
         if (severityFilter && g.severity !== severityFilter) return false;
+        if (categoryFilter && (g.category ?? 'wrong') !== categoryFilter) return false;
         if (searchQuery && !(`${g.key} ${g.original} ${g.translation} ${g.suggestion} ${g.issue}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
       })
-      .sort((a, b) => (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2));
-  }, [grammarIssues, severityFilter, searchQuery]);
+      .sort((a, b) => {
+        const ca = catOrder[a.category ?? 'wrong'] ?? 0;
+        const cb = catOrder[b.category ?? 'wrong'] ?? 0;
+        if (ca !== cb) return ca - cb;
+        return (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2);
+      });
+  }, [grammarIssues, severityFilter, categoryFilter, searchQuery]);
 
   // ---- Group results by MSBT file ----
   const extractFile = (key: string) => key.replace(/:\d+$/, '') || key;
