@@ -721,8 +721,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     return (
       <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <AlertTriangle className="w-4 h-4 text-red-500" />
+            {(() => {
+              const cat = (g.category ?? 'wrong') as GrammarCategory;
+              const cc = categoryConfig[cat];
+              return (
+                <Badge variant="outline" className={`text-[10px] gap-1 ${cc.color}`} title={cc.description}>
+                  {cc.icon}{cc.label}
+                </Badge>
+              );
+            })()}
             {g.severity && (
               <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
                 {severityConfig[g.severity]?.label}
@@ -741,11 +750,18 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             </Button>
           </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{g.issue}</p>
+        <div className="space-y-1.5">
+          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+            <span className="text-foreground/60 font-normal">المشكلة: </span>{g.issue}
+          </p>
           {g.detail && g.detail !== g.issue && (
             <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
-              <span className="font-bold text-foreground/70">لماذا؟ </span>{g.detail}
+              <span className="font-bold text-foreground/70">السبب: </span>{g.detail}
+            </p>
+          )}
+          {g.fixExplanation && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] bg-emerald-500/5 border border-emerald-500/15 rounded px-2 py-1">
+              <span className="font-bold">الحل المُطبَّق: </span>{g.fixExplanation}
             </p>
           )}
         </div>
