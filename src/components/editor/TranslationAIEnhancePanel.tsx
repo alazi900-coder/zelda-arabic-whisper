@@ -1111,6 +1111,23 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
           </div>
         )}
 
+        {/* Category filter (grammar) — wrong / reorder / weak */}
+        {grammarIssues.length > 0 && activeTab === "grammar" && (
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant={categoryFilter === null ? "default" : "outline"} className="cursor-pointer text-[10px]" onClick={() => setCategoryFilter(null)}>
+              كل الفئات ({grammarIssues.length})
+            </Badge>
+            {(['wrong', 'reorder', 'weak'] as GrammarCategory[]).map(cat => categoryCounts[cat] ? (
+              <Badge key={cat} variant={categoryFilter === cat ? "default" : "outline"}
+                className={`cursor-pointer text-[10px] gap-1 ${categoryFilter !== cat ? categoryConfig[cat].color : ''}`}
+                title={categoryConfig[cat].description}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}>
+                {categoryConfig[cat].icon}{categoryConfig[cat].label} ({categoryCounts[cat]})
+              </Badge>
+            ) : null)}
+          </div>
+        )}
+
         {/* Severity filter (grammar) */}
         {grammarIssues.length > 0 && activeTab === "grammar" && (
           <div className="flex flex-wrap gap-1.5">
