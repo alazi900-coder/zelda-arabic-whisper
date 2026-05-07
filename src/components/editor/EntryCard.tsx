@@ -38,6 +38,8 @@ interface EntryCardProps {
   onUpdateNote?: (key: string, note: string) => void;
   /** Extra context-tool buttons (scene, TM, screenshots, AI hints, engine compare) rendered next to the auto-translate button */
   extraToolButtons?: { onClick: () => void; icon: string; title: string; cls?: string }[];
+  /** Show original and translation side by side */
+  sideBySide?: boolean;
 }
 
 // Cached parsed glossary to avoid re-parsing on every entry
@@ -100,7 +102,7 @@ const EntryCard: React.FC<EntryCardProps> = ({
   isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage,
   updateTranslation, handleTranslateSingle, handleImproveSingleTranslation,
   handleUndoTranslation, handleFixReversed, handleLocalFixDamagedTag,
-  translationMemory, translatorNotes, onUpdateNote, extraToolButtons,
+  translationMemory, translatorNotes, onUpdateNote, extraToolButtons, sideBySide,
 }) => {
   const key = `${entry.msbtFile}:${entry.index}`;
   const isTech = isTechnicalText(entry.original);
@@ -159,12 +161,15 @@ const EntryCard: React.FC<EntryCardProps> = ({
     });
   }, [entry.original, entry.maxBytes, translation, glossaryMatches, translationMemory]);
 
+  const useSideBySide = sideBySide && !isMobile;
+
   return (
     <Card className={`p-3 md:p-4 border-border/50 hover:border-border transition-colors ${hasProblem ? 'border-destructive/30 bg-destructive/5' : ''}`}>
-      <div className={`flex ${isMobile ? 'flex-col' : 'items-start'} gap-3 md:gap-4`}>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground mb-1 truncate">{entry.msbtFile} • {entry.label}</p>
-          {/* Inline adjacent context */}
+      <p className="text-xs text-muted-foreground mb-1 truncate">{entry.msbtFile} • {entry.label}</p>
+      <div className={`flex ${useSideBySide ? 'flex-row' : 'flex-col'} gap-3 md:gap-4`}>
+        {/* Original text panel */}
+        <div className={`min-w-0 ${useSideBySide ? 'flex-1 p-2.5 rounded-lg bg-muted/30 border border-border/30' : 'flex-1'}`}>
+          {useSideBySide && <p className="text-[10px] text-muted-foreground font-bold mb-1">EN</p>}
           {adjacentContext?.prev && (
             <p className="text-[10px] text-muted-foreground/50 mb-0.5 truncate italic" dir="ltr" title="النص السابق">
               ↑ {adjacentContext.prev}
@@ -176,6 +181,10 @@ const EntryCard: React.FC<EntryCardProps> = ({
               ↓ {adjacentContext.next}
             </p>
           )}
+        </div>
+        {/* Translation panel */}
+        <div className={`min-w-0 ${useSideBySide ? 'flex-1' : 'flex-1'}`}>
+          {useSideBySide && <p className="text-[10px] text-primary font-bold mb-1">AR</p>}
           {hasTechnicalTags(entry.original) && (
             <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
               💡 الرموز الملونة (⚙ تحكم • 🎨 تنسيق • 📌 متغير) أكواد خاصة بمحرك اللعبة — <span className="font-semibold text-accent">لا تحذفها من الترجمة</span>
