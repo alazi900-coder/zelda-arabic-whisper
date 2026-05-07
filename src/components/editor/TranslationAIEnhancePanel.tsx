@@ -157,6 +157,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<GrammarCategory | null>(null);
   const [processedCount, setProcessedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [scope, setScope] = useState<Scope>("all");
