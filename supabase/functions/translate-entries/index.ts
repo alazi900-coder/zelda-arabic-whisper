@@ -358,6 +358,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fail-fast when a key-required engine is selected without its key.
+    // Prevents silent fallback to Gemini/Lovable that confuses users.
+    const missingKey: Record<string, string> = {
+      groq: 'تم اختيار محرّك Groq لكن المفتاح فارغ. أدخل مفتاح Groq من console.groq.com/keys.',
+      claude: 'تم اختيار محرّك Claude لكن المفتاح فارغ. أدخل مفتاح Anthropic.',
+      openrouter: 'تم اختيار محرّك OpenRouter لكن المفتاح فارغ. أدخل مفتاح OpenRouter.',
+      bedrock: 'تم اختيار محرّك Bedrock لكن المفتاح فارغ. أدخل مفتاح AWS Bedrock.',
+    };
+    const keyByEngine: Record<string, string | undefined> = {
+      groq: userGroqKey,
+      claude: userClaudeKey,
+      openrouter: userOpenRouterKey,
+      bedrock: userBedrockApiKey,
+    };
+    if (translationEngine && missingKey[translationEngine] && !keyByEngine[translationEngine]?.trim()) {
+      return new Response(JSON.stringify({ error: missingKey[translationEngine] }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Protect tags in brackets before translation
     const protectedEntries = entries.map(e => {
       const { cleaned, tags } = protectTags(e.original);

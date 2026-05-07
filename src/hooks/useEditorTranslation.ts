@@ -430,7 +430,15 @@ export function useEditorTranslation({
             retries++;
             const waitSec = retries * 20;
             setTranslateProgress(`⏳ حد الطلبات — انتظار ${waitSec} ثانية ثم إعادة المحاولة (${retries}/${maxRetries})...`);
-            await new Promise(r => setTimeout(r, waitSec * 1000));
+            // Abort-aware wait: stop button cancels the delay instead of forcing the user to wait full backoff.
+            const sig = abortControllerRef.current?.signal;
+            await new Promise<void>((resolve, reject) => {
+              const t = setTimeout(resolve, waitSec * 1000);
+              if (sig) {
+                if (sig.aborted) { clearTimeout(t); reject(new DOMException('Aborted', 'AbortError')); return; }
+                sig.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
+              }
+            });
             continue;
           }
           break;
