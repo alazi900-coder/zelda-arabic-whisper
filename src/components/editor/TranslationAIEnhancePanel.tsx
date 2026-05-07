@@ -83,6 +83,10 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "gpt-5", label: "GPT-5 (دقة قصوى)", group: "openai" },
   { value: "gpt-5-mini", label: "GPT-5 mini (متوازن — أرخص)", group: "openai" },
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
+  { value: "groq-llama-70b", label: "Llama 3.3 70B — Groq (سريع جداً)", group: "groq" },
+  { value: "groq-llama-8b", label: "Llama 3.1 8B — Groq (الأخف)", group: "groq" },
+  { value: "groq-gemma-9b", label: "Gemma 2 9B — Groq", group: "groq" },
+  { value: "groq-mixtral", label: "Mixtral 8x7B — Groq", group: "groq" },
 ];
 
 const GOOGLE_CHECK_THRESHOLD = 0.7;

@@ -39,6 +39,10 @@ Deno.serve(async (req) => {
       'gpt-5': 'openai/gpt-5',
       'gpt-5-mini': 'openai/gpt-5-mini',
       'gpt-5-nano': 'openai/gpt-5-nano',
+      'groq-llama-70b': 'groq/llama-3.3-70b-versatile',
+      'groq-llama-8b': 'groq/llama-3.1-8b-instant',
+      'groq-gemma-9b': 'groq/gemma2-9b-it',
+      'groq-mixtral': 'groq/mixtral-8x7b-32768',
     };
     const resolvedModel = (aiModel && gatewayModelMap[aiModel]) || 'google/gemini-2.5-flash';
 
