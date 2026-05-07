@@ -172,7 +172,7 @@ export default function EngineComparePanel({
       cache.set(targetKey, prev);
       return prev;
     });
-  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, targetKey]);
+  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, userOpenRouterKey, userGroqKey, groqModel, targetKey]);
 
   const handleApply = (text: string, label: string, engine: string) => {
     if (!text) return;
