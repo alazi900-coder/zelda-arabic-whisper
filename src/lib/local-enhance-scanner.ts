@@ -100,19 +100,15 @@ function ruleLeadingTrailingSpaces(t: string): { fix: string; matched: boolean }
 function ruleRepeatedWord(t: string, orig: string): { fix: string; matched: boolean } {
   // \b doesn't work for Arabic in JS regex, so we use whitespace/start/end boundaries.
   const re = /(^|\s)(\S{2,})(\s+)\2(?=\s|[.,!?؟،؛:]|$)/gu;
+  const escapeRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   let matched = false;
-  let fixed = t;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(t)) !== null) {
-    const word = m[2];
+  const fixed = t.replace(re, (full, before, word) => {
     // Skip if the original text also has the same word repeated
-    const origRe = new RegExp(`(^|\\s)${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+)${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|[.,!?؟،؛:]|$)`, 'u');
-    if (origRe.test(orig)) continue;
+    const origRe = new RegExp(`(^|\\s)${escapeRe(word)}(\\s+)${escapeRe(word)}(?=\\s|[.,!?؟،؛:]|$)`, 'u');
+    if (origRe.test(orig)) return full;
     matched = true;
-  }
-  if (matched) {
-    fixed = t.replace(re, "$1$2");
-  }
+    return `${before}${word}`;
+  });
   return { fix: fixed, matched };
 }
 
