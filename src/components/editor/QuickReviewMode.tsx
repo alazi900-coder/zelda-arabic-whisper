@@ -112,7 +112,7 @@ const QuickReviewMode: React.FC<QuickReviewModeProps> = ({
         <p className="text-xs text-muted-foreground mb-2">{entry.msbtFile} • {entry.label}</p>
         <div className="p-3 rounded border border-border/50 bg-muted/30 mb-3">
           <p className="text-xs text-muted-foreground mb-1">النص الأصلي:</p>
-          <p className="font-body text-sm">{displayOriginal(entry.original)}</p>
+          <p className="font-body text-sm" dir="auto">{displayOriginal(entry.original)}</p>
         </div>
 
         {/* Context: Next entry */}
