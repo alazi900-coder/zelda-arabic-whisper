@@ -12,7 +12,8 @@ export type EngineId =
   | "bedrock"
   | "mymemory"
   | "google"
-  | "openrouter";
+  | "openrouter"
+  | "groq";
 
 export const ALL_ENGINES: ReadonlyArray<EngineId> = [
   "gemini",
@@ -22,6 +23,7 @@ export const ALL_ENGINES: ReadonlyArray<EngineId> = [
   "mymemory",
   "google",
   "openrouter",
+  "groq",
 ];
 
 /** Sensible default fallback order: best free → best cheap → free APIs. */
@@ -44,6 +46,8 @@ export interface EngineKeyAvailability {
   google?: boolean;
   /** OpenRouter requires a user-provided API key from openrouter.ai. */
   openrouter?: boolean;
+  /** Groq requires a user-provided API key from console.groq.com. */
+  groq?: boolean;
 }
 
 /** Whether an engine has the credentials needed to be invokable in this session. */
@@ -57,6 +61,8 @@ export function isEngineUsable(engine: EngineId, avail: EngineKeyAvailability): 
       return avail.bedrock ?? false;
     case "openrouter":
       return avail.openrouter ?? false;
+    case "groq":
+      return avail.groq ?? false;
     case "lovable":
     case "mymemory":
     case "google":

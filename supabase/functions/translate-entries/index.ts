@@ -313,13 +313,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature, userOpenRouterKey, openRouterModel, strictJson: rawStrictJson } = await req.json() as {
+    const { entries, glossary, context, tmExamples, userApiKey, translationEngine, translationQuality, geminiModel, userClaudeKey, userBedrockApiKey, userBedrockRegion, userBedrockModel, bedrockProxyUrl, myMemoryEmail, category, filePath, labels, extraInstructions, temperature: rawTemperature, userOpenRouterKey, openRouterModel, userGroqKey, groqModel, strictJson: rawStrictJson } = await req.json() as {
       entries: { key: string; original: string; label?: string; maxBytes?: number }[];
       glossary?: string;
       context?: { key: string; original: string; translation?: string }[];
       tmExamples?: { original: string; translation: string; sim?: number }[];
       userApiKey?: string;
-      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter';
+      translationEngine?: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq';
       translationQuality?: 'fast' | 'quality';
       geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
       userClaudeKey?: string;
@@ -335,6 +335,8 @@ Deno.serve(async (req) => {
       temperature?: number;
       userOpenRouterKey?: string;
       openRouterModel?: string;
+      userGroqKey?: string;
+      groqModel?: string;
       strictJson?: boolean;
     };
 
@@ -708,6 +710,99 @@ ${textsBlock}`;
         if (!jsonMatch) {
           return new Response(JSON.stringify({
             error: 'تعذّر تحليل ردّ OpenRouter — تأكد من اختيار نموذج يدعم JSON.'
+          }), {
+            status: 502,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        // eslint-disable-next-line no-control-regex
+        const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+        translations = JSON.parse(sanitized);
+      }
+
+      const result: Record<string, string> = {};
+      const safeTranslations = translations ?? [];
+      for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
+        if (safeTranslations[i]?.trim()) {
+          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
+          result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
+        }
+      }
+
+      return new Response(JSON.stringify({ translations: result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === Groq ultra-fast inference engine (OpenAI-compatible API) ===
+    if (translationEngine === 'groq' && userGroqKey?.trim()) {
+      const groqKey = userGroqKey.trim();
+      const model = (groqModel || 'llama-3.3-70b-versatile').trim();
+      const groqBody: Record<string, unknown> = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature,
+        max_tokens: 4096,
+      };
+      if (strictJson) {
+        groqBody.tools = [openAITool];
+        groqBody.tool_choice = { type: 'function', function: { name: TOOL_NAME } };
+      }
+      const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(groqBody),
+      });
+
+      if (!groqResponse.ok) {
+        const err = await groqResponse.text();
+        console.error('Groq error:', err);
+        if (groqResponse.status === 401) {
+          return new Response(JSON.stringify({
+            error: 'مفتاح Groq API غير صالح. احصل على مفتاح من console.groq.com/keys.'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (groqResponse.status === 429) {
+          return new Response(JSON.stringify({
+            error: 'تم تجاوز حد طلبات Groq، حاول لاحقاً أو اختر نموذجاً آخر.'
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        let parsedMsg = '';
+        try {
+          const j = JSON.parse(err);
+          parsedMsg = j?.error?.message || '';
+        } catch { /* ignore */ }
+        return new Response(JSON.stringify({
+          error: `خطأ Groq (${groqResponse.status}): ${parsedMsg || 'خطأ غير معروف'}`
+        }), {
+          status: groqResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const groqData = await groqResponse.json();
+      const groqMessage = groqData?.choices?.[0]?.message;
+      let translations: string[] | null = strictJson
+        ? extractTranslationsFromOpenAITool(groqMessage)
+        : null;
+      if (!translations) {
+        const content = groqMessage?.content || '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          return new Response(JSON.stringify({
+            error: 'تعذّر تحليل ردّ Groq — حاول مرة أخرى.'
           }), {
             status: 502,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

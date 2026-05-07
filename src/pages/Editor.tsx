@@ -491,11 +491,12 @@ const Editor = () => {
                     { key: 'claude', label: '🧠 Claude (شخصي)', needsKey: true, hasKey: !!editor.userClaudeKey },
                     { key: 'bedrock', label: '☁️ Amazon Bedrock', needsKey: true, hasKey: !!editor.userBedrockApiKey },
                     { key: 'openrouter', label: '🌍 OpenRouter', needsKey: true, hasKey: !!editor.userOpenRouterKey },
+                    { key: 'groq', label: '⚡ Groq', needsKey: true, hasKey: !!editor.userGroqKey },
                     { key: 'google', label: '🔤 Google Translate', needsKey: false, hasKey: true },
                     { key: 'mymemory', label: '🌐 MyMemory', needsKey: false, hasKey: true },
                   ].map(eng => (
                     <Button key={eng.key} variant={editor.translationEngine === eng.key ? 'default' : 'outline'} size="sm"
-                      onClick={() => editor.setTranslationEngine(eng.key as 'lovable' | 'gemini' | 'claude' | 'bedrock' | 'openrouter' | 'google' | 'mymemory')}
+                      onClick={() => editor.setTranslationEngine(eng.key as 'lovable' | 'gemini' | 'claude' | 'bedrock' | 'openrouter' | 'groq' | 'google' | 'mymemory')}
                       className="text-xs font-body"
                       title={eng.needsKey && !eng.hasKey ? 'يحتاج مفتاحاً — اضغط لاختياره ثم أدخل المفتاح' : undefined}>
                       {eng.label}
@@ -564,17 +565,19 @@ const Editor = () => {
                 </div>
               )}
               {/* Per-engine creativity (temperature) — affects diversity of AI output. */}
-              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable' || editor.translationEngine === 'claude' || editor.translationEngine === 'bedrock') && (() => {
+              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable' || editor.translationEngine === 'claude' || editor.translationEngine === 'bedrock' || editor.translationEngine === 'groq') && (() => {
                 const eng = editor.translationEngine;
                 const temp =
                   eng === 'gemini' ? editor.geminiTemperature
                   : eng === 'claude' ? editor.claudeTemperature
                   : eng === 'bedrock' ? editor.bedrockTemperature
+                  : eng === 'groq' ? editor.groqTemperature
                   : editor.lovableTemperature;
                 const setTemp =
                   eng === 'gemini' ? editor.setGeminiTemperature
                   : eng === 'claude' ? editor.setClaudeTemperature
                   : eng === 'bedrock' ? editor.setBedrockTemperature
+                  : eng === 'groq' ? editor.setGroqTemperature
                   : editor.setLovableTemperature;
                 return (
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-2 border-t border-border/30">
@@ -789,6 +792,61 @@ const Editor = () => {
                 : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح OpenRouter للبدء، أو اختر محرّكاً آخر.</p>}
               </>
               )}
+              {editor.translationEngine === 'groq' && (
+              <>
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Key className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-display font-bold">⚡ مفتاح Groq API</span>
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <input type="password" placeholder="gsk_..." value={editor.userGroqKey}
+                    onChange={(e) => editor.setUserGroqKey(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
+                  {editor.userGroqKey && (
+                    <Button variant="ghost" size="sm" onClick={() => editor.setUserGroqKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
+                  )}
+                </div>
+                <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
+              </div>
+              {editor.userGroqKey
+                ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-secondary font-body">مفتاح Groq مفعّل — سيُستخدم للترجمة</p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <BarChart3 className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-display font-bold">نموذج Groq</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { id: 'llama-3.3-70b-versatile', label: '🦙 Llama 3.3 70B', hint: 'أفضل توازن بين الجودة والسرعة' },
+                        { id: 'llama-3.1-8b-instant', label: '⚡ Llama 3.1 8B', hint: 'أسرع نموذج — مناسب للنصوص القصيرة' },
+                        { id: 'gemma2-9b-it', label: '💎 Gemma 2 9B', hint: 'نموذج Google خفيف وسريع' },
+                        { id: 'mixtral-8x7b-32768', label: '🌀 Mixtral 8x7B', hint: 'نموذج Mistral مع سياق طويل' },
+                      ].map(m => (
+                        <Button key={m.id}
+                          variant={editor.groqModel === m.id ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => editor.setGroqModel(m.id)}
+                          className="text-[11px] font-body h-7"
+                          title={m.hint}>
+                          {m.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-1 border-t border-border/30">
+                    <span className="text-xs font-body text-muted-foreground shrink-0">أو اكتب معرّف نموذج آخر:</span>
+                    <input type="text" placeholder="model-name" value={editor.groqModel}
+                      onChange={(e) => editor.setGroqModel(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs font-mono" dir="ltr" />
+                  </div>
+                </div>
+                )
+                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Groq للبدء، أو اختر محرّكاً آخر.</p>}
+              </>
+              )}
               {/* Auto-fallback toggle (P0 #9): on failure, retry with the next engine in the chain. */}
               <div className="flex flex-col gap-2 pt-2 border-t border-border/30">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -808,7 +866,7 @@ const Editor = () => {
                       placeholder="gemini,lovable,claude,mymemory,google"
                       className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs font-mono" dir="ltr" />
                     <span className="text-xs font-body text-muted-foreground">
-                      المحرّكات الصالحة: <span className="font-mono" dir="ltr">gemini, lovable, claude, bedrock, openrouter, mymemory, google</span>
+                      المحرّكات الصالحة: <span className="font-mono" dir="ltr">gemini, lovable, claude, bedrock, openrouter, groq, mymemory, google</span>
                     </span>
                   </div>
                 )}
@@ -1525,7 +1583,7 @@ const Editor = () => {
         {engineCompareEntry && editor.state && (
           <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
             entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} bedrockModel={editor.bedrockModel} bedrockProxyUrl={editor.bedrockProxyUrl} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
+            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} bedrockModel={editor.bedrockModel} bedrockProxyUrl={editor.bedrockProxyUrl} myMemoryEmail={editor.myMemoryEmail} userOpenRouterKey={editor.userOpenRouterKey} userGroqKey={editor.userGroqKey} groqModel={editor.groqModel} onApplyTranslation={editor.updateTranslation} />
         )}
         {editor.state && (
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}

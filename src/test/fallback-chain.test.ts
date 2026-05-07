@@ -120,7 +120,7 @@ describe("buildCallOrder", () => {
 
 describe("constants", () => {
   it("ALL_ENGINES covers expected ids", () => {
-    expect(new Set(ALL_ENGINES)).toEqual(new Set(["gemini", "lovable", "claude", "bedrock", "mymemory", "google", "openrouter"]));
+    expect(new Set(ALL_ENGINES)).toEqual(new Set(["gemini", "lovable", "claude", "bedrock", "mymemory", "google", "openrouter", "groq"]));
   });
 
   it("DEFAULT_FALLBACK_CHAIN is a valid chain", () => {

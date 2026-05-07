@@ -96,10 +96,10 @@ export function useEditorState() {
       else localStorage.removeItem('customPromptInstructions');
     } catch (e) { console.warn('localStorage customPromptInstructions:', e); }
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter'>(() => {
-    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter') || 'lovable'; } catch { return 'lovable'; }
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq'>(() => {
+    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq') || 'lovable'; } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch (e) { console.warn('localStorage translationEngine:', e); }
   }, []);
@@ -109,6 +109,28 @@ export function useEditorState() {
   const setUserClaudeKey = useCallback((key: string) => {
     _setUserClaudeKey(key);
     try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch (e) { console.warn('localStorage userClaudeKey:', e); }
+  }, []);
+  // Groq: ultra-fast inference (Llama, Mixtral, Gemma) via groq.com
+  const [userGroqKey, _setUserGroqKey] = useState(() => {
+    try { return localStorage.getItem('userGroqKey') || ''; } catch { return ''; }
+  });
+  const setUserGroqKey = useCallback((key: string) => {
+    _setUserGroqKey(key);
+    try { if (key) localStorage.setItem('userGroqKey', key); else localStorage.removeItem('userGroqKey'); } catch (e) { console.warn('localStorage userGroqKey:', e); }
+  }, []);
+  const [groqModel, _setGroqModel] = useState<string>(() => {
+    try { return localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile'; } catch { return 'llama-3.3-70b-versatile'; }
+  });
+  const setGroqModel = useCallback((model: string) => {
+    _setGroqModel(model);
+    try { localStorage.setItem('groqModel', model); } catch (e) { console.warn('localStorage groqModel:', e); }
+  }, []);
+  const [groqTemperature, _setGroqTemperature] = useState<number>(() => {
+    try { const v = localStorage.getItem('groqTemperature'); return v ? Number(v) : 0.2; } catch { return 0.2; }
+  });
+  const setGroqTemperature = useCallback((t: number) => {
+    _setGroqTemperature(t);
+    try { localStorage.setItem('groqTemperature', String(t)); } catch (e) { console.warn('localStorage groqTemperature:', e); }
   }, []);
   // OpenRouter unified gateway: opens 200+ models (Mistral, Cohere, Llama, GPT-4, etc.)
   // through one OpenAI-compatible API. User supplies key from openrouter.ai.
@@ -693,6 +715,7 @@ export function useEditorState() {
     geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
     myMemoryEmailIndex, setMyMemoryEmailIndex,
     userOpenRouterKey, openRouterModel,
+    userGroqKey, groqModel, groqTemperature,
     autoFallback, fallbackChainRaw,
     userStrictJson,
   });
@@ -1260,6 +1283,7 @@ export function useEditorState() {
   return {
     state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     userOpenRouterKey, openRouterModel,
+    userGroqKey, groqModel, groqTemperature,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -1282,6 +1306,7 @@ export function useEditorState() {
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
     setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
     setUserOpenRouterKey, setOpenRouterModel,
+    setUserGroqKey, setGroqModel, setGroqTemperature,
     geminiModel, setGeminiModel,
     setBedrockModel, setBedrockProxyUrl,
     customPromptInstructions, setCustomPromptInstructions,

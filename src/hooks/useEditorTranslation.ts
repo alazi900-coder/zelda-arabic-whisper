@@ -25,7 +25,7 @@ interface UseEditorTranslationProps {
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
   userClaudeKey: string;
-  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter';
+  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq';
   translationQuality: 'fast' | 'quality';
   geminiModel?: GeminiModelChoice;
   filteredEntries: ExtractedEntry[];
@@ -50,6 +50,10 @@ interface UseEditorTranslationProps {
   // OpenRouter unified gateway (P0 #13)
   userOpenRouterKey?: string;
   openRouterModel?: string;
+  // Groq ultra-fast inference
+  userGroqKey?: string;
+  groqModel?: string;
+  groqTemperature?: number;
   // Auto-fallback chain (P0 #9)
   autoFallback?: boolean;
   fallbackChainRaw?: string;
@@ -86,6 +90,7 @@ export function useEditorTranslation({
   geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
   myMemoryEmailIndex, setMyMemoryEmailIndex,
   userOpenRouterKey, openRouterModel,
+  userGroqKey, groqModel, groqTemperature,
   autoFallback, fallbackChainRaw,
   userStrictJson,
 }: UseEditorTranslationProps) {
@@ -96,6 +101,7 @@ export function useEditorTranslation({
       case 'claude': return claudeTemperature ?? 0.2;
       case 'bedrock': return bedrockTemperature ?? 0.2;
       case 'lovable': return lovableTemperature ?? 0.2;
+      case 'groq': return groqTemperature ?? 0.2;
       default: return 0.2;
     }
   };
@@ -124,6 +130,7 @@ export function useEditorTranslation({
       mymemory: true,
       google: true,
       openrouter: !!userOpenRouterKey,
+      groq: !!userGroqKey,
     });
   };
 
@@ -239,7 +246,7 @@ export function useEditorTranslation({
           translationQuality,
           geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
           myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
               strictJson: userStrictJson !== false,
           category: entryCategory,
           filePath: entry.msbtFile,
@@ -411,7 +418,7 @@ export function useEditorTranslation({
               translationQuality,
               geminiModel: resolveGeminiModel(geminiModel, entries),
               myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
               strictJson: userStrictJson !== false,
               category: batchCategory,
               filePath: batchFilePath,
@@ -555,7 +562,7 @@ export function useEditorTranslation({
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
               strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batch[0].msbtFile,
@@ -614,7 +621,7 @@ export function useEditorTranslation({
         const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
           { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           { entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, strictJson: userStrictJson !== false, extraInstructions: customPromptInstructions || undefined },
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined, strictJson: userStrictJson !== false, extraInstructions: customPromptInstructions || undefined },
           abortControllerRef.current.signal,
         );
         if (!response.ok) {
@@ -795,7 +802,7 @@ export function useEditorTranslation({
             translationQuality,
             geminiModel: resolveGeminiModel(geminiModel, entries),
             myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined,
+              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
               strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batchFilePath,
