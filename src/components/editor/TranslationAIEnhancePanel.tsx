@@ -691,6 +691,18 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     severityCounts[k] = (severityCounts[k] || 0) + 1;
   }
 
+  const categoryCounts: Record<GrammarCategory, number> = { wrong: 0, reorder: 0, weak: 0 };
+  for (const g of grammarIssues) {
+    const c = (g.category ?? 'wrong') as GrammarCategory;
+    categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+  }
+
+  const categoryConfig: Record<GrammarCategory, { label: string; color: string; icon: React.ReactNode; description: string }> = {
+    wrong: { label: "خاطئة", color: "bg-red-500/10 text-red-600 border-red-500/30", icon: <X className="w-3 h-3" />, description: "ترجمة غير صحيحة فعلاً" },
+    reorder: { label: "ترتيب", color: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: <ArrowRight className="w-3 h-3" />, description: "صحيحة لكن ترتيب الكلمات غير سليم" },
+    weak: { label: "ركيكة", color: "bg-blue-500/10 text-blue-600 border-blue-500/30", icon: <Wand2 className="w-3 h-3" />, description: "مفهومة لكن تحتاج إعادة صياغة" },
+  };
+
   const totalTranslated = entries.filter(e => translations[`${e.msbtFile}:${e.index}`]?.trim()).length;
   const inScopeTotal = entries.filter(e => {
     const t = translations[`${e.msbtFile}:${e.index}`];
