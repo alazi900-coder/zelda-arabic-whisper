@@ -57,7 +57,13 @@ interface GrammarIssue {
   severity?: "high" | "medium" | "low";
   /** Optional detailed explanation of WHY this is a problem. */
   detail?: string;
+  /** Explanation of the fix and why it solves the problem. */
+  fixExplanation?: string;
+  /** Issue category: wrong = خاطئة، reorder = ترتيب غير صحيح، weak = ركيكة */
+  category?: "wrong" | "reorder" | "weak";
 }
+
+type GrammarCategory = "wrong" | "reorder" | "weak";
 
 type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 
@@ -151,6 +157,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<GrammarCategory | null>(null);
   const [processedCount, setProcessedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [scope, setScope] = useState<Scope>("all");
@@ -636,14 +643,21 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   }, [suggestions, filterType, searchQuery]);
 
   const filteredIssues = useMemo(() => {
+    const catOrder: Record<string, number> = { wrong: 0, reorder: 1, weak: 2 };
     return grammarIssues
       .filter(g => {
         if (severityFilter && g.severity !== severityFilter) return false;
+        if (categoryFilter && (g.category ?? 'wrong') !== categoryFilter) return false;
         if (searchQuery && !(`${g.key} ${g.original} ${g.translation} ${g.suggestion} ${g.issue}`).toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
       })
-      .sort((a, b) => (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2));
-  }, [grammarIssues, severityFilter, searchQuery]);
+      .sort((a, b) => {
+        const ca = catOrder[a.category ?? 'wrong'] ?? 0;
+        const cb = catOrder[b.category ?? 'wrong'] ?? 0;
+        if (ca !== cb) return ca - cb;
+        return (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2);
+      });
+  }, [grammarIssues, severityFilter, categoryFilter, searchQuery]);
 
   // ---- Group results by MSBT file ----
   const extractFile = (key: string) => key.replace(/:\d+$/, '') || key;
@@ -677,6 +691,18 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     severityCounts[k] = (severityCounts[k] || 0) + 1;
   }
 
+  const categoryCounts: Record<GrammarCategory, number> = { wrong: 0, reorder: 0, weak: 0 };
+  for (const g of grammarIssues) {
+    const c = (g.category ?? 'wrong') as GrammarCategory;
+    categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+  }
+
+  const categoryConfig: Record<GrammarCategory, { label: string; color: string; icon: React.ReactNode; description: string }> = {
+    wrong: { label: "خاطئة", color: "bg-red-500/10 text-red-600 border-red-500/30", icon: <X className="w-3 h-3" />, description: "ترجمة غير صحيحة فعلاً" },
+    reorder: { label: "ترتيب", color: "bg-amber-500/10 text-amber-600 border-amber-500/30", icon: <ArrowRight className="w-3 h-3" />, description: "صحيحة لكن ترتيب الكلمات غير سليم" },
+    weak: { label: "ركيكة", color: "bg-blue-500/10 text-blue-600 border-blue-500/30", icon: <Wand2 className="w-3 h-3" />, description: "مفهومة لكن تحتاج إعادة صياغة" },
+  };
+
   const totalTranslated = entries.filter(e => translations[`${e.msbtFile}:${e.index}`]?.trim()).length;
   const inScopeTotal = entries.filter(e => {
     const t = translations[`${e.msbtFile}:${e.index}`];
@@ -695,8 +721,17 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     return (
       <div key={`${g.key}-${i}`} className="rounded-xl border border-red-500/20 bg-card p-3 sm:p-4 space-y-2.5 transition-all hover:shadow-sm overflow-hidden">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <AlertTriangle className="w-4 h-4 text-red-500" />
+            {(() => {
+              const cat = (g.category ?? 'wrong') as GrammarCategory;
+              const cc = categoryConfig[cat];
+              return (
+                <Badge variant="outline" className={`text-[10px] gap-1 ${cc.color}`} title={cc.description}>
+                  {cc.icon}{cc.label}
+                </Badge>
+              );
+            })()}
             {g.severity && (
               <Badge variant="outline" className={`text-[10px] ${severityConfig[g.severity]?.color}`}>
                 {severityConfig[g.severity]?.label}
@@ -715,11 +750,18 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             </Button>
           </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">{g.issue}</p>
+        <div className="space-y-1.5">
+          <p className="text-sm font-bold text-red-500 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
+            <span className="text-foreground/60 font-normal">المشكلة: </span>{g.issue}
+          </p>
           {g.detail && g.detail !== g.issue && (
             <p className="text-xs text-muted-foreground leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]">
-              <span className="font-bold text-foreground/70">لماذا؟ </span>{g.detail}
+              <span className="font-bold text-foreground/70">السبب: </span>{g.detail}
+            </p>
+          )}
+          {g.fixExplanation && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed [overflow-wrap:anywhere] [word-break:break-word] bg-emerald-500/5 border border-emerald-500/15 rounded px-2 py-1">
+              <span className="font-bold">الحل المُطبَّق: </span>{g.fixExplanation}
             </p>
           )}
         </div>
@@ -1066,6 +1108,23 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                 </Badge>
               );
             })}
+          </div>
+        )}
+
+        {/* Category filter (grammar) — wrong / reorder / weak */}
+        {grammarIssues.length > 0 && activeTab === "grammar" && (
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant={categoryFilter === null ? "default" : "outline"} className="cursor-pointer text-[10px]" onClick={() => setCategoryFilter(null)}>
+              كل الفئات ({grammarIssues.length})
+            </Badge>
+            {(['wrong', 'reorder', 'weak'] as GrammarCategory[]).map(cat => categoryCounts[cat] ? (
+              <Badge key={cat} variant={categoryFilter === cat ? "default" : "outline"}
+                className={`cursor-pointer text-[10px] gap-1 ${categoryFilter !== cat ? categoryConfig[cat].color : ''}`}
+                title={categoryConfig[cat].description}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}>
+                {categoryConfig[cat].icon}{categoryConfig[cat].label} ({categoryCounts[cat]})
+              </Badge>
+            ) : null)}
           </div>
         )}
 
