@@ -18,11 +18,7 @@ function protectTags(text: string): { cleaned: string; tags: Map<string, string>
 }
 
 function restoreTags(text: string, tags: Map<string, string>): string {
-  let result = text;
-  for (const [placeholder, original] of tags) {
-    result = result.replace(placeholder, original);
-  }
-  return result;
+  return text.replace(/TAG_\d+/g, (m) => tags.get(m) ?? m);
 }
 
 // --- Strict JSON via tool calling (#24) ---

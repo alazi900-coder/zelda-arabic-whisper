@@ -1025,13 +1025,8 @@ Deno.serve(async (req) => {
     });
 
     let totalMatchedTranslations = 0;
-    for (const file of files) {
-      if (!file.name.endsWith('.msbt')) continue;
-      for (let i = 0; i < 999; i++) {
-        const key = `${file.name}:${i}`;
-        if (translations[key] !== undefined && translations[key] !== '') totalMatchedTranslations++;
-        else if (translations[key] === undefined) break;
-      }
+    for (const key of Object.keys(translations)) {
+      if (translations[key] !== '') totalMatchedTranslations++;
     }
 
     console.log(`Modified ${modifiedCount} entries (${expandedCount} expanded), skipped already-arabized: ${skippedAlreadyArabized}`);
