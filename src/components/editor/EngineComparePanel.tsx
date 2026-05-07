@@ -36,12 +36,15 @@ interface Props {
   bedrockModel: string;
   bedrockProxyUrl: string;
   myMemoryEmail: string;
+  userOpenRouterKey?: string;
+  userGroqKey?: string;
+  groqModel?: string;
   onApplyTranslation: (key: string, translation: string) => void;
 }
 
 export default function EngineComparePanel({
   open, onClose, entry, entries, translations, glossary,
-  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, onApplyTranslation,
+  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, userOpenRouterKey, userGroqKey, groqModel, onApplyTranslation,
 }: Props) {
   const [results, setResults] = useState<EngineResult[]>([]);
   const [applied, setApplied] = useState<string | null>(null);
@@ -90,6 +93,12 @@ export default function EngineComparePanel({
     if (userBedrockApiKey) {
       engines.push({ id: "bedrock", label: "Amazon Bedrock", emoji: "☁️" });
     }
+    if (userOpenRouterKey) {
+      engines.push({ id: "openrouter", label: "OpenRouter", emoji: "🌍" });
+    }
+    if (userGroqKey) {
+      engines.push({ id: "groq", label: "Groq", emoji: "⚡" });
+    }
 
     const initialResults: EngineResult[] = engines.map(e => ({
       engine: e.id, label: e.label, emoji: e.emoji,
@@ -127,6 +136,9 @@ export default function EngineComparePanel({
             userBedrockRegion: eng.id === 'bedrock' ? userBedrockRegion : undefined,
             userBedrockModel: eng.id === 'bedrock' ? bedrockModel : undefined,
             bedrockProxyUrl: eng.id === 'bedrock' ? bedrockProxyUrl : undefined,
+            userOpenRouterKey: eng.id === 'openrouter' ? userOpenRouterKey : undefined,
+            userGroqKey: eng.id === 'groq' ? userGroqKey : undefined,
+            groqModel: eng.id === 'groq' ? (groqModel || 'llama-3.3-70b-versatile') : undefined,
             translationEngine: eng.id,
             translationQuality: 'quality',
             myMemoryEmail: eng.id === 'mymemory' ? myMemoryEmail : undefined,

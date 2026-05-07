@@ -14,7 +14,8 @@ export type EngineId =
   | "bedrock"
   | "mymemory"
   | "google"
-  | "openrouter";
+  | "openrouter"
+  | "groq";
 
 export type ModelId =
   | "gemini-2.0-flash"
@@ -28,7 +29,8 @@ export type ModelId =
   | "lovable"
   | "mymemory"
   | "google"
-  | "openrouter-unknown";
+  | "openrouter-unknown"
+  | "groq-llama70b";
 
 interface Pricing {
   input: number;
@@ -55,6 +57,8 @@ const PRICING: Readonly<Record<ModelId, Pricing>> = {
   // are pricier than Claude). We use a conservative middle estimate; for an
   // exact cost the user can check the model card on openrouter.ai.
   "openrouter-unknown": { input: 1.0, output: 5.0 },
+  // Groq pricing: Llama 3.3 70B on GroqCloud — very affordable.
+  "groq-llama70b": { input: 0.59, output: 0.79 },
 };
 
 export interface CostEstimate {
@@ -104,6 +108,7 @@ export function resolveModelId(
     return "bedrock-deepseek-r1";
   }
   if (engine === "openrouter") return "openrouter-unknown";
+  if (engine === "groq") return "groq-llama70b";
   return "lovable";
 }
 
