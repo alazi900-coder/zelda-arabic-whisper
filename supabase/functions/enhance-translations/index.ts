@@ -140,8 +140,10 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
         key: entries[i.index]?.key || '',
         original: entries[i.index]?.original || '',
         translation: entries[i.index]?.translation || '',
+        category: ['wrong', 'reorder', 'weak'].includes(i.category) ? i.category : 'wrong',
         issue: i.issue,
         detail: i.detail || '',
+        fixExplanation: i.fix_explanation || i.fixExplanation || '',
         suggestion: i.suggestion,
         severity: i.severity || 'medium',
       })).filter((i: any) => i.key && i.suggestion);
