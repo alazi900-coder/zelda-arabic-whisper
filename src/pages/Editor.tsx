@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   ArrowRight, Loader2, Filter, Sparkles, Tag, Upload, FileDown, LogIn, BookOpen,
   Eye, EyeOff, RotateCcw, ChevronLeft, ChevronRight, BarChart3, Replace, Columns, Key, Search,
-  FileText, BookMarked, Pin, Lock, LockOpen,
+  FileText, BookMarked, Pin, Lock, LockOpen, PanelLeftClose,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -110,6 +110,9 @@ const Editor = () => {
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
   const [enhanceResults, setEnhanceResults] = React.useState<EnhanceResult[]>([]);
   const [enhancing, setEnhancing] = React.useState(false);
+  const [sideBySide, setSideBySide] = React.useState(false);
+  const [splitView, setSplitView] = React.useState(false);
+  const [splitViewKey, setSplitViewKey] = React.useState<string | null>(null);
 
   const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
 
@@ -285,6 +288,40 @@ const Editor = () => {
     for (const arr of map.values()) arr.sort((a, b) => a.index - b.index);
     return map;
   }, [editor.state?.entries]);
+
+  const handleJumpToUntranslated = React.useCallback(() => {
+    if (!editor.state) return;
+    const entries = editor.displayedEntries;
+    const startIdx = (editor.currentPage * PAGE_SIZE) + 1;
+    const findFrom = (from: number) => {
+      for (let i = from; i < entries.length; i++) {
+        const key = `${entries[i].msbtFile}:${entries[i].index}`;
+        const t = editor.state!.translations[key]?.trim();
+        if (!t || t === entries[i].original || t === entries[i].original.trim()) return i;
+      }
+      return -1;
+    };
+    let idx = findFrom(startIdx);
+    if (idx === -1) idx = findFrom(0);
+    if (idx === -1) {
+      toast({ title: "لا توجد نصوص غير مترجمة" });
+      return;
+    }
+    const page = Math.floor(idx / PAGE_SIZE);
+    editor.setCurrentPage(page);
+    setTimeout(() => {
+      const cards = document.querySelectorAll('[data-entry-key]');
+      const targetKey = `${entries[idx].msbtFile}:${entries[idx].index}`;
+      for (const card of cards) {
+        if (card.getAttribute('data-entry-key') === targetKey) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          (card as HTMLElement).classList.add('ring-2', 'ring-primary');
+          setTimeout(() => (card as HTMLElement).classList.remove('ring-2', 'ring-primary'), 2000);
+          break;
+        }
+      }
+    }, 100);
+  }, [editor.state, editor.displayedEntries, editor.currentPage, editor.setCurrentPage]);
 
   if (!editor.state) {
     return (
@@ -1000,6 +1037,12 @@ const Editor = () => {
                   <Button variant={showDiffView ? "secondary" : "outline"} size="sm" onClick={() => setShowDiffView(!showDiffView)} className="font-body text-xs">
                     <Columns className="w-3 h-3" /> مقارنة
                   </Button>
+                  <Button variant={sideBySide ? "secondary" : "outline"} size="sm" onClick={() => setSideBySide(!sideBySide)} className="font-body text-xs">
+                    <Columns className="w-3 h-3" /> EN | AR
+                  </Button>
+                  <Button variant={splitView ? "secondary" : "outline"} size="sm" onClick={() => { setSplitView(!splitView); if (!splitView) setSplitViewKey(null); }} className="font-body text-xs">
+                    <PanelLeftClose className="w-3 h-3" /> تقسيم
+                  </Button>
                 </>
               )}
             </div>
@@ -1162,13 +1205,16 @@ const Editor = () => {
             </div>
           )}
 
-          {/* Cloud & Actions Toolbar */}
+          {/* Cloud & Actions Toolbar — sticky on mobile */}
+          <div className={isMobile ? "sticky top-0 z-30 bg-background/95 backdrop-blur-sm pb-2 -mx-3 px-3 pt-2 border-b border-border/50" : ""}>
           <EditorToolbar
             isMobile={isMobile} editor={editor} untranslatedCount={untranslatedCount}
             polishing={polishing} handlePolishArabic={handlePolishArabic}
             setShowInconsistencies={setShowInconsistencies} setShowSmartImprove={setShowSmartImprove}
             enhancing={enhancing} handleEnhanceWithContext={handleEnhanceWithContext}
+            onJumpToUntranslated={handleJumpToUntranslated}
           />
+          </div>
 
           {/* Build Options */}
           <Card className="mb-3 border-border">
@@ -1236,62 +1282,110 @@ const Editor = () => {
           )}
 
           {/* Entries List */}
-          <div className="space-y-2">
-            {editor.displayedEntries.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>
-            ) : (
-              editor.paginatedEntries
-                .filter(entry => filterDifficulty === 'all' || classifyDifficulty(entry).level === filterDifficulty)
-                .map((entry) => {
-                  const key = `${entry.msbtFile}:${entry.index}`;
-                  const difficulty = classifyDifficulty(entry);
-                  const diffConf = DIFFICULTY_CONFIG[difficulty.level];
-                  // Use pre-built per-file map (C1 fix): O(1) lookup vs O(N) filter+sort
-                  const sameFileEntries = entriesByFile.get(entry.msbtFile) || [];
-                  const tm: { key: string; translation: string }[] = [];
-                  if (editor.state) {
-                    for (const e of sameFileEntries) {
-                      if (e.index === entry.index) continue;
-                      const t = editor.state.translations[`${e.msbtFile}:${e.index}`] || '';
-                      if (t.trim()) {
-                        tm.push({ key: `${e.msbtFile}:${e.index}`, translation: t });
-                        if (tm.length >= 5) break;
-                      }
-                    }
+          {(() => {
+            const filteredPageEntries = editor.paginatedEntries
+              .filter(entry => filterDifficulty === 'all' || classifyDifficulty(entry).level === filterDifficulty);
+
+            const renderFullEntry = (entry: ExtractedEntry) => {
+              const key = `${entry.msbtFile}:${entry.index}`;
+              const difficulty = classifyDifficulty(entry);
+              const diffConf = DIFFICULTY_CONFIG[difficulty.level];
+              const sameFileEntries = entriesByFile.get(entry.msbtFile) || [];
+              const tm: { key: string; translation: string }[] = [];
+              if (editor.state) {
+                for (const e of sameFileEntries) {
+                  if (e.index === entry.index) continue;
+                  const t = editor.state.translations[`${e.msbtFile}:${e.index}`] || '';
+                  if (t.trim()) {
+                    tm.push({ key: `${e.msbtFile}:${e.index}`, translation: t });
+                    if (tm.length >= 5) break;
                   }
-                  const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
-                  const adjacentContext = {
-                    prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
-                    next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
-                  };
-                  const extraToolButtons = [
-                    { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
-                    { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
-                    { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
-                  ];
-                  return (
-                    <div key={key} className="relative">
-                      <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
-                          {diffConf.emoji} {diffConf.label}
-                        </span>
-                      </div>
-                      <EntryCard entry={entry} translation={editor.state?.translations[key] || ''} glossary={editor.state?.glossary}
-                        adjacentContext={adjacentContext} isProtected={editor.state?.protectedEntries?.has(key) || false}
-                        hasProblem={editor.qualityStats.problemKeys.has(key)} isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
-                        isMobile={isMobile} translatingSingle={editor.translatingSingle} improvingTranslations={editor.improvingTranslations}
-                        previousTranslations={editor.previousTranslations} isTranslationTooShort={editor.isTranslationTooShort}
-                        isTranslationTooLong={editor.isTranslationTooLong} hasStuckChars={editor.hasStuckChars} isMixedLanguage={editor.isMixedLanguage}
-                        updateTranslation={editor.updateTranslation} handleTranslateSingle={editor.handleTranslateSingle}
-                        handleImproveSingleTranslation={editor.handleImproveSingleTranslation} handleUndoTranslation={editor.handleUndoTranslation}
-                        handleFixReversed={editor.handleFixReversed} handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
-                        translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote}
-                        extraToolButtons={extraToolButtons} />
-                    </div>
-                  );
-                })
-            )}
-          </div>
+                }
+              }
+              const entryIdx = sameFileEntries.findIndex(e => e.index === entry.index);
+              const adjacentContext = {
+                prev: entryIdx > 0 ? sameFileEntries[entryIdx - 1].original.slice(0, 60) : undefined,
+                next: entryIdx < sameFileEntries.length - 1 ? sameFileEntries[entryIdx + 1].original.slice(0, 60) : undefined,
+              };
+              const extraToolButtons = [
+                { onClick: () => openSceneContext(entry), icon: "🎬", title: "عرض سياق المشهد", cls: "bg-muted/40 text-muted-foreground hover:bg-muted" },
+                { onClick: () => openContextSuggest(entry), icon: "💡", title: "اقتراحات سياقية بالـ AI", cls: "bg-primary/10 text-primary hover:bg-primary/20" },
+                { onClick: () => openEngineCompare(entry), icon: "⚖️", title: "مقارنة بين المحركات", cls: "bg-secondary/10 text-secondary hover:bg-secondary/20" },
+              ];
+              return (
+                <div key={key} className="relative" data-entry-key={key}>
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1">
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded ${diffConf.bgColor} ${diffConf.color} border border-current/10`} title={`${difficulty.reasons.join('، ')} • ~${difficulty.estimatedMinutes} دقيقة`}>
+                      {diffConf.emoji} {diffConf.label}
+                    </span>
+                  </div>
+                  <EntryCard entry={entry} translation={editor.state?.translations[key] || ''} glossary={editor.state?.glossary}
+                    adjacentContext={adjacentContext} isProtected={editor.state?.protectedEntries?.has(key) || false}
+                    hasProblem={editor.qualityStats.problemKeys.has(key)} isDamagedTag={editor.qualityStats.damagedTagKeys.has(key)}
+                    isMobile={isMobile} translatingSingle={editor.translatingSingle} improvingTranslations={editor.improvingTranslations}
+                    previousTranslations={editor.previousTranslations} isTranslationTooShort={editor.isTranslationTooShort}
+                    isTranslationTooLong={editor.isTranslationTooLong} hasStuckChars={editor.hasStuckChars} isMixedLanguage={editor.isMixedLanguage}
+                    updateTranslation={editor.updateTranslation} handleTranslateSingle={editor.handleTranslateSingle}
+                    handleImproveSingleTranslation={editor.handleImproveSingleTranslation} handleUndoTranslation={editor.handleUndoTranslation}
+                    handleFixReversed={editor.handleFixReversed} handleLocalFixDamagedTag={editor.handleLocalFixDamagedTag}
+                    translationMemory={tm} translatorNotes={translatorNotes} onUpdateNote={handleUpdateNote}
+                    extraToolButtons={extraToolButtons} sideBySide={sideBySide} />
+                </div>
+              );
+            };
+
+            if (editor.displayedEntries.length === 0) {
+              return <p className="text-center text-muted-foreground py-8">لا توجد نصوص مطابقة</p>;
+            }
+
+            // Split view: two-column layout on desktop
+            if (splitView && !isMobile) {
+              const selectedEntry = splitViewKey
+                ? filteredPageEntries.find(e => `${e.msbtFile}:${e.index}` === splitViewKey) || null
+                : null;
+
+              return (
+                <div className="grid grid-cols-[1fr,1fr] gap-4">
+                  {/* Entries compact list */}
+                  <div className="space-y-1 max-h-[70vh] overflow-y-auto border border-border/30 rounded-lg p-2">
+                    {filteredPageEntries.map((entry) => {
+                      const key = `${entry.msbtFile}:${entry.index}`;
+                      const trans = editor.state?.translations[key] || '';
+                      const isSelected = splitViewKey === key;
+                      const hasTranslation = trans.trim().length > 0 && trans.trim() !== entry.original.trim();
+                      return (
+                        <div key={key} data-entry-key={key} onClick={() => setSplitViewKey(key)}
+                          className={`p-2 rounded-md cursor-pointer transition-colors border ${isSelected ? 'bg-primary/10 border-primary/30' : 'border-transparent hover:bg-muted/50'}`}>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${hasTranslation ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                            <span className="text-[10px] text-muted-foreground truncate">{entry.label}</span>
+                          </div>
+                          <p className="text-xs truncate" dir="ltr">{entry.original.slice(0, 80)}</p>
+                          {hasTranslation && <p className="text-xs text-muted-foreground truncate mt-0.5" dir="rtl">{trans.slice(0, 80)}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Preview panel */}
+                  <div className="sticky top-4 self-start">
+                    {selectedEntry ? renderFullEntry(selectedEntry) : (
+                      <Card className="p-8 text-center text-muted-foreground border-dashed">
+                        <PanelLeftClose className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">اضغط على نص من القائمة لعرض التفاصيل</p>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            // Normal list view
+            return (
+              <div className="space-y-2">
+                {filteredPageEntries.map(renderFullEntry)}
+              </div>
+            );
+          })()}
 
           {/* Pagination Footer */}
           <PaginationControls currentPage={editor.currentPage} totalPages={editor.totalPages} totalItems={editor.filteredEntries.length} pageSize={PAGE_SIZE} setCurrentPage={editor.setCurrentPage} />
