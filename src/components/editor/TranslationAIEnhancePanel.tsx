@@ -57,7 +57,13 @@ interface GrammarIssue {
   severity?: "high" | "medium" | "low";
   /** Optional detailed explanation of WHY this is a problem. */
   detail?: string;
+  /** Explanation of the fix and why it solves the problem. */
+  fixExplanation?: string;
+  /** Issue category: wrong = خاطئة، reorder = ترتيب غير صحيح، weak = ركيكة */
+  category?: "wrong" | "reorder" | "weak";
 }
+
+type GrammarCategory = "wrong" | "reorder" | "weak";
 
 type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 
