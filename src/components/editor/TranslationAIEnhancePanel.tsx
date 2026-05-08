@@ -13,7 +13,7 @@ import {
 import {
   Sparkles, Loader2, Check, X, AlertTriangle, BookOpen, Wand2, Square,
   RotateCcw, Type, Search, Zap, Eye, Copy, ArrowRight, Filter, Download,
-  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2, WifiOff, Wifi, Upload,
+  Pencil, Undo2, ChevronDown, ChevronUp, FileText, Trash2, Upload,
   FolderOpen,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -23,7 +23,6 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { scanAllLocallyAsync, isGrammarIssue, type LocalIssue } from "@/lib/local-enhance-scanner";
 import { backTranslateBatch, diceSimilarity } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
@@ -176,7 +175,6 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [appliedHistory, setAppliedHistory] = useState<{ key: string; previous: string; applied: string; ts: number }[]>([]);
 
-  const [offlineMode, setOfflineMode] = useState(false);
   const [reviewMem, setReviewMem] = useState<ReviewMemory>({ approved: {}, dismissed: {} });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -243,84 +241,6 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
     setIsAnalyzing(true);
     setActiveTab(mode);
     abortRef.current = false;
-
-    // ----- OFFLINE local scan -----
-    if (offlineMode) {
-      const inputs = translatedEntries.map(e => ({
-        key: `${e.msbtFile}:${e.index}`,
-        original: e.original,
-        translation: translations[`${e.msbtFile}:${e.index}`],
-        maxBytes: e.maxBytes ?? 0,
-      }));
-      setProgress({ current: 0, total: inputs.length });
-
-      const allIssues = await scanAllLocallyAsync(
-        inputs,
-        (done, total) => {
-          if (abortRef.current) return;
-          setProgress({ current: done, total });
-        },
-        () => abortRef.current,
-        (batchIssues) => {
-          if (abortRef.current) return;
-          const grammarBatch = batchIssues.filter(i => isGrammarIssue(i.type));
-          const styleBatch = batchIssues.filter(i => !isGrammarIssue(i.type));
-          const target = mode === "grammar" ? grammarBatch : styleBatch;
-          if (mode === "grammar" && target.length > 0) {
-            setGrammarIssues(prev => [...prev, ...target.map(i => ({
-              key: i.key, original: i.original, translation: i.translation,
-              issue: i.issue, suggestion: i.suggestion, severity: i.severity,
-              detail: i.reason,
-            }))]);
-          } else if (mode !== "grammar" && target.length > 0) {
-            setSuggestions(prev => [...prev, ...target.map(i => ({
-              key: i.key, original: i.original, current: i.translation,
-              suggested: i.suggestion, reason: i.issue, detail: i.reason,
-              type: i.type === "grammar" ? "style" : i.type,
-            }))]);
-          }
-        },
-      );
-
-      if (abortRef.current) {
-        setIsAnalyzing(false);
-        setProgress(null);
-        return;
-      }
-
-      for (const t of inputs) processedKeysRef.current.set(t.key, t.translation);
-      setProcessedCount(processedKeysRef.current.size);
-
-      // Final fallback: if no issues in the target mode, show the other mode's issues
-      const grammarBucket = allIssues.filter(i => isGrammarIssue(i.type));
-      const styleBucket = allIssues.filter(i => !isGrammarIssue(i.type));
-      const targetBucket = mode === "grammar" ? grammarBucket : styleBucket;
-      const fallbackBucket = mode === "grammar" ? styleBucket : grammarBucket;
-      if (targetBucket.length === 0 && fallbackBucket.length > 0) {
-        if (mode === "grammar") {
-          setSuggestions(prev => [...prev, ...fallbackBucket.map(i => ({
-            key: i.key, original: i.original, current: i.translation,
-            suggested: i.suggestion, reason: i.issue, detail: i.reason,
-            type: i.type === "grammar" ? "style" as const : i.type,
-          }))]);
-        } else {
-          setGrammarIssues(prev => [...prev, ...fallbackBucket.map(i => ({
-            key: i.key, original: i.original, translation: i.translation,
-            issue: i.issue, suggestion: i.suggestion, severity: i.severity,
-            detail: i.reason,
-          }))]);
-        }
-      }
-
-      const chosen = targetBucket.length > 0 ? targetBucket : fallbackBucket;
-      setIsAnalyzing(false);
-      setProgress(null);
-      toast({
-        title: `🔌 فحص محلي بدون اتصال: ${chosen.length} مشكلة`,
-        description: chosen.length === 0 ? "لا توجد مشاكل في النطاق المحدد" : "لا يتطلب اتصالاً ولا رصيداً"
-      });
-      return;
-    }
 
     // ----- Google Translate accuracy check (free, no API key) -----
     if (model === "google-translate-check") {
@@ -1005,12 +925,6 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                 </Button>
               </div>
             )}
-
-            <label className="flex items-center gap-2 text-xs cursor-pointer pt-1 border-t pt-2">
-              <input type="checkbox" checked={offlineMode} onChange={(e) => setOfflineMode(e.target.checked)} className="accent-primary" />
-              {offlineMode ? <WifiOff className="w-3.5 h-3.5 text-amber-500" /> : <Wifi className="w-3.5 h-3.5 text-green-500" />}
-              <span>وضع الفحص بدون إنترنت (محرك محلي ذكي)</span>
-            </label>
 
             <div className="border-t pt-2 space-y-1.5">
               <p className="text-[10px] text-muted-foreground">
