@@ -155,6 +155,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   translations,
   onApplySuggestion,
   glossary,
+  userGroqKey,
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<EnhanceSuggestion[]>([]);
