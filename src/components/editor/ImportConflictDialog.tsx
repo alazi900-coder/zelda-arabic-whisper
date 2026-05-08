@@ -3,7 +3,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, X, CheckCircle2, XCircle, ChevronRight, ChevronLeft } from "lucide-react";
 
 /** Cap rendered rows per page so the dialog stays usable on mobile with very large imports. */
@@ -85,7 +84,7 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-3" dir="rtl">
+      <DialogContent className="max-w-3xl max-h-[90dvh] h-[90dvh] sm:h-auto flex flex-col gap-3 overflow-hidden" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-display text-lg flex items-center gap-2">
             🔄 مقارنة الترجمات قبل الاستيراد
@@ -151,7 +150,14 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
           </div>
         )}
 
-        <ScrollArea className="flex-1 max-h-[60vh] border border-border rounded-md">
+        {/*
+          NOTE: Use a native scroll container instead of Radix ScrollArea — its
+          custom-scrollbar viewport doesn't handle touch reliably on Android
+          Chrome, leaving large lists effectively unscrollable on mobile.
+          `min-h-0` is required so this flex child can actually shrink and
+          scroll inside the column-flex DialogContent.
+        */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain border border-border rounded-md touch-pan-y">
           <div className="divide-y divide-border">
             {visibleConflicts.map((c, i) => {
               const decision = decisions[c.key] ?? "approve";
@@ -220,7 +226,7 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="flex gap-2 sm:gap-2">
           <Button variant="ghost" onClick={onCancel} className="font-body">
