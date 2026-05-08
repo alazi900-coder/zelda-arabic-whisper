@@ -23,7 +23,7 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { backTranslateBatch, diceSimilarity, wordsJaccard, orderOverlap } from "@/lib/back-translate";
+import { backTranslateBatch, wordsJaccard, orderOverlap } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -90,8 +90,10 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "groq-mixtral", label: "Mixtral 8x7B — Groq", group: "groq" },
 ];
 
-const GOOGLE_CHECK_THRESHOLD = 0.7;
 const GOOGLE_CHECK_CONCURRENCY = 3;
+// Rule 1 thresholds: words present but order broken.
+const GOOGLE_PRESENCE_THRESHOLD = 0.7;
+const GOOGLE_ORDER_THRESHOLD = 0.4;
 
 // Tag patterns reused from local-enhance-scanner so Google check can detect
 // translations that dropped technical markers from the original English.
@@ -309,13 +311,11 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             }
             okCount++;
             processedKeysRef.current.set(entry.key, entry.translation);
-            const score = diceSimilarity(entry.original, result.english);
-            if (score >= GOOGLE_CHECK_THRESHOLD) continue;
 
-            // Rule 1: words present but order broken — distinguish from generic semantic divergence.
+            // Rule 1: words present but order broken — the only post-back-translation rule.
             const presence = wordsJaccard(entry.original, result.english);
             const order = orderOverlap(entry.original, result.english);
-            if (presence >= 0.7 && order < 0.4) {
+            if (presence >= GOOGLE_PRESENCE_THRESHOLD && order < GOOGLE_ORDER_THRESHOLD) {
               totalIssues++;
               const presPct = Math.round(presence * 100);
               const ordPct = Math.round(order * 100);
@@ -328,22 +328,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                   `الكلمات موجودة (${presPct}%) لكن ترتيبها مكسور (${ordPct}% فقط من تتابع الكلمات يطابق الأصل).\n` +
                   `المعنى مختلّ — راجع ترتيب الجملة.`,
               });
-              continue;
             }
-
-            totalIssues++;
-            const pct = Math.round(score * 100);
-            const sev: "high" | "medium" | "low" =
-              score < 0.35 ? "high" :
-              score < 0.55 ? "medium" : "low";
-            newIssues.push({
-              key: entry.key, original: entry.original, translation: entry.translation,
-              issue: `تباين دلالي (${pct}%) — الترجمة العكسية: "${result.english}"`,
-              suggestion: entry.translation, severity: sev,
-              detail:
-                `ترجمنا النص العربي عكسياً عبر Google Translate فحصلنا على:\n«${result.english}»\n` +
-                `تشابهها مع الأصل الإنجليزي ${pct}% فقط. هذا مؤشّر على انحراف المعنى عن الأصل. راجع الترجمة يدوياً.`,
-            });
           }
           if (newIssues.length > 0) {
             setGrammarIssues(prev => [...prev, ...newIssues]);
@@ -367,7 +352,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         toast({
           title: totalIssues > 0
             ? `🔍 Google: ${totalIssues} ترجمة بحاجة مراجعة`
-            : `✅ الترجمات دقيقة (عتبة ${Math.round(GOOGLE_CHECK_THRESHOLD * 100)}%)`,
+            : `✅ لا وسوم مفقودة ولا أخطاء ترتيب`,
           description: failedCount > 0
             ? `تم فحص ${okCount} بنجاح • فشل ${failedCount} • ${totalIssues} مشكلة`
             : `تم فحص ${okCount} ترجمة • ${totalIssues} مشكلة`,
