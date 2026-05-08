@@ -1025,6 +1025,7 @@ const Editor = () => {
                 translations={editor.state.translations}
                 glossary={editor.activeGlossary}
                 onApplySuggestion={editor.updateTranslation}
+                userGroqKey={editor.userGroqKey}
               />
             </div>
           )}
