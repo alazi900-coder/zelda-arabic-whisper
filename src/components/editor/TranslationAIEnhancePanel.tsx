@@ -452,7 +452,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             await new Promise(r => setTimeout(r, 5000));
             try {
               const { data } = await supabase.functions.invoke('enhance-translations', {
-                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model },
+                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model, userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined },
               });
               for (const t of textsToAnalyze) processedKeysRef.current.set(t.key, t.translation);
               setProcessedCount(processedKeysRef.current.size);
