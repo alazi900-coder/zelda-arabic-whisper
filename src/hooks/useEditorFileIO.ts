@@ -17,9 +17,14 @@ export interface ImportConflictSplit {
 }
 
 /**
- * Split an incoming translations map into conflicts (existing translation
- * differs from the new value) and auto-applies (no existing translation, or
- * the existing value already equals the incoming one).
+ * Split an incoming translations map into "conflicts" (any key that already
+ * has a non-empty existing translation, regardless of whether the new value
+ * differs) and auto-applies (no existing translation at all, or only
+ * whitespace).
+ *
+ * Note: We surface ALL overlaps — including byte-identical ones — so the user
+ * can review every translation that's about to be replaced. Identical entries
+ * are tagged with `identical: true` so the dialog can render them subtly.
  *
  * Pure function so it can be unit-tested without React state.
  */
@@ -33,7 +38,7 @@ export function splitImportByConflict(
   const autoApply: Record<string, string> = {};
   for (const [key, value] of Object.entries(incoming)) {
     const existing = currentTranslations[key];
-    if (existing && existing.trim() && existing !== value) {
+    if (existing && existing.trim()) {
       const entry = entryMap.get(key);
       conflicts.push({
         key,
@@ -42,6 +47,7 @@ export function splitImportByConflict(
         original: entry?.original ?? "",
         oldTranslation: existing,
         newTranslation: value,
+        identical: existing === value,
       });
     } else {
       autoApply[key] = value;
