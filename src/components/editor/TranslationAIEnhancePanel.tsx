@@ -23,7 +23,7 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { backTranslateBatch, diceSimilarity } from "@/lib/back-translate";
+import { backTranslateBatch, diceSimilarity, wordsJaccard, orderOverlap } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -92,6 +92,11 @@ const MODEL_OPTIONS: ModelOption[] = [
 
 const GOOGLE_CHECK_THRESHOLD = 0.7;
 const GOOGLE_CHECK_CONCURRENCY = 3;
+
+// Tag patterns reused from local-enhance-scanner so Google check can detect
+// translations that dropped technical markers from the original English.
+const GOOGLE_TAG_RE = /\[[A-Z][^\]]*\]/g;
+const GOOGLE_PUA_RE = /[\uE000-\uF8FF\uFFF9-\uFFFC]/g;
 
 // --- Diff helpers: word-level + sentence-level ---
 function splitTokens(s: string, mode: "word" | "sentence"): string[] {
@@ -253,10 +258,36 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
       setProgress({ current: 0, total: inputs.length });
       setActiveTab("grammar");
 
+      // Rule 2: local pre-check for missing technical tags. Runs before the
+      // back-translation and does not need network access.
+      const preCheckIssues: GrammarIssue[] = [];
+      for (const entry of inputs) {
+        const origTags = (entry.original.match(GOOGLE_TAG_RE) || []).length;
+        const transTags = (entry.translation.match(GOOGLE_TAG_RE) || []).length;
+        const origPua = (entry.original.match(GOOGLE_PUA_RE) || []).length;
+        const transPua = (entry.translation.match(GOOGLE_PUA_RE) || []).length;
+        const missingTags = Math.max(0, origTags - transTags);
+        const missingPua = Math.max(0, origPua - transPua);
+        if (missingTags === 0 && missingPua === 0) continue;
+        const parts: string[] = [];
+        if (missingTags > 0) parts.push(`${missingTags} وسم/وسوم [Tag]`);
+        if (missingPua > 0) parts.push(`${missingPua} رمز PUA`);
+        preCheckIssues.push({
+          key: entry.key, original: entry.original, translation: entry.translation,
+          issue: `وسوم تقنية مفقودة (${parts.join(' + ')})`,
+          suggestion: entry.translation, severity: "high",
+          detail:
+            `الأصل الإنجليزي يحوي ${origTags} وسماً [Tag] و ${origPua} رمز PUA.\n` +
+            `الترجمة العربية تحوي ${transTags} وسماً و ${transPua} رمز PUA.\n` +
+            `فقد الوسوم يكسر التحكّم في الألوان أو المتغيّرات داخل النص. أضف الوسوم الناقصة قبل الاستمرار.`,
+        });
+      }
+      if (preCheckIssues.length > 0) setGrammarIssues(prev => [...prev, ...preCheckIssues]);
+
       const arabicTexts = inputs.map(i => i.translation);
       let failedCount = 0;
       let okCount = 0;
-      let totalIssues = 0;
+      let totalIssues = preCheckIssues.length;
 
       await backTranslateBatch(
         arabicTexts,
@@ -280,6 +311,26 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             processedKeysRef.current.set(entry.key, entry.translation);
             const score = diceSimilarity(entry.original, result.english);
             if (score >= GOOGLE_CHECK_THRESHOLD) continue;
+
+            // Rule 1: words present but order broken — distinguish from generic semantic divergence.
+            const presence = wordsJaccard(entry.original, result.english);
+            const order = orderOverlap(entry.original, result.english);
+            if (presence >= 0.7 && order < 0.4) {
+              totalIssues++;
+              const presPct = Math.round(presence * 100);
+              const ordPct = Math.round(order * 100);
+              newIssues.push({
+                key: entry.key, original: entry.original, translation: entry.translation,
+                issue: `ترتيب غير صحيح — الكلمات موجودة لكن مرتّبة خاطئاً`,
+                suggestion: entry.translation, severity: "medium",
+                detail:
+                  `الترجمة العكسية لـ Google: «${result.english}»\n` +
+                  `الكلمات موجودة (${presPct}%) لكن ترتيبها مكسور (${ordPct}% فقط من تتابع الكلمات يطابق الأصل).\n` +
+                  `المعنى مختلّ — راجع ترتيب الجملة.`,
+              });
+              continue;
+            }
+
             totalIssues++;
             const pct = Math.round(score * 100);
             const sev: "high" | "medium" | "low" =
