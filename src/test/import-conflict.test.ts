@@ -42,6 +42,24 @@ describe("splitImportByConflict", () => {
     expect(out.autoApply).toEqual({ "a.msbt:1": "مرحبا" });
   });
 
+  it("treats auto-detected entries (existing === entry.original) as empty (auto-apply)", () => {
+    const entries = [entry("a.msbt", 1, "مرحبا بكم")];
+    const incoming = { "a.msbt:1": "أهلاً وسهلاً" };
+    const current = { "a.msbt:1": "مرحبا بكم" };
+    const out = splitImportByConflict(incoming, current, entries);
+    expect(out.conflicts).toHaveLength(0);
+    expect(out.autoApply).toEqual({ "a.msbt:1": "أهلاً وسهلاً" });
+  });
+
+  it("treats trim-equal auto-detected entries as empty (auto-apply)", () => {
+    const entries = [entry("a.msbt", 1, "مرحبا بكم")];
+    const incoming = { "a.msbt:1": "أهلاً وسهلاً" };
+    const current = { "a.msbt:1": "  مرحبا بكم  \n" };
+    const out = splitImportByConflict(incoming, current, entries);
+    expect(out.conflicts).toHaveLength(0);
+    expect(out.autoApply).toEqual({ "a.msbt:1": "أهلاً وسهلاً" });
+  });
+
   it("creates a conflict when existing differs from incoming (identical=false)", () => {
     const entries = [entry("a.msbt", 1, "Hi there", "Greeting")];
     const incoming = { "a.msbt:1": "أهلاً وسهلاً" };

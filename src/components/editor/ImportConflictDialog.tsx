@@ -4,7 +4,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, X, CheckCircle2, XCircle } from "lucide-react";
+import { Check, X, CheckCircle2, XCircle, ChevronRight, ChevronLeft } from "lucide-react";
+
+/** Cap rendered rows per page so the dialog stays usable on mobile with very large imports. */
+const PAGE_SIZE = 100;
 
 export interface ImportConflict {
   key: string;
@@ -33,11 +36,24 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
 }) => {
   // Per-key decision; default = "approve" so users can hit "تطبيق" without ticking each row.
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [page, setPage] = useState(0);
 
   // Reset decisions when a new staged import comes in (different conflict set).
   useEffect(() => {
-    if (open) setDecisions({});
+    if (open) {
+      setDecisions({});
+      setPage(0);
+    }
   }, [open, conflicts]);
+
+  const pageCount = Math.max(1, Math.ceil(conflicts.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageStart = safePage * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, conflicts.length);
+  const visibleConflicts = useMemo(
+    () => conflicts.slice(pageStart, pageEnd),
+    [conflicts, pageStart, pageEnd],
+  );
 
   const approvedCount = useMemo(
     () => conflicts.filter(c => (decisions[c.key] ?? "approve") === "approve").length,
@@ -104,10 +120,42 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
           </span>
         </div>
 
+        {pageCount > 1 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground border-b border-border pb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              className="h-7 px-2 font-body"
+              aria-label="السابق"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <span className="font-body">
+              الصفحة {safePage + 1} / {pageCount}
+              <span className="mx-1 text-muted-foreground/60">
+                — السطور {pageStart + 1}…{pageEnd} من {conflicts.length}
+              </span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+              disabled={safePage >= pageCount - 1}
+              className="h-7 px-2 font-body mr-auto"
+              aria-label="التالي"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
         <ScrollArea className="flex-1 max-h-[60vh] border border-border rounded-md">
           <div className="divide-y divide-border">
-            {conflicts.map((c, i) => {
+            {visibleConflicts.map((c, i) => {
               const decision = decisions[c.key] ?? "approve";
+              const globalIndex = pageStart + i;
               return (
                 <div
                   key={c.key}
@@ -115,7 +163,7 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
                 >
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded">
-                      {i + 1}
+                      {globalIndex + 1}
                     </span>
                     <span className="text-[11px] text-muted-foreground truncate max-w-[260px]" title={c.file}>
                       {c.file}
