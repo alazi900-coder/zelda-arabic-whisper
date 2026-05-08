@@ -1,8 +1,70 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { parseEnglishOnlyTxt } from "@/lib/english-only-txt";
 import type { EditorState } from "@/components/editor/types";
 import { ExtractedEntry, hasArabicChars, unReverseBidi } from "@/components/editor/types";
+import type { ImportConflict } from "@/components/editor/ImportConflictDialog";
+
+/**
+ * Result of splitting an incoming `{key: translation}` map against the
+ * editor's current translations. Conflicts are shown in the import-conflict
+ * dialog; auto-apply entries are added silently when the user confirms (or
+ * immediately when there are no conflicts).
+ */
+export interface ImportConflictSplit {
+  conflicts: ImportConflict[];
+  autoApply: Record<string, string>;
+}
+
+/**
+ * Split an incoming translations map into conflicts (existing translation
+ * differs from the new value) and auto-applies (no existing translation, or
+ * the existing value already equals the incoming one).
+ *
+ * Pure function so it can be unit-tested without React state.
+ */
+export function splitImportByConflict(
+  incoming: Record<string, string>,
+  currentTranslations: Record<string, string>,
+  entries: ExtractedEntry[],
+): ImportConflictSplit {
+  const entryMap = new Map(entries.map(e => [`${e.msbtFile}:${e.index}`, e]));
+  const conflicts: ImportConflict[] = [];
+  const autoApply: Record<string, string> = {};
+  for (const [key, value] of Object.entries(incoming)) {
+    const existing = currentTranslations[key];
+    if (existing && existing.trim() && existing !== value) {
+      const entry = entryMap.get(key);
+      conflicts.push({
+        key,
+        file: entry?.msbtFile ?? key,
+        label: entry?.label ?? "",
+        original: entry?.original ?? "",
+        oldTranslation: existing,
+        newTranslation: value,
+      });
+    } else {
+      autoApply[key] = value;
+    }
+  }
+  return { conflicts, autoApply };
+}
+
+interface PendingImport {
+  conflicts: ImportConflict[];
+  autoApply: Record<string, string>;
+  sourceLabel: string;
+  /** When true, schedule the post-import bidi auto-correction (JSON flow). */
+  runBidiPostFix: boolean;
+  /** Truncation/skipped-line metadata for JSON imports, used in the toast. */
+  meta?: { wasTruncated: boolean; skippedCount: number };
+  /** Total imported count before filtering — used for `appliedCount/totalImported` toasts. */
+  totalImported: number;
+  /** Empty-block count from English-TXT imports, used in the toast. */
+  emptyCount?: number;
+  /** Source flow, controls toast wording. */
+  flow: "json" | "english-txt" | "csv";
+}
 
 /** Parse a single JSON object chunk, repairing common issues */
 function repairSingleChunk(raw: string): Record<string, string> | null {
@@ -139,6 +201,117 @@ function parseCSVLine(line: string): string[] {
 export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries, filterLabel }: UseEditorFileIOProps) {
 
   const isFilterActive = filterLabel !== "";
+
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+
+  /**
+   * Apply an `{key: translation}` map to state and emit the per-flow toast.
+   * Centralised so the three import flows (JSON / English-TXT / CSV) and the
+   * conflict-dialog confirm path all funnel through one path.
+   */
+  const applyImportedTranslations = useCallback((
+    toApply: Record<string, string>,
+    pending: PendingImport,
+  ) => {
+    const appliedCount = Object.keys(toApply).length;
+    if (appliedCount === 0) {
+      setLastSaved("ℹ️ لم يُطبَّق أي ترجمة (تم رفض كل التعارضات)");
+      setTimeout(() => setLastSaved(""), 3000);
+      return;
+    }
+
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...toApply } } : null);
+
+    let msg: string;
+    if (pending.flow === "json") {
+      msg = isFilterActive
+        ? `✅ تم استيراد ${appliedCount} من ${pending.totalImported} ترجمة (${filterLabel})`
+        : `✅ تم استيراد ${appliedCount} ترجمة وتنظيفها`;
+      if (pending.sourceLabel) msg += ` — ${pending.sourceLabel}`;
+      if (pending.meta?.wasTruncated) {
+        msg += ` ⚠️ الملف كان مقطوعاً — تم تخطي ${pending.meta.skippedCount} سطر غير مكتمل`;
+      }
+    } else if (pending.flow === "english-txt") {
+      msg = isFilterActive
+        ? `✅ تم استيراد ${appliedCount} من ${pending.totalImported} ترجمة من TXT (${filterLabel})`
+        : `✅ تم استيراد ${appliedCount} ترجمة من TXT — ${pending.sourceLabel}`;
+      if (pending.emptyCount && pending.emptyCount > 0) msg += ` • تجاوز ${pending.emptyCount} مدخل بدون ترجمة`;
+    } else {
+      msg = isFilterActive
+        ? `✅ تم استيراد ${appliedCount} ترجمة من CSV (${filterLabel})`
+        : `✅ تم استيراد ${appliedCount} ترجمة من CSV`;
+    }
+    setLastSaved(msg);
+
+    if (pending.runBidiPostFix) {
+      setTimeout(() => {
+        setState(prevState => {
+          if (!prevState) return null;
+          const newTranslations = { ...prevState.translations };
+          const newProtected = new Set(prevState.protectedEntries || []);
+          let count = 0;
+          for (const entry of prevState.entries) {
+            const key = `${entry.msbtFile}:${entry.index}`;
+            if (hasArabicChars(entry.original)) {
+              if (newProtected.has(key)) continue;
+              const existing = newTranslations[key]?.trim();
+              const isAutoDetected = !existing || existing === entry.original || existing === entry.original.trim();
+              if (isAutoDetected) {
+                const corrected = unReverseBidi(entry.original);
+                if (corrected !== entry.original) {
+                  newTranslations[key] = corrected;
+                  newProtected.add(key);
+                  count++;
+                }
+              }
+            }
+          }
+          if (count > 0) setLastSaved(prev => prev + ` + تصحيح ${count} نص معكوس`);
+          return { ...prevState, translations: newTranslations, protectedEntries: newProtected };
+        });
+      }, 0);
+    } else {
+      setTimeout(() => setLastSaved(""), 4000);
+    }
+  }, [setState, setLastSaved, isFilterActive, filterLabel]);
+
+  /**
+   * Either apply the staged import immediately (no conflicts) or open the
+   * comparison dialog by stashing it in `pendingImport`.
+   */
+  const stageImportOrApply = useCallback((staged: Omit<PendingImport, "conflicts" | "autoApply"> & { cleanedImported: Record<string, string> }) => {
+    const { cleanedImported, ...rest } = staged;
+    const split = splitImportByConflict(
+      cleanedImported,
+      state?.translations ?? {},
+      state?.entries ?? [],
+    );
+    const pending: PendingImport = { ...rest, conflicts: split.conflicts, autoApply: split.autoApply };
+    if (split.conflicts.length === 0) {
+      applyImportedTranslations(split.autoApply, pending);
+    } else {
+      setPendingImport(pending);
+    }
+  }, [state, applyImportedTranslations]);
+
+  /** Confirm the staged import with the user-approved subset of conflicts. */
+  const confirmPendingImport = useCallback((approvedKeys: Set<string>) => {
+    if (!pendingImport) return;
+    const toApply: Record<string, string> = { ...pendingImport.autoApply };
+    for (const c of pendingImport.conflicts) {
+      if (approvedKeys.has(c.key)) toApply[c.key] = c.newTranslation;
+    }
+    applyImportedTranslations(toApply, pendingImport);
+    setPendingImport(null);
+  }, [pendingImport, applyImportedTranslations]);
+
+  /** Drop the staged import without touching state. */
+  const cancelPendingImport = useCallback(() => {
+    if (!pendingImport) return;
+    setPendingImport(null);
+    setLastSaved("ℹ️ أُلغي الاستيراد");
+    setTimeout(() => setLastSaved(""), 3000);
+  }, [pendingImport, setLastSaved]);
 
   const handleExportTranslations = () => {
     if (!state) return;
@@ -324,46 +497,15 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
       }
     }
 
-    setState(prev => { if (!prev) return null; return { ...prev, translations: { ...prev.translations, ...cleanedImported } }; });
-
-    const totalImported = Object.keys(imported).length;
-    const appliedCount = Object.keys(cleanedImported).length;
-    let msg = isFilterActive
-      ? `✅ تم استيراد ${appliedCount} من ${totalImported} ترجمة (${filterLabel})`
-      : `✅ تم استيراد ${appliedCount} ترجمة وتنظيفها`;
-    if (sourceName) msg += ` — ${sourceName}`;
-    if (repaired.wasTruncated) {
-      msg += ` ⚠️ الملف كان مقطوعاً — تم تخطي ${repaired.skippedCount} سطر غير مكتمل`;
-    }
-    setLastSaved(msg);
-
-    setTimeout(() => {
-      setState(prevState => {
-        if (!prevState) return null;
-        const newTranslations = { ...prevState.translations };
-        const newProtected = new Set(prevState.protectedEntries || []);
-        let count = 0;
-        for (const entry of prevState.entries) {
-          const key = `${entry.msbtFile}:${entry.index}`;
-          if (hasArabicChars(entry.original)) {
-            if (newProtected.has(key)) continue;
-            const existing = newTranslations[key]?.trim();
-            const isAutoDetected = !existing || existing === entry.original || existing === entry.original.trim();
-            if (isAutoDetected) {
-              const corrected = unReverseBidi(entry.original);
-              if (corrected !== entry.original) {
-                newTranslations[key] = corrected;
-                newProtected.add(key);
-                count++;
-              }
-            }
-          }
-        }
-        if (count > 0) setLastSaved(prev => prev + ` + تصحيح ${count} نص معكوس`);
-        return { ...prevState, translations: newTranslations, protectedEntries: newProtected };
-      });
-    }, 0);
-  }, [state, setState, setLastSaved, isFilterActive, filteredEntries, filterLabel]);
+    stageImportOrApply({
+      cleanedImported,
+      sourceLabel: sourceName ?? "",
+      runBidiPostFix: true,
+      meta: { wasTruncated: repaired.wasTruncated, skippedCount: repaired.skippedCount },
+      totalImported: Object.keys(imported).length,
+      flow: "json",
+    });
+  }, [state, isFilterActive, filteredEntries, stageImportOrApply]);
 
   /** Handle drop/paste of JSON file or text */
   const handleDropImport = useCallback(async (dataTransfer: DataTransfer) => {
@@ -453,16 +595,14 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
           return;
         }
 
-        setState(prev =>
-          prev ? { ...prev, translations: { ...prev.translations, ...cleanedImported } } : null
-        );
-
-        let msg = isFilterActive
-          ? `✅ تم استيراد ${appliedCount} من ${totalParsed} ترجمة من TXT (${filterLabel})`
-          : `✅ تم استيراد ${appliedCount} ترجمة من TXT — ${file.name}`;
-        if (emptyCount > 0) msg += ` • تجاوز ${emptyCount} مدخل بدون ترجمة`;
-        setLastSaved(msg);
-        setTimeout(() => setLastSaved(""), 4000);
+        stageImportOrApply({
+          cleanedImported,
+          sourceLabel: file.name,
+          runBidiPostFix: false,
+          totalImported: totalParsed,
+          emptyCount,
+          flow: "english-txt",
+        });
       } catch (err) {
         console.error('English TXT import error:', err);
         alert(`تعذّر قراءة الملف\n\nالخطأ: ${err instanceof Error ? err.message : err}`);
@@ -540,12 +680,13 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
         }
 
         if (imported === 0) { alert('لم يتم العثور على ترجمات في الملف'); return; }
-        setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-        const msg = isFilterActive
-          ? `✅ تم استيراد ${imported} ترجمة من CSV (${filterLabel})`
-          : `✅ تم استيراد ${imported} ترجمة من CSV`;
-        setLastSaved(msg);
-        setTimeout(() => setLastSaved(""), 4000);
+        stageImportOrApply({
+          cleanedImported: updates,
+          sourceLabel: file.name,
+          runBidiPostFix: false,
+          totalImported: imported,
+          flow: "csv",
+        });
       } catch { alert('خطأ في قراءة ملف CSV'); }
     };
     input.click();
@@ -564,5 +705,9 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
     isFilterActive,
     filterLabel,
     getUntranslatedCount,
+    // Import-conflict dialog wiring
+    pendingImport,
+    confirmPendingImport,
+    cancelPendingImport,
   };
 }
