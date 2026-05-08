@@ -19,12 +19,21 @@ export interface ImportConflictSplit {
 /**
  * Split an incoming translations map into "conflicts" (any key that already
  * has a non-empty existing translation, regardless of whether the new value
- * differs) and auto-applies (no existing translation at all, or only
- * whitespace).
+ * differs) and auto-applies (no existing translation at all, only whitespace,
+ * or an "auto-detected" placeholder where the stored translation just mirrors
+ * the entry's original text).
  *
- * Note: We surface ALL overlaps — including byte-identical ones — so the user
- * can review every translation that's about to be replaced. Identical entries
- * are tagged with `identical: true` so the dialog can render them subtly.
+ * Auto-detected entries are excluded from conflicts: when extraction first
+ * loads an MSBT file containing native-Arabic strings, we seed
+ * `state.translations[key]` with `entry.original` so the editor can display
+ * something. Those aren't real translations the user has authored, so flagging
+ * them as overlaps would explode the dialog with thousands of useless rows on
+ * a fresh project.
+ *
+ * Note: For real overlaps, we surface ALL of them — including byte-identical
+ * ones — so the user can review every translation that's about to be
+ * replaced. Identical entries are tagged with `identical: true` so the dialog
+ * can render them subtly.
  *
  * Pure function so it can be unit-tested without React state.
  */
@@ -38,14 +47,19 @@ export function splitImportByConflict(
   const autoApply: Record<string, string> = {};
   for (const [key, value] of Object.entries(incoming)) {
     const existing = currentTranslations[key];
-    if (existing && existing.trim()) {
-      const entry = entryMap.get(key);
+    const entry = entryMap.get(key);
+    const trimmedExisting = existing?.trim();
+    const isAutoDetected = !!entry && !!trimmedExisting && (
+      existing === entry.original ||
+      trimmedExisting === entry.original.trim()
+    );
+    if (trimmedExisting && !isAutoDetected) {
       conflicts.push({
         key,
         file: entry?.msbtFile ?? key,
         label: entry?.label ?? "",
         original: entry?.original ?? "",
-        oldTranslation: existing,
+        oldTranslation: existing as string,
         newTranslation: value,
         identical: existing === value,
       });
