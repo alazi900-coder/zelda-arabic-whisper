@@ -962,8 +962,19 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                       <SelectLabel className="text-[10px]">OpenAI</SelectLabel>
                       {MODEL_OPTIONS.filter(m => m.group === "openai").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
                     </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px]">⚡ Groq {userGroqKey ? '' : '(يحتاج مفتاح)'}</SelectLabel>
+                      {MODEL_OPTIONS.filter(m => m.group === "groq").map(m => (
+                        <SelectItem key={m.value} value={m.value} className="text-xs" disabled={!userGroqKey}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
+                {model.startsWith('groq-') && !userGroqKey && (
+                  <p className="text-[10px] text-amber-600 mt-1">أدخل مفتاح Groq من إعدادات المحركات أولاً.</p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground mb-1 block">نطاق الفحص</label>
