@@ -129,20 +129,10 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 
 كل الحقول إلزامية. أعِد فقط الترجمات التي بها مشكلة حقيقية.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: resolvedModel,
-          messages: [
-            { role: 'system', content: 'أنت مدقق لغوي عربي. أجب بـ JSON صالح فقط. لا تقترح تعديلات أسلوبية — فقط أخطاء موضوعية.' },
-            { role: 'user', content: grammarPrompt }
-          ],
-        }),
-      });
+      const response = await callAI([
+        { role: 'system', content: 'أنت مدقق لغوي عربي. أجب بـ JSON صالح فقط. لا تقترح تعديلات أسلوبية — فقط أخطاء موضوعية.' },
+        { role: 'user', content: grammarPrompt },
+      ]);
 
       if (!response.ok) {
         const errText = await response.text();
