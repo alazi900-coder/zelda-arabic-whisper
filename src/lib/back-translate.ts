@@ -68,6 +68,38 @@ export function diceSimilarity(a: string, b: string): number {
   return (2 * inter) / (setA.size + setB.size);
 }
 
+/**
+ * Jaccard similarity over unigrams only — measures whether the same words
+ * appear in both texts regardless of order. Returns 0–1.
+ */
+export function wordsJaccard(a: string, b: string): number {
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const setA = new Set(ta);
+  const setB = new Set(tb);
+  let inter = 0;
+  for (const x of setA) if (setB.has(x)) inter++;
+  const union = new Set([...ta, ...tb]).size;
+  return inter / Math.max(union, 1);
+}
+
+/**
+ * Bigram (consecutive word pairs) overlap — measures how well the word
+ * order is preserved. Returns 0–1 over the symmetric Sorensen-Dice on
+ * bigrams alone.
+ */
+export function orderOverlap(a: string, b: string): number {
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  const ba = bigrams(ta);
+  const bb = bigrams(tb);
+  if (ba.size === 0 || bb.size === 0) return 0;
+  let inter = 0;
+  for (const x of ba) if (bb.has(x)) inter++;
+  return (2 * inter) / (ba.size + bb.size);
+}
+
 export type BackTranslateResult = { arabic: string; english: string; error?: string };
 
 /**
