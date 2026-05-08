@@ -32,6 +32,8 @@ interface TranslationAIEnhancePanelProps {
   translations: Record<string, string>;
   onApplySuggestion: (key: string, newText: string) => void;
   glossary?: string;
+  /** User's Groq API key (gsk_...) — required when selecting a Groq model. */
+  userGroqKey?: string;
 }
 
 interface EnhanceSuggestion {
