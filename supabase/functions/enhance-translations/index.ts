@@ -229,20 +229,10 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 - إذا كان النص صحيحاً لا تُعِده
 - حقل detail إلزامي يشرح لماذا هذه مشكلة (سطر أو سطرين)`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: resolvedModel,
-        messages: [
-          { role: 'system', content: 'أنت مترجم ومراجع محترف لألعاب نينتندو، خاصة سلسلة Zelda. أجب بـ JSON صالح فقط. ركز على الأخطاء الحقيقية لا الأسلوبية.' },
-          { role: 'user', content: enhancePrompt }
-        ],
-      }),
-    });
+    const response = await callAI([
+      { role: 'system', content: 'أنت مترجم ومراجع محترف لألعاب نينتندو، خاصة سلسلة Zelda. أجب بـ JSON صالح فقط. ركز على الأخطاء الحقيقية لا الأسلوبية.' },
+      { role: 'user', content: enhancePrompt },
+    ]);
 
     if (!response.ok) {
       const errText = await response.text();
