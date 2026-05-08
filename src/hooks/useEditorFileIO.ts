@@ -17,11 +17,11 @@ export interface ImportConflictSplit {
 }
 
 /**
- * Split an incoming translations map into "conflicts" (any key that already
- * has a non-empty existing translation, regardless of whether the new value
- * differs) and auto-applies (no existing translation at all, only whitespace,
- * or an "auto-detected" placeholder where the stored translation just mirrors
- * the entry's original text).
+ * Split an incoming translations map into "conflicts" (a real overlap where
+ * the user has an existing, differing translation that would be overwritten)
+ * and auto-applies (no existing translation, only whitespace, an
+ * "auto-detected" placeholder, or a byte-identical value where applying is
+ * a no-op).
  *
  * Auto-detected entries are excluded from conflicts: when extraction first
  * loads an MSBT file containing native-Arabic strings, we seed
@@ -30,10 +30,9 @@ export interface ImportConflictSplit {
  * them as overlaps would explode the dialog with thousands of useless rows on
  * a fresh project.
  *
- * Note: For real overlaps, we surface ALL of them — including byte-identical
- * ones — so the user can review every translation that's about to be
- * replaced. Identical entries are tagged with `identical: true` so the dialog
- * can render them subtly.
+ * Identical overlaps (existing === incoming) are also excluded — there is
+ * nothing to review and no actual change to apply, so silently funnel them
+ * into `autoApply`. The dialog only ever shows differing overlaps now.
  *
  * Pure function so it can be unit-tested without React state.
  */
@@ -53,7 +52,8 @@ export function splitImportByConflict(
       existing === entry.original ||
       trimmedExisting === entry.original.trim()
     );
-    if (trimmedExisting && !isAutoDetected) {
+    const isIdentical = trimmedExisting !== undefined && existing === value;
+    if (trimmedExisting && !isAutoDetected && !isIdentical) {
       conflicts.push({
         key,
         file: entry?.msbtFile ?? key,
@@ -61,7 +61,7 @@ export function splitImportByConflict(
         original: entry?.original ?? "",
         oldTranslation: existing as string,
         newTranslation: value,
-        identical: existing === value,
+        identical: false,
       });
     } else {
       autoApply[key] = value;
