@@ -32,6 +32,8 @@ interface TranslationAIEnhancePanelProps {
   translations: Record<string, string>;
   onApplySuggestion: (key: string, newText: string) => void;
   glossary?: string;
+  /** User's Groq API key (gsk_...) — required when selecting a Groq model. */
+  userGroqKey?: string;
 }
 
 interface EnhanceSuggestion {
@@ -70,7 +72,7 @@ type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
 
-interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free"; }
+interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free" | "groq"; }
 
 const MODEL_OPTIONS: ModelOption[] = [
   { value: "google-translate-check", label: "Google Translate — فحص دقة (مجاني)", group: "free" },
@@ -153,6 +155,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   translations,
   onApplySuggestion,
   glossary,
+  userGroqKey,
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<EnhanceSuggestion[]>([]);
@@ -432,6 +435,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               mode,
               glossary: glossary?.slice(0, 5000),
               aiModel: model,
+              userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined,
             },
           });
           if (error) throw error;
@@ -448,7 +452,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             await new Promise(r => setTimeout(r, 5000));
             try {
               const { data } = await supabase.functions.invoke('enhance-translations', {
-                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model },
+                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model, userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined },
               });
               for (const t of textsToAnalyze) processedKeysRef.current.set(t.key, t.translation);
               setProcessedCount(processedKeysRef.current.size);
@@ -958,8 +962,19 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                       <SelectLabel className="text-[10px]">OpenAI</SelectLabel>
                       {MODEL_OPTIONS.filter(m => m.group === "openai").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
                     </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-[10px]">⚡ Groq {userGroqKey ? '' : '(يحتاج مفتاح)'}</SelectLabel>
+                      {MODEL_OPTIONS.filter(m => m.group === "groq").map(m => (
+                        <SelectItem key={m.value} value={m.value} className="text-xs" disabled={!userGroqKey}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
+                {model.startsWith('groq-') && !userGroqKey && (
+                  <p className="text-[10px] text-amber-600 mt-1">أدخل مفتاح Groq من إعدادات المحركات أولاً.</p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground mb-1 block">نطاق الفحص</label>
