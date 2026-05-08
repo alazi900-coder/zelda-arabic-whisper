@@ -70,7 +70,7 @@ type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
 
-interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free"; }
+interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free" | "groq"; }
 
 const MODEL_OPTIONS: ModelOption[] = [
   { value: "google-translate-check", label: "Google Translate — فحص دقة (مجاني)", group: "free" },
