@@ -18,19 +18,13 @@ describe("splitImportByConflict", () => {
     expect(out.autoApply).toEqual({ "a.msbt:1": "مرحبا" });
   });
 
-  it("flags overlap as a conflict even when the existing value equals the incoming one (identical=true)", () => {
+  it("treats byte-identical overlaps as auto-apply (no-op, no dialog row)", () => {
     const entries = [entry("a.msbt", 1)];
     const incoming = { "a.msbt:1": "مرحبا" };
     const current = { "a.msbt:1": "مرحبا" };
     const out = splitImportByConflict(incoming, current, entries);
-    expect(out.autoApply).toEqual({});
-    expect(out.conflicts).toHaveLength(1);
-    expect(out.conflicts[0]).toMatchObject({
-      key: "a.msbt:1",
-      oldTranslation: "مرحبا",
-      newTranslation: "مرحبا",
-      identical: true,
-    });
+    expect(out.conflicts).toHaveLength(0);
+    expect(out.autoApply).toEqual({ "a.msbt:1": "مرحبا" });
   });
 
   it("treats whitespace-only existing translations as empty (auto-apply)", () => {
@@ -60,7 +54,7 @@ describe("splitImportByConflict", () => {
     expect(out.autoApply).toEqual({ "a.msbt:1": "أهلاً وسهلاً" });
   });
 
-  it("creates a conflict when existing differs from incoming (identical=false)", () => {
+  it("creates a conflict when existing differs from incoming", () => {
     const entries = [entry("a.msbt", 1, "Hi there", "Greeting")];
     const incoming = { "a.msbt:1": "أهلاً وسهلاً" };
     const current = { "a.msbt:1": "مرحبا" };
@@ -77,7 +71,7 @@ describe("splitImportByConflict", () => {
     }]);
   });
 
-  it("partitions a mixed batch correctly — both differing AND identical overlaps surface as conflicts", () => {
+  it("partitions a mixed batch — only differing overlaps surface as conflicts; identical ones are auto-applied silently", () => {
     const entries = [
       entry("a.msbt", 1, "A"),
       entry("a.msbt", 2, "B"),
@@ -86,17 +80,19 @@ describe("splitImportByConflict", () => {
     const incoming = {
       "a.msbt:1": "alpha-new",  // conflict (differing)
       "a.msbt:2": "beta",       // auto (no existing)
-      "b.msbt:3": "gamma",      // conflict (identical)
+      "b.msbt:3": "gamma",      // identical → auto (no dialog row)
     };
     const current = {
       "a.msbt:1": "alpha-old",
       "b.msbt:3": "gamma",
     };
     const out = splitImportByConflict(incoming, current, entries);
-    expect(out.conflicts.map(c => c.key).sort()).toEqual(["a.msbt:1", "b.msbt:3"]);
-    expect(out.conflicts.find(c => c.key === "a.msbt:1")?.identical).toBe(false);
-    expect(out.conflicts.find(c => c.key === "b.msbt:3")?.identical).toBe(true);
-    expect(out.autoApply).toEqual({ "a.msbt:2": "beta" });
+    expect(out.conflicts.map(c => c.key)).toEqual(["a.msbt:1"]);
+    expect(out.conflicts[0].identical).toBe(false);
+    expect(out.autoApply).toEqual({
+      "a.msbt:2": "beta",
+      "b.msbt:3": "gamma",
+    });
   });
 
   it("falls back gracefully when the entry isn't found in `entries`", () => {

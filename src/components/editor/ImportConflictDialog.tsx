@@ -15,7 +15,11 @@ export interface ImportConflict {
   original: string;
   oldTranslation: string;
   newTranslation: string;
-  /** True when the new value is byte-identical to the existing one. */
+  /**
+   * Reserved for future use. Byte-identical overlaps are filtered out by
+   * `splitImportByConflict` before reaching the dialog (there's nothing to
+   * review when old === new), so this is always `false` for current rows.
+   */
   identical: boolean;
 }
 
@@ -59,11 +63,6 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
     [conflicts, decisions],
   );
 
-  const identicalCount = useMemo(
-    () => conflicts.filter(c => c.identical).length,
-    [conflicts],
-  );
-  const differingCount = conflicts.length - identicalCount;
 
   const setAll = (v: Decision) => {
     const next: Record<string, Decision> = {};
@@ -91,19 +90,11 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {sourceLabel ? `المصدر: ${sourceLabel} — ` : ""}
-            يوجد <span className="font-bold text-foreground">{conflicts.length}</span> ترجمة موجودة مسبقاً
-            {differingCount > 0 && (
-              <> (<span className="font-bold text-amber-600 dark:text-amber-400">{differingCount} مختلف</span>
-              {identicalCount > 0 ? <> + <span className="text-muted-foreground/80">{identicalCount} متطابق</span></> : null}
-              )</>
-            )}
-            {differingCount === 0 && identicalCount > 0 && (
-              <> (كلها <span className="text-muted-foreground/80">متطابقة</span>)</>
-            )}
-            .
+            يوجد <span className="font-bold text-amber-600 dark:text-amber-400">{conflicts.length}</span> ترجمة مختلفة عن الترجمة الحالية
             {autoAppliedCount > 0
-              ? ` (+ ${autoAppliedCount} ترجمة جديدة بدون تعارض ستُضاف تلقائياً)`
+              ? ` (+ ${autoAppliedCount} ترجمة بدون تعارض أو متطابقة ستُضاف تلقائياً)`
               : ""}
+            .
           </DialogDescription>
         </DialogHeader>
 
@@ -165,7 +156,7 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
               return (
                 <div
                   key={c.key}
-                  className={`p-3 transition-colors ${decision === "reject" ? "bg-destructive/5" : c.identical ? "bg-muted/10" : ""}`}
+                  className={`p-3 transition-colors ${decision === "reject" ? "bg-destructive/5" : ""}`}
                 >
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded">
@@ -177,11 +168,6 @@ const ImportConflictDialog: React.FC<ImportConflictDialogProps> = ({
                     {c.label && (
                       <span className="text-[11px] text-muted-foreground/60 truncate max-w-[180px]" title={c.label}>
                         {c.label}
-                      </span>
-                    )}
-                    {c.identical && (
-                      <span className="text-[10px] text-muted-foreground/80 bg-muted/40 px-1.5 py-0.5 rounded">
-                        متطابق
                       </span>
                     )}
                     <div className="mr-auto flex gap-1">
