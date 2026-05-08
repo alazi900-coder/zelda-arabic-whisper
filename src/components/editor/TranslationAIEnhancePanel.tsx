@@ -435,6 +435,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               mode,
               glossary: glossary?.slice(0, 5000),
               aiModel: model,
+              userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined,
             },
           });
           if (error) throw error;
