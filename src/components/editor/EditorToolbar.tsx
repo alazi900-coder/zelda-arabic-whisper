@@ -56,6 +56,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(1000)}><FileText className="w-4 h-4" /> تصدير مقسّم (1000/ملف) 🇬🇧</DropdownMenuItem>
             <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly(500)}><FileText className="w-4 h-4" /> تصدير مقسّم (500/ملف) 🇬🇧</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleImportTranslations}><Upload className="w-4 h-4" /> استيراد JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleImportEnglishTxt}><Upload className="w-4 h-4" /> استيراد الإنجليزية TXT 🇬🇧{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={editor.handleExportCSV}><FileDown className="w-4 h-4" /> تصدير CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleImportCSV}><Upload className="w-4 h-4" /> استيراد CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
@@ -182,6 +183,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
       <Button variant="outline" onClick={editor.handleImportTranslations} className="font-body"><Upload className="w-4 h-4" /> استيراد JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
+      <Button variant="outline" onClick={editor.handleImportEnglishTxt} className="font-body border-emerald-500/40 text-emerald-700 hover:text-emerald-800"><Upload className="w-4 h-4" /> استيراد الإنجليزية TXT 🇬🇧{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
       <Button variant="outline" onClick={editor.handleExportCSV} className="font-body"><FileDown className="w-4 h-4" /> تصدير CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
       <Button variant="outline" onClick={editor.handleImportCSV} className="font-body"><Upload className="w-4 h-4" /> استيراد CSV{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</Button>
       <Button variant="outline" onClick={editor.handleImportGlossary} className="font-body"><BookOpen className="w-4 h-4" /> تحميل قاموس مخصص</Button>
