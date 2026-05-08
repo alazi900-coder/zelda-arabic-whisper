@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { removeArabicPresentationForms } from "@/lib/arabic-processing";
+import { parseEnglishOnlyTxt } from "@/lib/english-only-txt";
 import type { EditorState } from "@/components/editor/types";
 import { ExtractedEntry, hasArabicChars, unReverseBidi } from "@/components/editor/types";
 
@@ -408,6 +409,68 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
     input.click();
   };
 
+  /**
+   * Import the structured English-only TXT format produced by
+   * `handleExportEnglishOnly`. Parses `[N] (file.msbt:idx)` headers and
+   * the user's translation that follows the `▶ Translation:` marker.
+   */
+  const handleImportEnglishTxt = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,text/plain,*/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const rawText = await file.text();
+        const { translations: parsed, emptyCount } = parseEnglishOnlyTxt(rawText);
+        const totalParsed = Object.keys(parsed).length;
+        if (totalParsed === 0) {
+          alert(
+            'لم يُعثر على أي ترجمات في الملف.\n\n' +
+              'تأكّد أنه ملف "تصدير الإنجليزية" الذي ولَّده المحرر، وأنك أضفت ترجمتك بعد سطر "▶ Translation:".'
+          );
+          return;
+        }
+
+        const cleanedImported: Record<string, string> = {};
+        if (isFilterActive && filteredEntries.length < (state?.entries.length || 0)) {
+          const allowedKeys = new Set(filteredEntries.map(en => `${en.msbtFile}:${en.index}`));
+          for (const [key, value] of Object.entries(parsed)) {
+            if (allowedKeys.has(key)) {
+              cleanedImported[key] = normalizeArabicPresentationForms(value);
+            }
+          }
+        } else {
+          for (const [key, value] of Object.entries(parsed)) {
+            cleanedImported[key] = normalizeArabicPresentationForms(value);
+          }
+        }
+
+        const appliedCount = Object.keys(cleanedImported).length;
+        if (appliedCount === 0) {
+          alert('الترجمات في الملف لا تطابق أي مدخل ضمن الفلتر الحالي.');
+          return;
+        }
+
+        setState(prev =>
+          prev ? { ...prev, translations: { ...prev.translations, ...cleanedImported } } : null
+        );
+
+        let msg = isFilterActive
+          ? `✅ تم استيراد ${appliedCount} من ${totalParsed} ترجمة من TXT (${filterLabel})`
+          : `✅ تم استيراد ${appliedCount} ترجمة من TXT — ${file.name}`;
+        if (emptyCount > 0) msg += ` • تجاوز ${emptyCount} مدخل بدون ترجمة`;
+        setLastSaved(msg);
+        setTimeout(() => setLastSaved(""), 4000);
+      } catch (err) {
+        console.error('English TXT import error:', err);
+        alert(`تعذّر قراءة الملف\n\nالخطأ: ${err instanceof Error ? err.message : err}`);
+      }
+    };
+    input.click();
+  };
+
   const handleExportCSV = () => {
     if (!state) return;
     const entriesToExport = (isFilterActive && filteredEntries.length < state.entries.length) ? filteredEntries : state.entries;
@@ -492,6 +555,7 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
     handleExportTranslations,
     handleExportEnglishOnly,
     handleImportTranslations,
+    handleImportEnglishTxt,
     handleDropImport,
     processJsonImport,
     handleExportCSV,
