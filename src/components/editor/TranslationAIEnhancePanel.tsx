@@ -23,7 +23,7 @@ import {
   loadReviewMemory, markReviewed, exportReviewMemory,
   importReviewMemory, clearReviewMemory, isReviewedSync, type ReviewMemory,
 } from "@/lib/enhance-memory";
-import { backTranslateBatch, wordsJaccard, orderOverlap } from "@/lib/back-translate";
+import { backTranslateBatch, wordsJaccard, orderOverlap, isOrderComparable } from "@/lib/back-translate";
 import type { ExtractedEntry } from "./types";
 
 interface TranslationAIEnhancePanelProps {
@@ -313,6 +313,9 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             processedKeysRef.current.set(entry.key, entry.translation);
 
             // Rule 1: words present but order broken — the only post-back-translation rule.
+            // Skip when either side has < 3 tokens; bigram overlap is meaningless there
+            // and would falsely flag single-word translations (e.g. "Someday...").
+            if (!isOrderComparable(entry.original, result.english)) continue;
             const presence = wordsJaccard(entry.original, result.english);
             const order = orderOverlap(entry.original, result.english);
             if (presence >= GOOGLE_PRESENCE_THRESHOLD && order < GOOGLE_ORDER_THRESHOLD) {

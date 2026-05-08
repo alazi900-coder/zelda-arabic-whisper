@@ -100,6 +100,16 @@ export function orderOverlap(a: string, b: string): number {
   return (2 * inter) / (ba.size + bb.size);
 }
 
+/**
+ * Whether `orderOverlap` is meaningful for the given pair. Both texts must
+ * tokenize to ≥ 3 words; below that there are 0–1 bigrams and the metric
+ * collapses to a binary 0/1 that produces false "wrong order" alerts on
+ * single-word translations like "Someday..." → "يوما ما...".
+ */
+export function isOrderComparable(a: string, b: string): boolean {
+  return tokenize(a).length >= 3 && tokenize(b).length >= 3;
+}
+
 export type BackTranslateResult = { arabic: string; english: string; error?: string };
 
 /**
