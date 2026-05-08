@@ -40,6 +40,7 @@ import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
+import ImportConflictDialog from "@/components/editor/ImportConflictDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 import SceneContextPanel from "@/components/editor/SceneContextPanel";
 import InconsistencyDetector from "@/components/editor/InconsistencyDetector";
@@ -1495,6 +1496,17 @@ const Editor = () => {
         {editor.fixPreview && (
           <FixPreviewDialog open={!!editor.fixPreview} onClose={() => editor.setFixPreview(null)} onApply={editor.handleApplyFixPreview}
             title={editor.fixPreview.title} items={editor.fixPreview.items} />
+        )}
+
+        {editor.pendingImport && (
+          <ImportConflictDialog
+            open={!!editor.pendingImport}
+            conflicts={editor.pendingImport.conflicts}
+            autoAppliedCount={Object.keys(editor.pendingImport.autoApply).length}
+            sourceLabel={editor.pendingImport.sourceLabel}
+            onCancel={editor.cancelPendingImport}
+            onApply={editor.confirmPendingImport}
+          />
         )}
 
         {/* Glossary Apply Confirmation with Library Selection */}
