@@ -57,7 +57,7 @@ import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import TranslationAIEnhancePanel from "@/components/editor/TranslationAIEnhancePanel";
-import OfflineBulkFixDialog from "@/components/editor/OfflineBulkFixDialog";
+import OfflineReorderFixDialog from "@/components/editor/OfflineReorderFixDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PROMPT_PRESETS } from "@/components/editor/promptPresets";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
@@ -84,7 +84,7 @@ const Editor = () => {
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
-  const [showOfflineBulkFix, setShowOfflineBulkFix] = React.useState(false);
+  const [showOfflineReorderFix, setShowOfflineReorderFix] = React.useState(false);
 
   const [showContextSuggest, setShowContextSuggest] = React.useState(false);
   const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
