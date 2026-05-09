@@ -158,7 +158,7 @@ const Process = () => {
       if (mergeMode === "merge") {
         const existing = await idbGet<{ translations?: Record<string, string> }>("editorState");
         const existingTranslations = existing?.translations || {};
-        const validKeys = new Set(data.entries.map((e: any) => `${e.msbtFile}:${e.index}`));
+        const validKeys = new Set((data.entries as Array<{ msbtFile: string; index: number }>).map((e) => `${e.msbtFile}:${e.index}`));
         let preservedCount = 0;
         for (const [k, v] of Object.entries(existingTranslations)) {
           if (validKeys.has(k) && v && !finalTranslations[k]) {
