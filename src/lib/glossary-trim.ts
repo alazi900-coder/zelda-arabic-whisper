@@ -31,6 +31,7 @@ export function parseGlossaryEntries(glossary: string | undefined | null): Gloss
   return out;
 }
 
+// eslint-disable-next-line no-control-regex -- intentional: ASCII range includes control bytes by definition
 const ASCII_ONLY = /^[\x00-\x7F]+$/;
 const REGEX_META = /[.*+?^${}()|[\]\\]/g;
 

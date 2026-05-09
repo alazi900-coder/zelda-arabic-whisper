@@ -22,6 +22,7 @@ function fixSpaces(text: string): string {
   });
   fixed = fixed.replace(/ {2,}/g, ' ');
   fixed = fixed.replace(/ ([،؛؟!.,;?])/g, '$1');
+  // eslint-disable-next-line no-control-regex -- intentional: avoids inserting spaces before MSBT control bytes
   fixed = fixed.replace(/([،؛؟!.,;?])([^\s\uFFFE،؛؟!.,;?\u0000-\u001F])/g, '$1 $2');
   // Restore tags
   fixed = fixed.replace(/\uFFFE(\d+)\uFFFE/g, (_, idx) => tagPlaceholders[parseInt(idx)]);
@@ -31,6 +32,7 @@ function fixSpaces(text: string): string {
 function fixHamza(text: string): string {
   let fixed = text;
   fixed = fixed.replace(/[أإآ]/g, 'ا');
+  // eslint-disable-next-line no-control-regex -- intentional: end-of-word detection includes MSBT control bytes
   fixed = fixed.replace(/ى(?=[\s،؛؟!.,;?\][」』】）》〉\u0000-\u001F]|$)/g, 'ي');
   return fixed;
 }

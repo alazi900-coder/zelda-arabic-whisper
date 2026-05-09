@@ -91,6 +91,7 @@ ${textsBlock}`;
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error('Failed to parse AI response');
 
+    // eslint-disable-next-line no-control-regex -- intentional: sanitises stray control bytes from model output before JSON.parse
     const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
     const translations: string[] = JSON.parse(sanitized);
 

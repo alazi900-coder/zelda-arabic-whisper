@@ -932,6 +932,7 @@ ${textsBlock}`;
         const content = textBlock?.text || claudeData?.content?.[0]?.text || '';
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('Failed to parse Claude response');
+        // eslint-disable-next-line no-control-regex -- intentional: sanitises stray control bytes from model output before JSON.parse
         const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
         translations = JSON.parse(sanitized);
       }
@@ -1101,6 +1102,7 @@ ${textsBlock}`;
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         try {
+          // eslint-disable-next-line no-control-regex -- intentional: sanitises stray control bytes from model output before JSON.parse
           const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
           translations = JSON.parse(sanitized);
         } catch { /* try next strategy */ }
@@ -1195,6 +1197,7 @@ ${textsBlock}`;
         const content = textPart?.text || parts?.[0]?.text || '';
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('فشل في تحليل استجابة Gemini');
+        // eslint-disable-next-line no-control-regex -- intentional: sanitises stray control bytes from model output before JSON.parse
         const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
         translations = JSON.parse(sanitized);
       }
@@ -1257,6 +1260,7 @@ ${textsBlock}`;
         const content = lovableMessage?.content || '';
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('Failed to parse AI response');
+        // eslint-disable-next-line no-control-regex -- intentional: sanitises stray control bytes from model output before JSON.parse
         const sanitized = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
         translations = JSON.parse(sanitized);
       }
