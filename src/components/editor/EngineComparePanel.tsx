@@ -158,9 +158,10 @@ export default function EngineComparePanel({
         setResults(prev => prev.map(r =>
           r.engine === eng.id ? { ...r, translation, loading: false } : r
         ));
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         setResults(prev => prev.map(r =>
-          r.engine === eng.id ? { ...r, loading: false, error: err.message } : r
+          r.engine === eng.id ? { ...r, loading: false, error: message } : r
         ));
       }
     });
