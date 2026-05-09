@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
        const translated = entries.filter(e => e.translation?.trim());
        if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
        const CHUNK = 15;
-       const allFindings: any[] = [];
+       type ReviewFinding = { key: string; original: string; current: string; type: string; issue: string; fix: string };
+       const allFindings: ReviewFinding[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const prompt = `أنت مدقق لغوي متخصص في ترجمة ألعاب Zelda. حلّل كل ترجمة وأبلغ عن المشاكل الواضحة فقط:
@@ -137,7 +138,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
+           type AIFinding = { i?: number; type?: string; issue?: string; fix?: string };
+           const findings: AIFinding[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'naturalness', issue: f.issue || '', fix: f.fix || '' });
@@ -154,7 +156,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
        const translated = entries.filter(e => e.translation?.trim());
        if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
        const CHUNK = 15;
-       const allFindings: any[] = [];
+       type GrammarFinding = { key: string; original: string; current: string; type: string; issue: string; fix: string };
+       const allFindings: GrammarFinding[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const prompt = `أنت مدقق نحوي وإملائي للعربية. أبلغ عن الأخطاء الواضحة فقط:
@@ -191,7 +194,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
+           type AIFinding = { i?: number; type?: string; issue?: string; fix?: string };
+           const findings: AIFinding[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'spelling', issue: f.issue || '', fix: f.fix || '' });
@@ -208,7 +212,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
        const translated = entries.filter(e => e.translation?.trim());
        if (translated.length === 0) return new Response(JSON.stringify({ findings: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
        const CHUNK = 10;
-       const allFindings: any[] = [];
+       type ContextFinding = { key: string; original: string; current: string; type: string; issue: string; fix: string };
+       const allFindings: ContextFinding[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const contextBlock = contextEntries && contextEntries.length > 0
@@ -246,7 +251,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
+           type AIFinding = { i?: number; type?: string; issue?: string; fix?: string };
+           const findings: AIFinding[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allFindings.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, type: f.type || 'improvement', issue: f.issue || '', fix: f.fix || '' });
@@ -304,7 +310,8 @@ ${glossary ? `القاموس:\n${glossary.slice(0, 1500)}\n` : ''}${contextBlock
        const translated = entries.filter(e => e.translation?.trim());
        if (translated.length === 0) return new Response(JSON.stringify({ corrections: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
        const CHUNK = 20;
-       const allCorrections: any[] = [];
+       type Correction = { key: string; original: string; current: string; corrected: string };
+       const allCorrections: Correction[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const prompt = `مصحح إملائي/نحوي آلي. صحّح كل ترجمة بدون تغيير المعنى أو الأسلوب.
@@ -351,7 +358,8 @@ ${chunk.map((e, i) => `[${i}] "${e.translation}"`).join('\n')}
        const translated = entries.filter(e => e.translation?.trim());
        if (translated.length === 0) return new Response(JSON.stringify({ weakEntries: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
        const CHUNK = 15;
-       const allWeak: any[] = [];
+       type WeakFinding = { key: string; original: string; current: string; score: number; reason: string; suggestion: string };
+       const allWeak: WeakFinding[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const prompt = `مراجع جودة ترجمات Zelda. قيّم كل ترجمة (1-10):
@@ -378,7 +386,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const findings: any[] = JSON.parse(sanitizeJsonText(m[0]));
+           type WeakAIFinding = { i?: number; score?: number; reason?: string; suggestion?: string };
+           const findings: WeakAIFinding[] = JSON.parse(sanitizeJsonText(m[0]));
            for (const f of findings) {
              if (typeof f.i === 'number' && f.i >= 0 && f.i < chunk.length) {
                allWeak.push({ key: chunk[f.i].key, original: chunk[f.i].original, current: chunk[f.i].translation, score: f.score || 5, reason: f.reason || '', suggestion: f.suggestion || '' });
@@ -398,7 +407,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nAR: "${e.translation}"`).join
        const contextBlock = contextEntries && contextEntries.length > 0
          ? `\nسياق:\n${contextEntries.slice(0, 20).map(ce => `  EN: "${ce.original}" → AR: "${ce.translation}"`).join('\n')}\n` : '';
        const CHUNK = 10;
-       const allRetrans: any[] = [];
+       type Retranslation = { key: string; original: string; current: string; retranslated: string; changes: string };
+       const allRetrans: Retranslation[] = [];
        for (let c = 0; c < translated.length; c += CHUNK) {
          const chunk = translated.slice(c, c + CHUNK);
          const prompt = `مترجم Zelda محترف. أعد ترجمة النصوص مع مراعاة السياق.
@@ -428,7 +438,8 @@ ${chunk.map((e, i) => `[${i}] EN: "${e.original}"\nالترجمة الحالية
          const m = (data.choices?.[0]?.message?.content || '').match(/\[[\s\S]*\]/);
          if (!m) continue;
          try {
-           const results: any[] = JSON.parse(sanitizeJsonText(m[0]));
+           type RetranslationResult = { text?: string; changes?: string };
+           const results: RetranslationResult[] = JSON.parse(sanitizeJsonText(m[0]));
            for (let i = 0; i < Math.min(chunk.length, results.length); i++) {
              const e = chunk[i];
              const nt = results[i]?.text?.trim();
@@ -536,7 +547,8 @@ ${tooLongEntries.map((e, i) => {
 
         // Process in chunks of 25
         const CHUNK_SIZE = 25;
-        const allImprovements: any[] = [];
+        type Improvement = { key: string; original: string; current: string; currentBytes: number; maxBytes: number; improved: string; improvedBytes: number };
+        const allImprovements: Improvement[] = [];
 
         for (let c = 0; c < translatedEntries.length; c += CHUNK_SIZE) {
           const chunk = translatedEntries.slice(c, c + CHUNK_SIZE);

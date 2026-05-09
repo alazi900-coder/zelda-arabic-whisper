@@ -138,7 +138,8 @@ Deno.serve(async (req) => {
       ok: "✅ سليم",
     };
 
-    const results = parsed.results.map((r: any, i: number) => ({
+    type PolishApiResult = { index?: number; improved?: string; reason?: string; changed?: boolean; category?: string };
+    const results = (parsed.results as PolishApiResult[]).map((r, i) => ({
       key: entries[r.index ?? i]?.key,
       original: entries[r.index ?? i]?.original,
       current: entries[r.index ?? i]?.translation,
@@ -146,8 +147,8 @@ Deno.serve(async (req) => {
       reason: r.reason,
       changed: r.changed,
       category: r.category || "style",
-      categoryLabel: CATEGORY_LABELS[r.category] || CATEGORY_LABELS.style,
-    })).filter((r: any) => r.key);
+      categoryLabel: (r.category && CATEGORY_LABELS[r.category]) || CATEGORY_LABELS.style,
+    })).filter((r) => r.key);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

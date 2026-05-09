@@ -1133,7 +1133,7 @@ ${textsBlock}`;
       });
     }
 
-    let data: any;
+    let data: { choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ function: { arguments: string } }> } }> } | undefined;
 
     if (userApiKey && userApiKey.trim()) {
       // Use user's own Gemini API key — prefer explicit geminiModel; fallback to quality
