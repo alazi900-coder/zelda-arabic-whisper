@@ -103,7 +103,7 @@ export default function SmartBulkImprovePanel({
 
         if (error) throw error;
         if (data?.improvements) {
-          const newSuggestions = data.improvements.map((imp: any) => ({
+          const newSuggestions: ImproveSuggestion[] = (data.improvements as Omit<ImproveSuggestion, 'approved'>[]).map((imp) => ({
             ...imp,
             approved: imp.severity === 'high',
           }));
@@ -119,8 +119,8 @@ export default function SmartBulkImprovePanel({
       if (allSuggestions.length === 0) {
         toast({ title: "✅ جودة ممتازة!", description: "لم يتم العثور على ترجمات تحتاج تحسين" });
       }
-    } catch (err: any) {
-      toast({ title: "❌ خطأ في التحليل", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "❌ خطأ في التحليل", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }

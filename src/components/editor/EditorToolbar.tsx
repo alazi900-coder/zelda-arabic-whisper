@@ -10,10 +10,13 @@ import {
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
   Layers, MoreVertical, Save, Lightbulb, FlaskConical, SkipForward,
 } from "lucide-react";
+import type { useEditorState } from "@/hooks/useEditorState";
+
+type EditorState = ReturnType<typeof useEditorState>;
 
 interface EditorToolbarProps {
   isMobile: boolean;
-  editor: any;
+  editor: EditorState;
   untranslatedCount: number;
   polishing: boolean;
   handlePolishArabic: () => void;

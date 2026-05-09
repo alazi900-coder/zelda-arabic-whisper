@@ -110,8 +110,8 @@ export default function ContextSuggestPanel({ open, onClose, entry, entries, tra
       cache.set(targetKey, result);
       setSuggestions(result.suggestions);
       setContextNote(result.contextNote);
-    } catch (err: any) {
-      toast({ title: "❌ خطأ", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "❌ خطأ", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }
