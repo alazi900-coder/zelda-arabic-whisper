@@ -111,6 +111,7 @@ const Process = () => {
       for (const entry of data.entries) {
         // Strip tag markers and control chars before checking for Arabic
         const stripped = entry.original
+          // eslint-disable-next-line no-control-regex -- intentional: strips MSBT control bytes from extracted text
           .replace(/[\uE000-\uF8FF\uFFF9-\uFFFC\u0000-\u001F]/g, '')
           .trim();
         // Require at least 2 actual Arabic letters to avoid false positives from binary noise

@@ -34,7 +34,7 @@ interface EntryRecord {
   fileIndex: number;
 }
 
-interface CandidateRecord extends EntryRecord {}
+type CandidateRecord = EntryRecord;
 
 interface ScoredCandidate {
   candidate: CandidateRecord;
@@ -137,7 +137,7 @@ function normalizeArabic(text: string): string {
     .replace(/[إأآا]/g, "ا")
     .replace(/[ىي]/g, "ي")
     .replace(/ة/g, "ه")
-    .replace(/[،؛:!؟?.,…"'()\[\]{}<>«»]/g, " ")
+    .replace(/[،؛:!؟?.,…"'()[\]{}<>«»]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

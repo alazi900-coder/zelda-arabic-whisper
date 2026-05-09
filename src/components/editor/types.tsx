@@ -230,6 +230,7 @@ export function previewTagRestore(original: string, translation: string): { befo
 
 // Sanitize original text: replace binary tag markers with color-coded, tooltipped badges
 export function displayOriginal(text: string): React.ReactNode {
+  // eslint-disable-next-line no-control-regex -- intentional: matches MSBT control bytes embedded in game text
   const regex = /([\uFFF9\uFFFA\uFFFB\uFFFC\uE000-\uE0FF\u0000-\u0008\u000E-\u001F]+)/g;
   const parts = text.split(regex);
   if (parts.length === 1 && !regex.test(text)) return text;
@@ -265,6 +266,7 @@ export function displayOriginal(text: string): React.ReactNode {
       continue;
     }
     // Legacy FFF9-FFFC markers or other control chars
+    // eslint-disable-next-line no-control-regex -- intentional: detects MSBT control bytes
     const tagType = TAG_TYPES[part[0]] || (part.match(/[\uFFF9\uFFFA\uFFFB\uFFFC\u0000-\u0008\u000E-\u001F]/) ? TAG_FALLBACK : null);
     if (tagType) {
       elements.push(
