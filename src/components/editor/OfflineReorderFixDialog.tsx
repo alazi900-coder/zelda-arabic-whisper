@@ -82,7 +82,7 @@ const OfflineReorderFixDialog: React.FC<Props> = ({
     setScanning(true);
     await new Promise((resolve) => setTimeout(resolve, 30));
     try {
-      const next = scanReorderedTranslations(entries, translations, { scope, aggressiveness });
+      const next = await scanReorderedTranslations(entries, translations, { scope, aggressiveness });
       setReport(next);
       setSelected(new Set(next.suggestions.filter((s) => s.confidence >= 58).map((s) => s.key)));
       setExpanded(new Set(next.suggestions.slice(0, 3).map((s) => s.key)));
