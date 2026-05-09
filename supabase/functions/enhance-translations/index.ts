@@ -152,7 +152,8 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 
       const aiResult = await response.json();
       const content = aiResult.choices?.[0]?.message?.content || '';
-      let parsed: { issues: any[] } = { issues: [] };
+      type GrammarIssueRaw = { index?: number; category?: string; issue?: string; detail?: string; fix_explanation?: string; fixExplanation?: string; suggestion?: string; severity?: string };
+      let parsed: { issues: GrammarIssueRaw[] } = { issues: [] };
       try {
         const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
         const raw = (jsonMatch[1] || content).trim();
@@ -166,17 +167,17 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
         console.error('JSON parse error:', e, 'Content:', content.slice(0, 500));
       }
 
-      const mappedIssues = (parsed.issues || []).map((i: any) => ({
-        key: entries[i.index]?.key || '',
-        original: entries[i.index]?.original || '',
-        translation: entries[i.index]?.translation || '',
-        category: ['wrong', 'reorder', 'weak'].includes(i.category) ? i.category : 'wrong',
+      const mappedIssues = (parsed.issues || []).map((i) => ({
+        key: entries[i.index ?? -1]?.key || '',
+        original: entries[i.index ?? -1]?.original || '',
+        translation: entries[i.index ?? -1]?.translation || '',
+        category: i.category && ['wrong', 'reorder', 'weak'].includes(i.category) ? i.category : 'wrong',
         issue: i.issue,
         detail: i.detail || '',
         fixExplanation: i.fix_explanation || i.fixExplanation || '',
         suggestion: i.suggestion,
         severity: i.severity || 'medium',
-      })).filter((i: any) => i.key && i.suggestion);
+      })).filter((i) => i.key && i.suggestion);
 
       return new Response(JSON.stringify({ issues: mappedIssues }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -252,7 +253,8 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
 
     const aiResult = await response.json();
     const content = aiResult.choices?.[0]?.message?.content || '';
-    let parsed: { suggestions: any[] } = { suggestions: [] };
+    type EnhanceSuggestionRaw = { index?: number; suggested?: string; alternatives?: unknown; reason?: string; detail?: string; type?: string };
+    let parsed: { suggestions: EnhanceSuggestionRaw[] } = { suggestions: [] };
     try {
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
       const raw = (jsonMatch[1] || content).trim();
@@ -266,16 +268,16 @@ ${entries.map((e, i) => `[${i}] الأصل: ${e.original}\nالترجمة: ${e.t
       console.error('JSON parse error (enhance):', e, 'Content:', content.slice(0, 500));
     }
 
-    const mappedSuggestions = (parsed.suggestions || []).map((s: any) => ({
-      key: entries[s.index]?.key || '',
-      original: entries[s.index]?.original || '',
-      current: entries[s.index]?.translation || '',
+    const mappedSuggestions = (parsed.suggestions || []).map((s) => ({
+      key: entries[s.index ?? -1]?.key || '',
+      original: entries[s.index ?? -1]?.original || '',
+      current: entries[s.index ?? -1]?.translation || '',
       suggested: s.suggested,
       alternatives: Array.isArray(s.alternatives) ? s.alternatives.filter((a: unknown) => typeof a === 'string' && a.trim()) : [],
       reason: s.reason,
       detail: s.detail || '',
       type: s.type || 'style',
-    })).filter((s: any) => s.key && s.suggested);
+    })).filter((s) => s.key && s.suggested);
 
     return new Response(JSON.stringify({ suggestions: mappedSuggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
