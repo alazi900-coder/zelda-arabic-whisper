@@ -607,6 +607,9 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         return true;
       })
       .sort((a, b) => (typeToSeverity[a.type] ?? 2) - (typeToSeverity[b.type] ?? 2));
+    // typeToSeverity is a stable record literal (re-created each render but
+    // never changes shape); including it would invalidate the memo every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestions, filterType, searchQuery]);
 
   const filteredIssues = useMemo(() => {
@@ -624,6 +627,9 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
         if (ca !== cb) return ca - cb;
         return (severityOrder[a.severity ?? 'low'] ?? 2) - (severityOrder[b.severity ?? 'low'] ?? 2);
       });
+    // severityOrder is a stable record literal (re-created each render but
+    // never changes shape); including it would invalidate the memo every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grammarIssues, severityFilter, categoryFilter, searchQuery]);
 
   // ---- Group results by MSBT file ----

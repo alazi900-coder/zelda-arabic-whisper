@@ -201,6 +201,9 @@ const Editor = () => {
   const handleSmartImproveApply = React.useCallback((updates: Record<string, string>) => {
     if (!editor.state || !editor.updateTranslation) return;
     Object.entries(updates).forEach(([k, v]) => editor.updateTranslation(k, v));
+    // intentional: depend on specific editor.* properties used here, not the
+    // whole `editor` object (would re-create the callback on unrelated changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.state, editor.updateTranslation]);
 
   const difficultyStats = useDifficultyStats(editor.state?.entries || []);
@@ -221,6 +224,8 @@ const Editor = () => {
   const handleDrop = React.useCallback(async (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation(); setIsDragging(false);
     if (e.dataTransfer) await editor.handleDropImport(e.dataTransfer);
+    // intentional: depend on editor.handleDropImport only, not the whole editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.handleDropImport]);
 
   const untranslatedCount = React.useMemo(() => {
@@ -272,6 +277,9 @@ const Editor = () => {
     } catch (err: unknown) {
       toast({ title: "❌ خطأ في تحسين الصياغة", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally { setPolishing(false); }
+    // intentional: depend on specific editor.* properties used here, not the
+    // whole `editor` object (would re-create the callback on unrelated changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, polishing]);
 
   const openSceneContext = React.useCallback((entry: ExtractedEntry) => { setSceneContextEntry(entry); setShowSceneContext(true); }, []);
@@ -291,6 +299,8 @@ const Editor = () => {
     // Sort each file's entries once by index
     for (const arr of map.values()) arr.sort((a, b) => a.index - b.index);
     return map;
+    // intentional: only re-derive when editor.state.entries changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.state?.entries]);
 
   const handleJumpToUntranslated = React.useCallback(() => {
@@ -325,6 +335,9 @@ const Editor = () => {
         }
       }
     }, 100);
+    // intentional: depend on specific editor.* properties used here, not the
+    // whole `editor` object (would re-create the callback on unrelated changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.state, editor.displayedEntries, editor.currentPage, editor.setCurrentPage]);
 
   if (!editor.state) {

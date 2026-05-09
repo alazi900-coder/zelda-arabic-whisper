@@ -130,6 +130,9 @@ export default function SmartBulkImprovePanel({
     if (open && suggestions.length === 0 && !loading) {
       analyze();
     }
+    // intentional: only auto-trigger on dialog open transition, not on
+    // analyze/loading/suggestions changes (would re-fire during analysis).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const toggleApproval = (key: string) => {

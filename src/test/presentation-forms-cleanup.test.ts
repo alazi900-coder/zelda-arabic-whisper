@@ -121,7 +121,7 @@ describe("Arabic Presentation Forms Cleanup", () => {
   });
 
   it("should preserve null/undefined values", () => {
-    const nullText = null as any;
+    const nullText = null as unknown as string;
     const cleanedNull = normalizeArabicPresentationForms(nullText);
     expect(cleanedNull).toBe(null);
   });
