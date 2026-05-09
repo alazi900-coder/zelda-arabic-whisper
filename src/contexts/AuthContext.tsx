@@ -16,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// eslint-disable-next-line react-refresh/only-export-components -- consumer hook colocated with provider
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {

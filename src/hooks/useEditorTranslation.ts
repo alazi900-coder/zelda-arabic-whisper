@@ -464,7 +464,7 @@ export function useEditorTranslation({
               if (!localStorage.getItem('myMemoryResetTime')) {
                 localStorage.setItem('myMemoryResetTime', String(Date.now() + 86400000));
               }
-            } catch {}
+            } catch { /* localStorage may be unavailable (private mode / quota) */ }
             return next;
           });
         }
@@ -835,7 +835,7 @@ export function useEditorTranslation({
               if (!localStorage.getItem('myMemoryResetTime')) {
                 localStorage.setItem('myMemoryResetTime', String(Date.now() + 86400000));
               }
-            } catch {}
+            } catch { /* localStorage may be unavailable (private mode / quota) */ }
             return next;
           });
         }

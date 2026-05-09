@@ -633,5 +633,6 @@ export {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  // eslint-disable-next-line react-refresh/only-export-components -- shadcn pattern: useSidebar hook colocated with components
   useSidebar,
 };
