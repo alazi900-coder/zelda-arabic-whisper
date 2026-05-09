@@ -1314,9 +1314,7 @@ const Editor = () => {
               onClose={() => setShowOfflineBulkFix(false)}
               entries={editor.state.entries}
               translations={editor.state.translations}
-              onApply={(updates) => {
-                editor.setState((prev) => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
-              }}
+              onApply={(updates) => editor.handleBulkReplace(updates)}
             />
           )}
 
