@@ -60,7 +60,7 @@ const OfflineReorderFixDialog: React.FC<Props> = ({
   const [scope, setScope] = useState<"file" | "project">("file");
   const [aggressiveness, setAggressiveness] = useState<"safe" | "balanced" | "strong">("balanced");
 
-  const suggestions = report?.suggestions ?? [];
+  const suggestions = useMemo(() => report?.suggestions ?? [], [report?.suggestions]);
   const selectedSuggestions = useMemo(
     () => suggestions.filter((s) => selected.has(s.key)),
     [suggestions, selected],

@@ -278,6 +278,9 @@ export function useEditorQuality({ state }: UseEditorQualityProps) {
       setTranslatedCount(translated);
     }, 800);
     return () => { if (combinedStatsTimerRef.current) clearTimeout(combinedStatsTimerRef.current); };
+    // intentional: depend on state.entries / state.translations only, not the
+    // whole `state` object identity (would re-run on unrelated state changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries, state?.translations, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   // === Quality report export ===

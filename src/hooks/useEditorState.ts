@@ -556,6 +556,9 @@ export function useEditorState() {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
+    // intentional: depend on state.translations only (autosave debounce trigger);
+    // including full `state` would refire on unrelated state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.translations, saveToIDB]);
 
   // Save before browser/tab close or hide
@@ -588,6 +591,8 @@ export function useEditorState() {
     if (!state) return [];
     const set = new Set(state.entries.map(e => e.msbtFile));
     return Array.from(set).sort();
+    // intentional: only re-derive when state.entries changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries]);
 
   const categoryCounts = useMemo(() => {
@@ -598,12 +603,16 @@ export function useEditorState() {
       counts[cat] = (counts[cat] || 0) + 1;
     }
     return counts;
+    // intentional: only re-derive when state.entries changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries]);
 
   // === Count entries with technical tags ===
   const tagsCount = useMemo(() => {
     if (!state) return 0;
     return state.entries.filter(e => hasTechnicalTags(e.original)).length;
+    // intentional: only re-derive when state.entries changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries]);
 
   // === Filtered entries ===
@@ -653,7 +662,7 @@ export function useEditorState() {
         (filterTechnical === "exclude" && !isTechnical);
       return matchSearch && matchFile && matchCategory && matchStatus && matchTechnical;
     });
-  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
+  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, qualityStats.damagedTagKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { if (!isPinned) setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical, isPinned]);
 
@@ -765,7 +774,7 @@ export function useEditorState() {
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     toast({ title: "✅ تم الإصلاح المحلي", description: `تم استعادة الرموز في ${fixedCount} نص بدون ذكاء اصطناعي` });
     showLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`, 4000);
-  }, [state, setState, setPreviousTranslations, setLastSaved]);
+  }, [state, setState, setPreviousTranslations, showLastSaved]);
 
   // === Deep tag scan: scan ALL entries for tag issues and propose fixes (preview before apply) ===
   // Detects: missing tags, duplicate (extra) tags, and order/identity mismatch — even when total counts are equal.
@@ -872,6 +881,9 @@ export function useEditorState() {
       title: fixedCount > 0 ? "🔍 الفحص مكتمل — راجع المعاينة" : "ℹ️ لا توجد إصلاحات تلقائية",
       description: `فُحص ${scanned} نص — ${fixedCount} قابل للإصلاح${notFixable > 0 ? ` — ${notFixable} يحتاج مراجعة يدوية` : ''}`,
     });
+    // setState/setPreviousTranslations are stable React setters; eslint flags
+    // them as unnecessary deps. Kept here for clarity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, setState, setPreviousTranslations]);
 
   // Apply pending fixes from the deep scan after user confirmation
@@ -916,7 +928,7 @@ export function useEditorState() {
     setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
     toast({ title: "✅ تم إعادة التوزيع", description: `تم إعادة توزيع الرموز في ${count} نص عند حدود الكلمات` });
     showLastSaved(`✅ إعادة توزيع ${count} نص`, 4000);
-  }, [state, setState, setPreviousTranslations, setLastSaved]);
+  }, [state, setState, setPreviousTranslations, showLastSaved]);
 
   // === Review handlers ===
   const handleReviewTranslations = async () => {
@@ -1297,7 +1309,7 @@ export function useEditorState() {
     setPreviousTranslations(p => ({ ...p, ...prev }));
     setState(s => s ? { ...s, translations: { ...s.translations, ...replacements } } : null);
     showLastSaved(`✅ تم استبدال ${Object.keys(replacements).length} نص`);
-  }, [state]);
+  }, [state, showLastSaved]);
 
 
 
