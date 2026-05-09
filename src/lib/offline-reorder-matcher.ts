@@ -25,6 +25,29 @@ export interface ReorderScanReport {
   scanned: number;
   translated: number;
   byMethod: Record<ReorderMethod, number>;
+  aborted?: boolean;
+}
+
+export type ReorderScanPhase =
+  | "preparing"
+  | "phrase"
+  | "duplicate"
+  | "sequence"
+  | "nearest"
+  | "done"
+  | "aborted";
+
+export interface ReorderScanProgress {
+  phase: ReorderScanPhase;
+  processed: number;
+  total: number;
+  found: number;
+}
+
+export interface ReorderScanCallbacks {
+  signal?: AbortSignal;
+  onProgress?: (info: ReorderScanProgress) => void;
+  onPartial?: (suggestions: ReorderSuggestion[]) => void;
 }
 
 interface EntryRecord {
@@ -425,7 +448,12 @@ function duplicateSuggestions(records: EntryRecord[], out: Map<string, ReorderSu
   }
 }
 
-function findBestSequence(records: EntryRecord[], mode: ReorderScanOptions["aggressiveness"]): ReorderSuggestion[] {
+async function findBestSequence(
+  records: EntryRecord[],
+  mode: ReorderScanOptions["aggressiveness"],
+  signal?: AbortSignal,
+  onProgress?: (processedFiles: number, totalFiles: number, found: number) => void,
+): Promise<ReorderSuggestion[]> {
   const t = thresholds(mode);
   const byFile = new Map<string, EntryRecord[]>();
   for (const record of records) {
@@ -434,8 +462,11 @@ function findBestSequence(records: EntryRecord[], mode: ReorderScanOptions["aggr
     byFile.set(record.entry.msbtFile, list);
   }
   const suggestions: ReorderSuggestion[] = [];
+  const totalFiles = byFile.size;
+  let processedFiles = 0;
 
   for (const fileRecords of byFile.values()) {
+    if (signal?.aborted) break;
     const translated = fileRecords.filter((r) => r.translation.trim());
     if (translated.length < 4) continue;
     const n = fileRecords.length;
@@ -485,11 +516,19 @@ function findBestSequence(records: EntryRecord[], mode: ReorderScanOptions["aggr
         evidence: [label, ...pair.evidence.slice(0, 4)],
       });
     }
+    processedFiles++;
+    onProgress?.(processedFiles, totalFiles, suggestions.length);
+    if (processedFiles % 8 === 0) await yieldToBrowser();
   }
   return suggestions;
 }
 
-async function nearestSuggestions(records: EntryRecord[], options: ReorderScanOptions): Promise<ReorderSuggestion[]> {
+async function nearestSuggestions(
+  records: EntryRecord[],
+  options: ReorderScanOptions,
+  signal?: AbortSignal,
+  onProgress?: (processed: number, total: number, found: number) => void,
+): Promise<ReorderSuggestion[]> {
   const scope = options.scope ?? "file";
   const t = thresholds(options.aggressiveness);
   const candidates = records.filter((r) => r.translation.trim()) as CandidateRecord[];
@@ -506,9 +545,18 @@ async function nearestSuggestions(records: EntryRecord[], options: ReorderScanOp
   const claimedSources = new Set<string>();
   const scored: Array<{ target: EntryRecord; best: ScoredCandidate; currentScore: number }> = [];
 
+  const total = records.length;
   let processed = 0;
   for (const target of records) {
-    if (!target.translation.trim()) continue;
+    if (signal?.aborted) break;
+    processed++;
+    if (!target.translation.trim()) {
+      if (processed % 250 === 0) {
+        onProgress?.(processed, total, scored.length);
+        await yieldToBrowser();
+      }
+      continue;
+    }
     const pool = scope === "project"
       ? candidates
       : (candidatesByFile.get(target.entry.msbtFile) ?? []);
@@ -518,13 +566,16 @@ async function nearestSuggestions(records: EntryRecord[], options: ReorderScanOp
       const s = scoreCandidate(target, candidate, scope);
       if (!best || s.score > best.score) best = s;
     }
-    processed++;
     if (best) {
       const currentScore = scoreCandidate(target, target, scope).score;
       if (best.score >= t.nearest && best.score - currentScore >= t.gap) scored.push({ target, best, currentScore });
     }
-    if (processed % 250 === 0) await yieldToBrowser();
+    if (processed % 250 === 0) {
+      onProgress?.(processed, total, scored.length);
+      await yieldToBrowser();
+    }
   }
+  onProgress?.(processed, total, scored.length);
 
   scored.sort((a, b) => (b.best.score - b.currentScore) - (a.best.score - a.currentScore));
   const out: ReorderSuggestion[] = [];
@@ -551,30 +602,72 @@ export async function scanReorderedTranslations(
   entries: ExtractedEntry[],
   translations: Record<string, string>,
   options: ReorderScanOptions = {},
+  callbacks: ReorderScanCallbacks = {},
 ): Promise<ReorderScanReport> {
+  const { signal, onProgress, onPartial } = callbacks;
   const records = recordsFrom(entries, translations);
   const out = new Map<string, ReorderSuggestion>();
   const t = thresholds(options.aggressiveness);
+  const total = records.length;
+  const translatedTotal = records.filter((r) => r.translation.trim()).length;
 
-  phraseSuggestions(records, out, t.phrase);
-  await yieldToBrowser();
-  duplicateSuggestions(records, out);
-  await yieldToBrowser();
-  for (const suggestion of findBestSequence(records, options.aggressiveness)) addSuggestion(out, suggestion);
-  await yieldToBrowser();
-  for (const suggestion of await nearestSuggestions(records, options)) addSuggestion(out, suggestion);
+  const buildPartial = (): ReorderSuggestion[] =>
+    [...out.values()]
+      .filter((s) => s.suggested.trim() && s.current !== s.suggested)
+      .sort((a, b) => b.confidence - a.confidence);
+  const emitPartial = () => onPartial?.(buildPartial());
 
-  const suggestions = [...out.values()]
-    .filter((s) => s.suggested.trim() && s.current !== s.suggested)
-    .sort((a, b) => b.confidence - a.confidence);
+  onProgress?.({ phase: "preparing", processed: 0, total, found: 0 });
+  await yieldToBrowser();
 
+  if (!signal?.aborted) {
+    onProgress?.({ phase: "phrase", processed: 0, total, found: out.size });
+    phraseSuggestions(records, out, t.phrase);
+    onProgress?.({ phase: "phrase", processed: total, total, found: out.size });
+    emitPartial();
+    await yieldToBrowser();
+  }
+
+  if (!signal?.aborted) {
+    onProgress?.({ phase: "duplicate", processed: 0, total, found: out.size });
+    duplicateSuggestions(records, out);
+    onProgress?.({ phase: "duplicate", processed: total, total, found: out.size });
+    emitPartial();
+    await yieldToBrowser();
+  }
+
+  if (!signal?.aborted) {
+    const seqList = await findBestSequence(records, options.aggressiveness, signal, (pf, tf, found) => {
+      onProgress?.({ phase: "sequence", processed: pf, total: tf, found: out.size + found });
+    });
+    for (const suggestion of seqList) addSuggestion(out, suggestion);
+    emitPartial();
+    await yieldToBrowser();
+  }
+
+  if (!signal?.aborted) {
+    const nearestList = await nearestSuggestions(records, options, signal, (proc, tot, found) => {
+      onProgress?.({ phase: "nearest", processed: proc, total: tot, found: out.size + found });
+      // Stream partial each batch so users see results appear during the
+      // long nearest phase instead of waiting until the end.
+      emitPartial();
+    });
+    for (const suggestion of nearestList) addSuggestion(out, suggestion);
+  }
+
+  const suggestions = buildPartial();
   const byMethod: Record<ReorderMethod, number> = { phrase: 0, duplicate: 0, sequence: 0, nearest: 0 };
   for (const suggestion of suggestions) byMethod[suggestion.method]++;
+
+  const aborted = !!signal?.aborted;
+  onProgress?.({ phase: aborted ? "aborted" : "done", processed: total, total, found: suggestions.length });
+  emitPartial();
 
   return {
     suggestions,
     scanned: entries.length,
-    translated: records.filter((r) => r.translation.trim()).length,
+    translated: translatedTotal,
     byMethod,
+    aborted,
   };
 }
