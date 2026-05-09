@@ -342,6 +342,13 @@ function addSuggestion(map: Map<string, ReorderSuggestion>, suggestion: ReorderS
   if (!existing || suggestion.confidence > existing.confidence) map.set(suggestion.key, suggestion);
 }
 
+// Yield back to the browser/event loop so the UI can repaint and stay
+// responsive during long scans. Without these yields, large projects
+// (~29k+ entries) caused a multi-minute main-thread freeze.
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function recordsFrom(entries: ExtractedEntry[], translations: Record<string, string>): EntryRecord[] {
   const byFileCounter = new Map<string, number>();
   return entries.map((entry) => {
@@ -482,24 +489,41 @@ function findBestSequence(records: EntryRecord[], mode: ReorderScanOptions["aggr
   return suggestions;
 }
 
-function nearestSuggestions(records: EntryRecord[], options: ReorderScanOptions): ReorderSuggestion[] {
+async function nearestSuggestions(records: EntryRecord[], options: ReorderScanOptions): Promise<ReorderSuggestion[]> {
   const scope = options.scope ?? "file";
   const t = thresholds(options.aggressiveness);
   const candidates = records.filter((r) => r.translation.trim()) as CandidateRecord[];
+  // Pre-index candidates by msbt file so the inner pool lookup is O(1) per
+  // target instead of an O(n) `candidates.filter(...)` call. With large
+  // projects (~29k entries) the previous filter inside the target loop was
+  // the dominant cost and caused the UI to freeze for many minutes.
+  const candidatesByFile = new Map<string, CandidateRecord[]>();
+  for (const c of candidates) {
+    const list = candidatesByFile.get(c.entry.msbtFile);
+    if (list) list.push(c);
+    else candidatesByFile.set(c.entry.msbtFile, [c]);
+  }
   const claimedSources = new Set<string>();
   const scored: Array<{ target: EntryRecord; best: ScoredCandidate; currentScore: number }> = [];
 
+  let processed = 0;
   for (const target of records) {
     if (!target.translation.trim()) continue;
-    const pool = candidates.filter((c) => c.key !== target.key && (scope === "project" || c.entry.msbtFile === target.entry.msbtFile));
+    const pool = scope === "project"
+      ? candidates
+      : (candidatesByFile.get(target.entry.msbtFile) ?? []);
     let best: ScoredCandidate | null = null;
     for (const candidate of pool) {
+      if (candidate.key === target.key) continue;
       const s = scoreCandidate(target, candidate, scope);
       if (!best || s.score > best.score) best = s;
     }
-    if (!best) continue;
-    const currentScore = scoreCandidate(target, target, scope).score;
-    if (best.score >= t.nearest && best.score - currentScore >= t.gap) scored.push({ target, best, currentScore });
+    processed++;
+    if (best) {
+      const currentScore = scoreCandidate(target, target, scope).score;
+      if (best.score >= t.nearest && best.score - currentScore >= t.gap) scored.push({ target, best, currentScore });
+    }
+    if (processed % 250 === 0) await yieldToBrowser();
   }
 
   scored.sort((a, b) => (b.best.score - b.currentScore) - (a.best.score - a.currentScore));
@@ -523,19 +547,22 @@ function nearestSuggestions(records: EntryRecord[], options: ReorderScanOptions)
   return out;
 }
 
-export function scanReorderedTranslations(
+export async function scanReorderedTranslations(
   entries: ExtractedEntry[],
   translations: Record<string, string>,
   options: ReorderScanOptions = {},
-): ReorderScanReport {
+): Promise<ReorderScanReport> {
   const records = recordsFrom(entries, translations);
   const out = new Map<string, ReorderSuggestion>();
   const t = thresholds(options.aggressiveness);
 
   phraseSuggestions(records, out, t.phrase);
+  await yieldToBrowser();
   duplicateSuggestions(records, out);
+  await yieldToBrowser();
   for (const suggestion of findBestSequence(records, options.aggressiveness)) addSuggestion(out, suggestion);
-  for (const suggestion of nearestSuggestions(records, options)) addSuggestion(out, suggestion);
+  await yieldToBrowser();
+  for (const suggestion of await nearestSuggestions(records, options)) addSuggestion(out, suggestion);
 
   const suggestions = [...out.values()]
     .filter((s) => s.suggested.trim() && s.current !== s.suggested)
