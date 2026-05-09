@@ -80,15 +80,15 @@ const Editor = () => {
     'default', 'totk', 'totk-items', 'materials', 'ui', 'locations', 'creatures', 'abilities'
   ]));
   const [showSceneContext, setShowSceneContext] = React.useState(false);
-  const [sceneContextEntry, setSceneContextEntry] = React.useState<any>(null);
+  const [sceneContextEntry, setSceneContextEntry] = React.useState<ExtractedEntry | null>(null);
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
   const [showOfflineReorderFix, setShowOfflineReorderFix] = React.useState(false);
 
   const [showContextSuggest, setShowContextSuggest] = React.useState(false);
-  const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
-  const openContextSuggest = React.useCallback((entry: any) => { setContextSuggestEntry(entry); setShowContextSuggest(true); }, []);
+  const [contextSuggestEntry, setContextSuggestEntry] = React.useState<ExtractedEntry | null>(null);
+  const openContextSuggest = React.useCallback((entry: ExtractedEntry) => { setContextSuggestEntry(entry); setShowContextSuggest(true); }, []);
 
   const [translatorNotes, setTranslatorNotes] = React.useState<Record<string, string>>(() => {
     try {
@@ -109,7 +109,7 @@ const Editor = () => {
   const [showFeatureTour, setShowFeatureTour] = React.useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = React.useState(false);
   const [showEngineCompare, setShowEngineCompare] = React.useState(false);
-  const [engineCompareEntry, setEngineCompareEntry] = React.useState<any>(null);
+  const [engineCompareEntry, setEngineCompareEntry] = React.useState<ExtractedEntry | null>(null);
   const [showSmartImprove, setShowSmartImprove] = React.useState(false);
   const [enhanceResults, setEnhanceResults] = React.useState<EnhanceResult[]>([]);
   const [enhancing, setEnhancing] = React.useState(false);
@@ -117,7 +117,7 @@ const Editor = () => {
   const [splitView, setSplitView] = React.useState(false);
   const [splitViewKey, setSplitViewKey] = React.useState<string | null>(null);
 
-  const openEngineCompare = React.useCallback((entry: any) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
+  const openEngineCompare = React.useCallback((entry: ExtractedEntry) => { setEngineCompareEntry(entry); setShowEngineCompare(true); }, []);
 
   // Intercept in-app navigation when page is locked
   React.useEffect(() => {
@@ -172,8 +172,8 @@ const Editor = () => {
       } else {
         toast({ title: `✨ تم تحليل ${translatedEntries.length} نص`, description: `${results.length} اقتراح تحسين متاح` });
       }
-    } catch (err: any) {
-      toast({ title: "❌ خطأ في التحليل", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "❌ خطأ في التحليل", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setEnhancing(false);
     }
@@ -255,25 +255,26 @@ const Editor = () => {
       const { data, error } = await supabase.functions.invoke('polish-arabic', { body: { entries, glossary: glossaryContext } });
       if (error) throw error;
       if (!data?.results) throw new Error('No results');
-      const changedResults = data.results.filter((r: any) => r.changed);
+      type PolishResult = { key: string; current: string; improved: string; changed: boolean; categoryLabel?: string; reason?: string };
+      const changedResults: PolishResult[] = (data.results as PolishResult[]).filter((r) => r.changed);
       if (changedResults.length === 0) {
         toast({ title: "✅ الترجمات سليمة", description: "لم يتم العثور على أخطاء تحتاج تصحيح" });
       } else {
         editor.setFixPreview({
           title: `تحسين الصياغة العربية (${changedResults.length} نص)`,
-          items: changedResults.map((r: any) => {
+          items: changedResults.map((r) => {
             const parts = r.key.split(':');
             return { key: r.key, label: `${r.categoryLabel || ''} ${r.reason || 'تحسين الصياغة'}`.trim(), file: parts[0] || '', oldText: r.current, newText: r.improved };
           }),
-          updates: Object.fromEntries(changedResults.map((r: any) => [r.key, r.improved])),
+          updates: Object.fromEntries(changedResults.map((r) => [r.key, r.improved])),
         });
       }
-    } catch (err: any) {
-      toast({ title: "❌ خطأ في تحسين الصياغة", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "❌ خطأ في تحسين الصياغة", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally { setPolishing(false); }
   }, [editor.state, editor.isFilterActive, editor.filteredEntries, editor.activeGlossary, polishing]);
 
-  const openSceneContext = React.useCallback((entry: any) => { setSceneContextEntry(entry); setShowSceneContext(true); }, []);
+  const openSceneContext = React.useCallback((entry: ExtractedEntry) => { setSceneContextEntry(entry); setShowSceneContext(true); }, []);
 
   // Perf fix (C1): pre-build per-file entry maps once instead of filtering+sorting
   // state.entries (~5000) inside the entries .map() loop (was 50× per render).
@@ -1079,7 +1080,7 @@ const Editor = () => {
                     <option value="all">كل الملفات</option>
                     {editor.msbtFiles.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
-                  <select value={editor.filterTechnical} onChange={e => editor.setFilterTechnical(e.target.value as any)} className="px-3 py-2 rounded bg-background border border-border font-body text-sm">
+                  <select value={editor.filterTechnical} onChange={e => editor.setFilterTechnical(e.target.value as "all" | "only" | "exclude")} className="px-3 py-2 rounded bg-background border border-border font-body text-sm">
                     <option value="all">الكل</option>
                     <option value="exclude">بدون تقني</option>
                     <option value="only">تقني فقط</option>
