@@ -125,7 +125,7 @@ function repairJson(raw: string): { parsed: Record<string, string>; wasTruncated
   try {
     const result = JSON.parse(text);
     return { parsed: result, wasTruncated: false, skippedCount: 0 };
-  } catch {}
+  } catch { /* fall through to repair strategies below */ }
 
   // تقسيم عند }{ وتحليل كل جزء على حدة
   const chunks = text.split(/\}\s*\{/);
