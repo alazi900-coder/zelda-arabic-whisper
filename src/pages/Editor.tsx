@@ -57,7 +57,7 @@ import QuickAlternativesPanel from "@/components/editor/QuickAlternativesPanel";
 import QualityReportExport from "@/components/editor/QualityReportExport";
 import TranslationEnhancePanel, { type EnhanceResult } from "@/components/editor/TranslationEnhancePanel";
 import TranslationAIEnhancePanel from "@/components/editor/TranslationAIEnhancePanel";
-import OfflineBulkFixDialog from "@/components/editor/OfflineBulkFixDialog";
+import OfflineReorderFixDialog from "@/components/editor/OfflineReorderFixDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PROMPT_PRESETS } from "@/components/editor/promptPresets";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
@@ -84,7 +84,7 @@ const Editor = () => {
   const [showInconsistencies, setShowInconsistencies] = React.useState(false);
   const [filterDifficulty, setFilterDifficulty] = React.useState<string>("all");
   const [polishing, setPolishing] = React.useState(false);
-  const [showOfflineBulkFix, setShowOfflineBulkFix] = React.useState(false);
+  const [showOfflineReorderFix, setShowOfflineReorderFix] = React.useState(false);
 
   const [showContextSuggest, setShowContextSuggest] = React.useState(false);
   const [contextSuggestEntry, setContextSuggestEntry] = React.useState<any>(null);
@@ -1300,8 +1300,8 @@ const Editor = () => {
             <Button size="sm" variant="secondary" onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
               {editor.applyingArabic ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />} تطبيق المعالجة العربية ✨
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowOfflineBulkFix(true)} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10 border-primary/40 text-primary hover:bg-primary/10" title="فحص شامل دون اتصال — يصنّف المشاكل ويصلحها بضغطة">
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> فحص وإصلاح شامل (دون اتصال) 🛠️
+            <Button size="sm" variant="outline" onClick={() => setShowOfflineReorderFix(true)} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10 border-primary/40 text-primary hover:bg-primary/10" title="اكتشاف وإصلاح الترجمات الموضوعة في ترتيب خاطئ بدون إنترنت">
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> إصلاح ترتيب الترجمات
             </Button>
             <Button size="sm" onClick={editor.handlePreBuild} disabled={editor.building} className="flex-1 font-display font-semibold text-xs sm:text-sm h-9 sm:h-10">
               {editor.building ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <FileDown className="w-3.5 h-3.5 mr-1.5" />} بناء الملف النهائي
@@ -1309,9 +1309,9 @@ const Editor = () => {
           </div>
 
           {editor.state && (
-            <OfflineBulkFixDialog
-              open={showOfflineBulkFix}
-              onClose={() => setShowOfflineBulkFix(false)}
+            <OfflineReorderFixDialog
+              open={showOfflineReorderFix}
+              onClose={() => setShowOfflineReorderFix(false)}
               entries={editor.state.entries}
               translations={editor.state.translations}
               onApply={(updates) => editor.handleBulkReplace(updates)}
