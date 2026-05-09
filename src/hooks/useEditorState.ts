@@ -979,11 +979,33 @@ export function useEditorState() {
   };
 
   // === Advanced AI review actions (ported from Xenoblade) ===
+  // Raw shapes returned by the review-translations edge function.
+  // Optional fields are present because different actions return different keys
+  // (e.g. `findings` vs `weakEntries`, `fix` vs `suggestion`, `issue` vs `reason`).
+  type RawFinding = {
+    key: string;
+    original: string;
+    current: string;
+    fix?: string;
+    suggestion?: string;
+    issue?: string;
+    reason?: string;
+    type?: string;
+    score?: number;
+  };
+  type RawCorrection = { key: string; original: string; current: string; corrected: string };
+  type RawRetranslation = { key: string; original: string; current: string; retranslated: string; changes?: string };
+  type AdvancedReviewResponse = {
+    findings?: RawFinding[];
+    weakEntries?: RawFinding[];
+    corrections?: RawCorrection[];
+    retranslations?: RawRetranslation[];
+  };
   // Helper to call review-translations edge function with action
   const callAdvancedReview = async (
     action: 'smart-review' | 'grammar-check' | 'context-review' | 'auto-correct' | 'detect-weak' | 'context-retranslate',
     extraBody: Record<string, unknown> = {}
-  ): Promise<any> => {
+  ): Promise<AdvancedReviewResponse | null> => {
     if (!state) return null;
     const reviewEntries = filteredEntries
       .filter(e => { const k = `${e.msbtFile}:${e.index}`; return state.translations[k]?.trim(); })
@@ -1027,8 +1049,8 @@ export function useEditorState() {
       const data = await callAdvancedReview(action, extraBody);
       if (!data) return;
       // Normalize shapes: smart/grammar/context return `findings`; detect-weak returns `weakEntries`
-      const raw: any[] = data.findings || data.weakEntries || [];
-      const normalized = raw.map((f: any) => ({
+      const raw: RawFinding[] = data.findings || data.weakEntries || [];
+      const normalized = raw.map((f) => ({
         key: f.key,
         original: f.original,
         current: f.current,
@@ -1036,7 +1058,7 @@ export function useEditorState() {
         issue: f.issue || f.reason || '',
         type: f.type,
         score: f.score,
-      })).filter((f: any) => f.fix);
+      })).filter((f) => f.fix);
       setAdvancedAction(action);
       setAdvancedFindings(normalized);
       if (normalized.length === 0) toast({ title: '✅ لا توجد مشاكل', description: 'جميع الترجمات في النطاق الحالي سليمة' });
@@ -1058,8 +1080,8 @@ export function useEditorState() {
     try {
       const data = await callAdvancedReview('auto-correct');
       if (!data) return;
-      const corrections: any[] = data.corrections || [];
-      const normalized = corrections.map((c: any) => ({ key: c.key, original: c.original, current: c.current, fix: c.corrected, issue: 'تصحيح إملائي/نحوي آلي' }));
+      const corrections: RawCorrection[] = data.corrections || [];
+      const normalized = corrections.map((c) => ({ key: c.key, original: c.original, current: c.current, fix: c.corrected, issue: 'تصحيح إملائي/نحوي آلي' }));
       setAdvancedAction('auto-correct');
       setAdvancedFindings(normalized);
       if (normalized.length === 0) toast({ title: '✅ لا توجد تصحيحات', description: 'جميع الترجمات سليمة إملائياً' });
@@ -1084,8 +1106,8 @@ export function useEditorState() {
       }
       const data = await callAdvancedReview('context-retranslate', extraBody);
       if (!data) return;
-      const retrans: any[] = data.retranslations || [];
-      const normalized = retrans.map((r: any) => ({ key: r.key, original: r.original, current: r.current, fix: r.retranslated, issue: r.changes || 'إعادة ترجمة مع سياق' }));
+      const retrans: RawRetranslation[] = data.retranslations || [];
+      const normalized = retrans.map((r) => ({ key: r.key, original: r.original, current: r.current, fix: r.retranslated, issue: r.changes || 'إعادة ترجمة مع سياق' }));
       setAdvancedAction('context-retranslate');
       setAdvancedFindings(normalized);
       if (normalized.length === 0) toast({ title: '✅ لا حاجة لإعادة ترجمة', description: 'الترجمات الحالية مناسبة للسياق' });
@@ -1130,8 +1152,8 @@ export function useEditorState() {
         const err = await response.json().catch(() => null);
         throw new Error(err?.error || `خطأ ${response.status}`);
       }
-      const data = await response.json();
-      const alts: any[] = data.alternatives || [];
+      const data: { alternatives?: Array<{ style: string; text: string; reason: string }> } = await response.json();
+      const alts = data.alternatives || [];
       if (alts.length === 0) {
         toast({ title: 'ℹ️ لا بدائل', description: 'لم يقترح الذكاء الاصطناعي بدائل مختلفة' });
         return;
