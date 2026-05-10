@@ -1326,7 +1326,8 @@ const Editor = () => {
             <OfflineReorderFixDialog
               open={showOfflineReorderFix}
               onClose={() => setShowOfflineReorderFix(false)}
-              entries={editor.state.entries}
+              entries={(editor.isFilterActive ? editor.filteredEntries : editor.state.entries)
+                .filter((e) => editor.state!.translations[`${e.msbtFile}:${e.index}`]?.trim())}
               translations={editor.state.translations}
               onApply={(updates) => editor.handleBulkReplace(updates)}
             />
