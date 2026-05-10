@@ -10,27 +10,16 @@
 export type EngineId =
   | "gemini"
   | "lovable"
-  | "claude"
-  | "bedrock"
   | "mymemory"
-  | "google"
-  | "openrouter"
-  | "groq";
+  | "google";
 
 export type ModelId =
-  | "gemini-2.0-flash"
+  | "gemini-2.5-flash-lite"
   | "gemini-2.5-flash"
   | "gemini-2.5-pro"
-  | "claude-haiku"
-  | "claude-sonnet"
-  | "bedrock-deepseek-r1"
-  | "bedrock-claude-sonnet"
-  | "bedrock-llama"
   | "lovable"
   | "mymemory"
-  | "google"
-  | "openrouter-unknown"
-  | "groq-llama70b";
+  | "google";
 
 interface Pricing {
   input: number;
@@ -41,24 +30,13 @@ interface Pricing {
 
 // USD per 1M tokens. Free engines (mymemory/google) are flagged.
 const PRICING: Readonly<Record<ModelId, Pricing>> = {
-  "gemini-2.0-flash": { input: 0.1, output: 0.4 },
+  "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "gemini-2.5-pro": { input: 1.25, output: 10.0 },
-  "claude-haiku": { input: 1.0, output: 5.0 },
-  "claude-sonnet": { input: 3.0, output: 15.0 },
-  "bedrock-deepseek-r1": { input: 1.35, output: 5.4 },
-  "bedrock-claude-sonnet": { input: 3.0, output: 15.0 },
-  "bedrock-llama": { input: 0.72, output: 0.72 },
   // Lovable is free for users (proxied through Lovable Cloud), so 0 cost.
   "lovable": { input: 0, output: 0, free: true },
   "mymemory": { input: 0, output: 0, free: true },
   "google": { input: 0, output: 0, free: true },
-  // OpenRouter pricing varies wildly per model (free models exist; some
-  // are pricier than Claude). We use a conservative middle estimate; for an
-  // exact cost the user can check the model card on openrouter.ai.
-  "openrouter-unknown": { input: 1.0, output: 5.0 },
-  // Groq pricing: Llama 3.3 70B on GroqCloud — very affordable.
-  "groq-llama70b": { input: 0.59, output: 0.79 },
 };
 
 export interface CostEstimate {
@@ -88,9 +66,7 @@ export function estimateTokens(text: string, mode: "input" | "output" = "input")
 /** Map UI-level engine + model selection onto a pricing key. */
 export function resolveModelId(
   engine: EngineId,
-  geminiModel?: "gemini-2.0-flash" | "gemini-2.5-flash" | "gemini-2.5-pro" | "auto",
-  translationQuality?: "fast" | "quality",
-  bedrockModel?: string,
+  geminiModel?: "gemini-2.5-flash-lite" | "gemini-2.5-flash" | "gemini-2.5-pro" | "auto",
 ): ModelId {
   if (engine === "google") return "google";
   if (engine === "mymemory") return "mymemory";
@@ -99,16 +75,6 @@ export function resolveModelId(
     if (!geminiModel || geminiModel === "auto") return "gemini-2.5-flash";
     return geminiModel;
   }
-  if (engine === "claude") {
-    return translationQuality === "quality" ? "claude-sonnet" : "claude-haiku";
-  }
-  if (engine === "bedrock") {
-    if (bedrockModel?.includes("claude")) return "bedrock-claude-sonnet";
-    if (bedrockModel?.includes("llama")) return "bedrock-llama";
-    return "bedrock-deepseek-r1";
-  }
-  if (engine === "openrouter") return "openrouter-unknown";
-  if (engine === "groq") return "groq-llama70b";
   return "lovable";
 }
 

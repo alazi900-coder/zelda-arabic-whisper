@@ -96,57 +96,18 @@ export function useEditorState() {
       else localStorage.removeItem('customPromptInstructions');
     } catch (e) { console.warn('localStorage customPromptInstructions:', e); }
   }, []);
-  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq'>(() => {
-    try { return (localStorage.getItem('translationEngine') as 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq') || 'lovable'; } catch { return 'lovable'; }
+  // Translation engine — only 4 supported (Lovable AI, personal Gemini, Google Translate, MyMemory).
+  // Older saved values like 'claude'/'bedrock'/'openrouter'/'groq' are migrated to 'lovable'.
+  const [translationEngine, _setTranslationEngine] = useState<'gemini' | 'lovable' | 'mymemory' | 'google'>(() => {
+    try {
+      const v = localStorage.getItem('translationEngine');
+      if (v === 'gemini' || v === 'lovable' || v === 'mymemory' || v === 'google') return v;
+      return 'lovable';
+    } catch { return 'lovable'; }
   });
-  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq') => {
+  const setTranslationEngine = useCallback((engine: 'gemini' | 'lovable' | 'mymemory' | 'google') => {
     _setTranslationEngine(engine);
     try { localStorage.setItem('translationEngine', engine); } catch (e) { console.warn('localStorage translationEngine:', e); }
-  }, []);
-  const [userClaudeKey, _setUserClaudeKey] = useState(() => {
-    try { return localStorage.getItem('userClaudeKey') || ''; } catch { return ''; }
-  });
-  const setUserClaudeKey = useCallback((key: string) => {
-    _setUserClaudeKey(key);
-    try { if (key) localStorage.setItem('userClaudeKey', key); else localStorage.removeItem('userClaudeKey'); } catch (e) { console.warn('localStorage userClaudeKey:', e); }
-  }, []);
-  // Groq: ultra-fast inference (Llama, Mixtral, Gemma) via groq.com
-  const [userGroqKey, _setUserGroqKey] = useState(() => {
-    try { return localStorage.getItem('userGroqKey') || ''; } catch { return ''; }
-  });
-  const setUserGroqKey = useCallback((key: string) => {
-    _setUserGroqKey(key);
-    try { if (key) localStorage.setItem('userGroqKey', key); else localStorage.removeItem('userGroqKey'); } catch (e) { console.warn('localStorage userGroqKey:', e); }
-  }, []);
-  const [groqModel, _setGroqModel] = useState<string>(() => {
-    try { return localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile'; } catch { return 'llama-3.3-70b-versatile'; }
-  });
-  const setGroqModel = useCallback((model: string) => {
-    _setGroqModel(model);
-    try { localStorage.setItem('groqModel', model); } catch (e) { console.warn('localStorage groqModel:', e); }
-  }, []);
-  const [groqTemperature, _setGroqTemperature] = useState<number>(() => {
-    try { const v = localStorage.getItem('groqTemperature'); return v ? Number(v) : 0.2; } catch { return 0.2; }
-  });
-  const setGroqTemperature = useCallback((t: number) => {
-    _setGroqTemperature(t);
-    try { localStorage.setItem('groqTemperature', String(t)); } catch (e) { console.warn('localStorage groqTemperature:', e); }
-  }, []);
-  // OpenRouter unified gateway: opens 200+ models (Mistral, Cohere, Llama, GPT-4, etc.)
-  // through one OpenAI-compatible API. User supplies key from openrouter.ai.
-  const [userOpenRouterKey, _setUserOpenRouterKey] = useState(() => {
-    try { return localStorage.getItem('userOpenRouterKey') || ''; } catch { return ''; }
-  });
-  const setUserOpenRouterKey = useCallback((key: string) => {
-    _setUserOpenRouterKey(key);
-    try { if (key) localStorage.setItem('userOpenRouterKey', key); else localStorage.removeItem('userOpenRouterKey'); } catch (e) { console.warn('localStorage userOpenRouterKey:', e); }
-  }, []);
-  const [openRouterModel, _setOpenRouterModel] = useState<string>(() => {
-    try { return localStorage.getItem('openRouterModel') || 'anthropic/claude-3.5-sonnet'; } catch { return 'anthropic/claude-3.5-sonnet'; }
-  });
-  const setOpenRouterModel = useCallback((model: string) => {
-    _setOpenRouterModel(model);
-    try { localStorage.setItem('openRouterModel', model); } catch (e) { console.warn('localStorage openRouterModel:', e); }
   }, []);
   // Strict JSON via tool calling (#24): default ON. The edge function falls
   // back to text parsing when the model ignores the tool, so leaving this on
@@ -161,34 +122,6 @@ export function useEditorState() {
     _setUserStrictJson(on);
     try { localStorage.setItem('userStrictJson', on ? '1' : '0'); } catch (e) { console.warn('localStorage userStrictJson:', e); }
   }, []);
-  const [userBedrockApiKey, _setUserBedrockApiKey] = useState(() => {
-    try { return localStorage.getItem('userBedrockApiKey') || ''; } catch { return ''; }
-  });
-  const setUserBedrockApiKey = useCallback((key: string) => {
-    _setUserBedrockApiKey(key);
-    try { if (key) localStorage.setItem('userBedrockApiKey', key); else localStorage.removeItem('userBedrockApiKey'); } catch (e) { console.warn('localStorage userBedrockApiKey:', e); }
-  }, []);
-  const [userBedrockRegion, _setUserBedrockRegion] = useState(() => {
-    try { return localStorage.getItem('userBedrockRegion') || 'us-east-1'; } catch { return 'us-east-1'; }
-  });
-  const setUserBedrockRegion = useCallback((region: string) => {
-    _setUserBedrockRegion(region);
-    try { if (region) localStorage.setItem('userBedrockRegion', region); else localStorage.removeItem('userBedrockRegion'); } catch (e) { console.warn('localStorage userBedrockRegion:', e); }
-  }, []);
-  const [bedrockModel, _setBedrockModel] = useState<string>(() => {
-    try { return localStorage.getItem('bedrockModel') || 'nova-pro'; } catch { return 'nova-pro'; }
-  });
-  const setBedrockModel = useCallback((model: string) => {
-    _setBedrockModel(model);
-    try { localStorage.setItem('bedrockModel', model); } catch (e) { console.warn('localStorage bedrockModel:', e); }
-  }, []);
-  const [bedrockProxyUrl, _setBedrockProxyUrl] = useState(() => {
-    try { return localStorage.getItem('bedrockProxyUrl') || ''; } catch { return ''; }
-  });
-  const setBedrockProxyUrl = useCallback((url: string) => {
-    _setBedrockProxyUrl(url);
-    try { if (url) localStorage.setItem('bedrockProxyUrl', url); else localStorage.removeItem('bedrockProxyUrl'); } catch (e) { console.warn('localStorage bedrockProxyUrl:', e); }
-  }, []);
   const [translationQuality, _setTranslationQuality] = useState<'fast' | 'quality'>(() => {
     try { return (localStorage.getItem('translationQuality') as 'fast' | 'quality') || 'fast'; } catch { return 'fast'; }
   });
@@ -198,13 +131,17 @@ export function useEditorState() {
   }, []);
   // Specific Gemini model selector (overrides translationQuality when engine is gemini/lovable)
   // 'auto' lets the front-end resolve per-batch by entry length (see lib/gemini-router).
-  const [geminiModel, _setGeminiModel] = useState<'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto'>(() => {
+  // Older saved 'gemini-2.0-flash' values are migrated to 'gemini-2.5-flash-lite' (the closest
+  // supported replacement — 2.0-flash was removed from Lovable's gateway and Google deprecates it 2026-05-25).
+  const [geminiModel, _setGeminiModel] = useState<'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto'>(() => {
     try {
-      const v = localStorage.getItem('geminiModel') as 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto' | null;
-      return v || 'gemini-2.5-flash';
+      const v = localStorage.getItem('geminiModel');
+      if (v === 'gemini-2.0-flash') return 'gemini-2.5-flash-lite';
+      if (v === 'gemini-2.5-flash-lite' || v === 'gemini-2.5-flash' || v === 'gemini-2.5-pro' || v === 'auto') return v;
+      return 'gemini-2.5-flash';
     } catch { return 'gemini-2.5-flash'; }
   });
-  const setGeminiModel = useCallback((m: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto') => {
+  const setGeminiModel = useCallback((m: 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'auto') => {
     _setGeminiModel(m);
     try { localStorage.setItem('geminiModel', m); } catch (e) { console.warn('localStorage geminiModel:', e); }
   }, []);
@@ -236,35 +173,10 @@ export function useEditorState() {
     _setGeminiTemperature(t);
     try { localStorage.setItem('geminiTemperature', String(t)); } catch (e) { console.warn('localStorage geminiTemperature:', e); }
   }, []);
-  const [claudeTemperature, _setClaudeTemperature] = useState<number>(() => _readTemp('claudeTemperature'));
-  const setClaudeTemperature = useCallback((t: number) => {
-    _setClaudeTemperature(t);
-    try { localStorage.setItem('claudeTemperature', String(t)); } catch (e) { console.warn('localStorage claudeTemperature:', e); }
-  }, []);
-  const [bedrockTemperature, _setBedrockTemperature] = useState<number>(() => _readTemp('bedrockTemperature'));
-  const setBedrockTemperature = useCallback((t: number) => {
-    _setBedrockTemperature(t);
-    try { localStorage.setItem('bedrockTemperature', String(t)); } catch (e) { console.warn('localStorage bedrockTemperature:', e); }
-  }, []);
   const [lovableTemperature, _setLovableTemperature] = useState<number>(() => _readTemp('lovableTemperature'));
   const setLovableTemperature = useCallback((t: number) => {
     _setLovableTemperature(t);
     try { localStorage.setItem('lovableTemperature', String(t)); } catch (e) { console.warn('localStorage lovableTemperature:', e); }
-  }, []);
-  // Auto-fallback toggle + chain order (comma-separated engine ids).
-  const [autoFallback, _setAutoFallback] = useState<boolean>(() => {
-    try { return localStorage.getItem('autoFallback') === '1'; } catch { return false; }
-  });
-  const setAutoFallback = useCallback((v: boolean) => {
-    _setAutoFallback(v);
-    try { localStorage.setItem('autoFallback', v ? '1' : '0'); } catch (e) { console.warn('localStorage autoFallback:', e); }
-  }, []);
-  const [fallbackChainRaw, _setFallbackChainRaw] = useState<string>(() => {
-    try { return localStorage.getItem('fallbackChain') || 'gemini,lovable,claude,mymemory,google'; } catch { return 'gemini,lovable,claude,mymemory,google'; }
-  });
-  const setFallbackChainRaw = useCallback((v: string) => {
-    _setFallbackChainRaw(v);
-    try { localStorage.setItem('fallbackChain', v); } catch (e) { console.warn('localStorage fallbackChain:', e); }
   }, []);
   const [myMemoryCharsUsed, setMyMemoryCharsUsed] = useState(() => {
     try {
@@ -716,16 +628,12 @@ export function useEditorState() {
 
   const translation = useEditorTranslation({
     state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
+    filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
     geminiModel,
     filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
     customPromptInstructions,
-    userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
-    geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
+    geminiTemperature, lovableTemperature,
     myMemoryEmailIndex, setMyMemoryEmailIndex,
-    userOpenRouterKey, openRouterModel,
-    userGroqKey, groqModel, groqTemperature,
-    autoFallback, fallbackChainRaw,
     userStrictJson,
   });
   const {
@@ -1315,9 +1223,7 @@ export function useEditorState() {
 
 
   return {
-    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
-    userOpenRouterKey, openRouterModel,
-    userGroqKey, groqModel, groqTemperature,
+    state, search, filterFile, filterCategory, filterStatus, filterTechnical, showFindReplace, userGeminiKey, translationEngine, isFilterActive, myMemoryEmail, myMemoryCharsUsed, myMemoryDailyLimit,
     building, buildProgress, translating, translateProgress,
     lastSaved, cloudSyncing, cloudStatus,
     technicalEditingMode, showPreview, previewKey,
@@ -1338,22 +1244,15 @@ export function useEditorState() {
     setSearch, setFilterFile, setFilterCategory, setFilterStatus, toggleFilterStatus, clearFilterStatus, setFilterTechnical,
     setFiltersOpen, togglePin, setIsPageLocked, setShowQualityStats, setQuickReviewMode, setQuickReviewIndex, setShowFindReplace,
     setCurrentPage, setShowRetranslateConfirm, setShowPreview, setPreviewKey,
-    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setUserClaudeKey, setUserBedrockApiKey, setUserBedrockRegion, setTranslationEngine, translationQuality, setTranslationQuality,
-    setUserOpenRouterKey, setOpenRouterModel,
-    setUserGroqKey, setGroqModel, setGroqTemperature,
+    setArabicNumerals, setMirrorPunctuation, setUserGeminiKey, setTranslationEngine, translationQuality, setTranslationQuality,
     geminiModel, setGeminiModel,
-    setBedrockModel, setBedrockProxyUrl,
     customPromptInstructions, setCustomPromptInstructions,
     setReviewResults, setShortSuggestions, setImproveResults, setBuildStats, setShowBuildConfirm,
     setMyMemoryEmail, setMyMemoryCharsUsed, setFixPreview,
-    // Engine controls (per-engine creativity, MyMemory rotation, fallback chain)
+    // Engine controls (per-engine creativity, MyMemory rotation)
     geminiTemperature, setGeminiTemperature,
-    claudeTemperature, setClaudeTemperature,
-    bedrockTemperature, setBedrockTemperature,
     lovableTemperature, setLovableTemperature,
     myMemoryEmailIndex, setMyMemoryEmailIndex,
-    autoFallback, setAutoFallback,
-    fallbackChainRaw, setFallbackChainRaw,
     userStrictJson, setUserStrictJson,
 
     // Handlers

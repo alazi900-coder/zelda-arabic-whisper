@@ -30,12 +30,7 @@ describe("resolveModelId", () => {
     expect(resolveModelId("gemini")).toBe("gemini-2.5-flash");
     expect(resolveModelId("gemini", "auto")).toBe("gemini-2.5-flash");
     expect(resolveModelId("gemini", "gemini-2.5-pro")).toBe("gemini-2.5-pro");
-    expect(resolveModelId("claude", undefined, "fast")).toBe("claude-haiku");
-    expect(resolveModelId("claude", undefined, "quality")).toBe("claude-sonnet");
-    expect(resolveModelId("bedrock", undefined, undefined, "deepseek-r1")).toBe("bedrock-deepseek-r1");
-    expect(resolveModelId("bedrock", undefined, undefined, "claude-3-sonnet")).toBe("bedrock-claude-sonnet");
-    expect(resolveModelId("bedrock", undefined, undefined, "llama-3")).toBe("bedrock-llama");
-    expect(resolveModelId("openrouter")).toBe("openrouter-unknown");
+    expect(resolveModelId("gemini", "gemini-2.5-flash-lite")).toBe("gemini-2.5-flash-lite");
   });
 });
 

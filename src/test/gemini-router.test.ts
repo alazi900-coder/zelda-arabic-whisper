@@ -3,7 +3,7 @@ import { resolveGeminiModel } from "@/lib/gemini-router";
 
 describe("resolveGeminiModel", () => {
   it("returns the explicit model unchanged when not 'auto'", () => {
-    expect(resolveGeminiModel("gemini-2.0-flash", [])).toBe("gemini-2.0-flash");
+    expect(resolveGeminiModel("gemini-2.5-flash-lite", [])).toBe("gemini-2.5-flash-lite");
     expect(resolveGeminiModel("gemini-2.5-flash", [{ original: "abc" }])).toBe("gemini-2.5-flash");
     expect(resolveGeminiModel("gemini-2.5-pro", [{ original: "x".repeat(500) }])).toBe("gemini-2.5-pro");
   });
@@ -16,9 +16,9 @@ describe("resolveGeminiModel", () => {
     expect(resolveGeminiModel("auto", [])).toBe("gemini-2.5-flash");
   });
 
-  it("picks 2.0-flash when 'auto' and longest entry < 80 chars", () => {
-    expect(resolveGeminiModel("auto", [{ original: "Hello" }, { original: "Bye" }])).toBe("gemini-2.0-flash");
-    expect(resolveGeminiModel("auto", [{ original: "x".repeat(79) }])).toBe("gemini-2.0-flash");
+  it("picks 2.5-flash-lite when 'auto' and longest entry < 80 chars", () => {
+    expect(resolveGeminiModel("auto", [{ original: "Hello" }, { original: "Bye" }])).toBe("gemini-2.5-flash-lite");
+    expect(resolveGeminiModel("auto", [{ original: "x".repeat(79) }])).toBe("gemini-2.5-flash-lite");
   });
 
   it("picks 2.5-flash when 'auto' and longest entry between 80 and 299 chars", () => {

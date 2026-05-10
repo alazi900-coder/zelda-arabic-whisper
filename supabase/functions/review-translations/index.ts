@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
               | 'smart-review' | 'grammar-check' | 'context-review'
               | 'quick-alternatives' | 'auto-correct' | 'detect-weak'
               | 'context-retranslate';
-       geminiModel?: 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
+       geminiModel?: 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
        contextEntries?: { key: string; original: string; translation: string }[];
      };
 
