@@ -279,7 +279,7 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="font-body"><Download className="w-4 h-4" /> تصدير / استيراد</Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent dir="rtl" align="end" className="bg-card border-border z-50">
+              <DropdownMenuContent align="end" className="bg-card border-border z-50">
                 <DropdownMenuLabel className="text-xs">📤 التصدير</DropdownMenuLabel>
                 <DropdownMenuItem onClick={editor.handleExportTranslations}><Download className="w-4 h-4" /> تصدير JSON{editor.isFilterActive ? ` (${editor.filterLabel})` : ''}</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => editor.handleExportEnglishOnly()}><FileText className="w-4 h-4" /> تصدير الإنجليزية كاملاً ({untranslatedCount}) 🇬🇧</DropdownMenuItem>
@@ -305,7 +305,7 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="font-body border-primary/30 text-primary hover:text-primary"><BookOpen className="w-4 h-4" /> القواميس</Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent dir="rtl" align="end" className="bg-card border-border z-50">
+              <DropdownMenuContent align="end" className="bg-card border-border z-50">
                 <DropdownMenuItem onClick={editor.handleImportGlossary}><BookOpen className="w-4 h-4" /> تحميل قاموس مخصص</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs">📖 القواميس المدمجة</DropdownMenuLabel>
@@ -352,7 +352,7 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="font-body border-amber-500/40 text-amber-700 hover:text-amber-800">🧹 تنظيف النصوص</Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent dir="rtl" align="end" className="bg-card border-border z-50">
+              <DropdownMenuContent align="end" className="bg-card border-border z-50">
                 <DropdownMenuLabel className="text-xs">مع مراجعة قبل التطبيق</DropdownMenuLabel>
                 <DropdownMenuItem onClick={editor.handleFixAllDiacritics} disabled={editor.translatedCount === 0}>🔡 إزالة التشكيلات</DropdownMenuItem>
                 <DropdownMenuItem onClick={editor.handleFixAllBrackets} disabled={editor.translatedCount === 0}>🏷️ إصلاح أقواس الوسوم</DropdownMenuItem>
@@ -378,7 +378,7 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
                   <Sparkles className="w-4 h-4" /> أدوات الذكاء الاصطناعي
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent dir="rtl" align="end" className="bg-card border-border z-50">
+              <DropdownMenuContent align="end" className="bg-card border-border z-50">
                 <DropdownMenuLabel className="text-xs">✨ تحسينات أساسية</DropdownMenuLabel>
                 <DropdownMenuItem onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic}><Sparkles className="w-4 h-4" /> تطبيق المعالجة العربية</DropdownMenuItem>
                 <DropdownMenuItem onClick={editor.handleReviewTranslations} disabled={editor.reviewing || editor.translatedCount === 0}>
