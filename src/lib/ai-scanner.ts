@@ -233,7 +233,6 @@ export const AI_MODELS: Array<{ value: string; label: string; group: "google" | 
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (متوازن)", group: "google" },
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (الأخف)", group: "google" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro (دقة عالية، أبطأ)", group: "google" },
-  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (الجيل السابق)", group: "google" },
   { value: "gpt-5", label: "GPT-5 (دقة قصوى)", group: "openai" },
   { value: "gpt-5-mini", label: "GPT-5 mini (متوازن — أرخص)", group: "openai" },
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },

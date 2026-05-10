@@ -26,7 +26,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useEditorState } from "@/hooks/useEditorState";
 import { Slider } from "@/components/ui/slider";
 import { estimateBatchCost, formatCostEstimate, resolveModelId } from "@/lib/cost-estimator";
-import { OPENROUTER_PRESETS, isFreeModelId, findPreset } from "@/lib/openrouter-models";
 import { PAGE_SIZE, isTechnicalText, type ExtractedEntry } from "@/components/editor/types";
 import DebouncedInput from "@/components/editor/DebouncedInput";
 import CategoryProgress from "@/components/editor/CategoryProgress";
@@ -505,15 +504,11 @@ const Editor = () => {
                     // the engine reveals its key field below. Lock-icon flags missing keys.
                     { key: 'lovable', label: '🤖 Lovable AI', needsKey: false, hasKey: true },
                     { key: 'gemini', label: '✨ Gemini (شخصي)', needsKey: true, hasKey: !!editor.userGeminiKey },
-                    { key: 'claude', label: '🧠 Claude (شخصي)', needsKey: true, hasKey: !!editor.userClaudeKey },
-                    { key: 'bedrock', label: '☁️ Amazon Bedrock', needsKey: true, hasKey: !!editor.userBedrockApiKey },
-                    { key: 'openrouter', label: '🌍 OpenRouter', needsKey: true, hasKey: !!editor.userOpenRouterKey },
-                    { key: 'groq', label: '⚡ Groq', needsKey: true, hasKey: !!editor.userGroqKey },
                     { key: 'google', label: '🔤 Google Translate', needsKey: false, hasKey: true },
                     { key: 'mymemory', label: '🌐 MyMemory', needsKey: false, hasKey: true },
                   ].map(eng => (
                     <Button key={eng.key} variant={editor.translationEngine === eng.key ? 'default' : 'outline'} size="sm"
-                      onClick={() => editor.setTranslationEngine(eng.key as 'lovable' | 'gemini' | 'claude' | 'bedrock' | 'openrouter' | 'groq' | 'google' | 'mymemory')}
+                      onClick={() => editor.setTranslationEngine(eng.key as 'lovable' | 'gemini' | 'google' | 'mymemory')}
                       className="text-xs font-body"
                       title={eng.needsKey && !eng.hasKey ? 'يحتاج مفتاحاً — اضغط لاختياره ثم أدخل المفتاح' : undefined}>
                       {eng.label}
@@ -530,71 +525,29 @@ const Editor = () => {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant={editor.geminiModel === 'auto' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('auto')} className="text-xs font-body">🤖 تلقائي</Button>
-                    <Button variant={editor.geminiModel === 'gemini-2.0-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.0-flash')} className="text-xs font-body">⚡ 2.0 Flash</Button>
+                    <Button variant={editor.geminiModel === 'gemini-2.5-flash-lite' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-flash-lite')} className="text-xs font-body">⚡ 2.5 Flash Lite</Button>
                     <Button variant={editor.geminiModel === 'gemini-2.5-flash' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-flash')} className="text-xs font-body">✨ 2.5 Flash</Button>
                     <Button variant={editor.geminiModel === 'gemini-2.5-pro' ? 'default' : 'outline'} size="sm" onClick={() => editor.setGeminiModel('gemini-2.5-pro')} className="text-xs font-body">💎 2.5 Pro</Button>
                   </div>
                   <span className="text-xs text-muted-foreground font-body">
                     {editor.geminiModel === 'auto'
                       ? 'اختيار آلي حسب طول النص — يوفّر التكلفة'
-                      : editor.geminiModel === 'gemini-2.0-flash'
-                      ? 'أسرع نموذج — مجاني (1500/يوم)'
+                      : editor.geminiModel === 'gemini-2.5-flash-lite'
+                      ? 'الأخف والأرخص — سريع للنصوص القصيرة'
                       : editor.geminiModel === 'gemini-2.5-flash'
                       ? 'توازن بين السرعة والجودة'
                       : 'أعلى جودة — أبطأ قليلاً'}
                   </span>
                 </div>
               )}
-              {editor.translationEngine === 'claude' && (
-                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-display font-bold">جودة Claude</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant={editor.translationQuality === 'fast' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('fast')} className="text-xs font-body">⚡ سريعة (Haiku)</Button>
-                    <Button variant={editor.translationQuality === 'quality' ? 'default' : 'outline'} size="sm" onClick={() => editor.setTranslationQuality('quality')} className="text-xs font-body">💎 عالية الجودة (Sonnet)</Button>
-                  </div>
-                </div>
-              )}
-              {editor.translationEngine === 'bedrock' && (
-                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-display font-bold">☁️ نموذج Bedrock</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {[
-                      { key: 'deepseek-r1', label: '🧠 DeepSeek R1' },
-                      { key: 'nova-pro', label: '🚀 Nova Pro' },
-                      { key: 'nova-lite', label: '⚡ Nova Lite' },
-                      { key: 'llama-3-3-70b', label: '🦬 Llama 3.3 70B' },
-                      { key: 'mistral-large', label: '🌊 Mistral Large' },
-                      { key: 'claude-sonnet', label: '💎 Claude Sonnet' },
-                      { key: 'claude-haiku', label: '⚡ Claude Haiku' },
-                    ].map(m => (
-                      <Button key={m.key} variant={editor.bedrockModel === m.key ? 'default' : 'outline'} size="sm"
-                        onClick={() => editor.setBedrockModel(m.key)} className="text-xs font-body">
-                        {m.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
               {/* Per-engine creativity (temperature) — affects diversity of AI output. */}
-              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable' || editor.translationEngine === 'claude' || editor.translationEngine === 'bedrock' || editor.translationEngine === 'groq') && (() => {
+              {(editor.translationEngine === 'gemini' || editor.translationEngine === 'lovable') && (() => {
                 const eng = editor.translationEngine;
                 const temp =
                   eng === 'gemini' ? editor.geminiTemperature
-                  : eng === 'claude' ? editor.claudeTemperature
-                  : eng === 'bedrock' ? editor.bedrockTemperature
-                  : eng === 'groq' ? editor.groqTemperature
                   : editor.lovableTemperature;
                 const setTemp =
                   eng === 'gemini' ? editor.setGeminiTemperature
-                  : eng === 'claude' ? editor.setClaudeTemperature
-                  : eng === 'bedrock' ? editor.setBedrockTemperature
-                  : eng === 'groq' ? editor.setGroqTemperature
                   : editor.setLovableTemperature;
                 return (
                   <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-2 border-t border-border/30">
@@ -616,7 +569,7 @@ const Editor = () => {
               {(() => {
                 const remaining = editor.filteredEntries.filter((e) => !editor.state?.translations?.[`${e.msbtFile}:${e.index}`]);
                 if (remaining.length === 0) return null;
-                const modelId = resolveModelId(editor.translationEngine, editor.geminiModel, editor.translationQuality, editor.bedrockModel);
+                const modelId = resolveModelId(editor.translationEngine, editor.geminiModel, editor.translationQuality);
                 const est = estimateBatchCost(remaining, modelId);
                 return (
                   <div className="flex items-center gap-2 pt-2 border-t border-border/30">
@@ -654,240 +607,6 @@ const Editor = () => {
                 : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Gemini للبدء، أو اختر محرّكاً آخر.</p>}
               </>
               )}
-              {editor.translationEngine === 'claude' && (
-              <>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                <div className="flex items-center gap-2 shrink-0">
-                  <Key className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">🔑 مفتاح Claude API</span>
-                </div>
-                <div className="flex gap-2 flex-1">
-                  <input type="password" placeholder="الصق مفتاح Anthropic API هنا..." value={editor.userClaudeKey}
-                    onChange={(e) => editor.setUserClaudeKey(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
-                  {editor.userClaudeKey && (
-                    <Button variant="ghost" size="sm" onClick={() => editor.setUserClaudeKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
-                  )}
-                </div>
-                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
-              </div>
-              {editor.userClaudeKey
-                ? <p className="text-xs text-secondary font-body">مفتاح Claude مفعّل — سيُستخدم للترجمة</p>
-                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Claude للبدء، أو اختر محرّكاً آخر.</p>}
-              </>
-              )}
-              {editor.translationEngine === 'bedrock' && (
-              <>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 shrink-0">
-                  <Key className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">☁️ مفتاح Amazon Bedrock API</span>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                  <div className="flex gap-2 flex-1">
-                    <input type="password" placeholder="Bedrock API Key..." value={editor.userBedrockApiKey}
-                      onChange={(e) => editor.setUserBedrockApiKey(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
-                  </div>
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                  <span className="text-xs font-body text-muted-foreground shrink-0">المنطقة:</span>
-                  <select value={editor.userBedrockRegion} onChange={(e) => editor.setUserBedrockRegion(e.target.value)}
-                    className="px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr">
-                    <option value="us-east-1">US East (N. Virginia)</option>
-                    <option value="us-west-2">US West (Oregon)</option>
-                    <option value="eu-west-1">EU (Ireland)</option>
-                    <option value="eu-central-1">EU (Frankfurt)</option>
-                    <option value="eu-north-1">EU (Stockholm)</option>
-                    <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
-                    <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
-                    <option value="ap-south-1">Asia Pacific (Mumbai)</option>
-                    <option value="me-south-1">Middle East (Bahrain)</option>
-                    <option value="me-central-1">Middle East (UAE)</option>
-                  </select>
-                  {editor.userBedrockApiKey && (
-                    <Button variant="ghost" size="sm" onClick={() => editor.setUserBedrockApiKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
-                  )}
-                  <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">إنشاء مفتاح API ↗</a>
-                </div>
-              </div>
-              {editor.userBedrockApiKey
-                ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-secondary font-body">مفتاح Bedrock مفعّل — سيُستخدم للترجمة</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">🔗 Proxy URL (اختياري — لتجاوز القيود الجغرافية):</span>
-                    <input type="url" placeholder="https://your-proxy.example.com" value={editor.bedrockProxyUrl}
-                      onChange={(e) => editor.setBedrockProxyUrl(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs" dir="ltr" />
-                    {editor.bedrockProxyUrl && (
-                      <Button variant="ghost" size="sm" onClick={() => editor.setBedrockProxyUrl('')} className="text-xs text-destructive shrink-0">مسح</Button>
-                    )}
-                  </div>
-                </div>
-                )
-                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Bedrock للبدء، أو اختر محرّكاً آخر.</p>}
-              </>
-              )}
-              {/* OpenRouter unified gateway (P0 #13). Opens 200+ models via one key. */}
-              {editor.translationEngine === 'openrouter' && (
-              <>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                <div className="flex items-center gap-2 shrink-0">
-                  <Key className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">🌍 مفتاح OpenRouter API</span>
-                </div>
-                <div className="flex gap-2 flex-1">
-                  <input type="password" placeholder="sk-or-v1-..." value={editor.userOpenRouterKey}
-                    onChange={(e) => editor.setUserOpenRouterKey(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
-                  {editor.userOpenRouterKey && (
-                    <Button variant="ghost" size="sm" onClick={() => editor.setUserOpenRouterKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
-                  )}
-                </div>
-                <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
-              </div>
-              {editor.userOpenRouterKey
-                ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-secondary font-body">مفتاح OpenRouter مفعّل — سيُستخدم للترجمة</p>
-                  {/* Active-model line: shows what will be sent to OpenRouter,
-                      with a free/paid badge so users don't accidentally burn
-                      credits on a paid model. */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">🤖 النموذج النشط:</span>
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-background border border-border" dir="ltr">{editor.openRouterModel}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isFreeModelId(editor.openRouterModel) ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-secondary/15 text-secondary border border-secondary/30'}`}>
-                      {isFreeModelId(editor.openRouterModel) ? '🆓 مجاني' : '💰 مدفوع'}
-                    </span>
-                    {!findPreset(editor.openRouterModel) && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">مخصّص</span>
-                    )}
-                  </div>
-                  {/* Quick-pick presets, grouped by tier. Clicking a button
-                      replaces the active model. The free-text input below stays
-                      as an escape hatch for any of OpenRouter's 200+ models. */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-body text-muted-foreground">🆓 نماذج مجانية:</span>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {OPENROUTER_PRESETS.filter(p => p.tier === 'free').map(p => (
-                        <Button key={p.id}
-                          variant={editor.openRouterModel === p.id ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => editor.setOpenRouterModel(p.id)}
-                          className="text-[11px] font-body h-7"
-                          title={p.hint}>
-                          {p.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-body text-muted-foreground">💰 نماذج مدفوعة (أعلى جودة):</span>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {OPENROUTER_PRESETS.filter(p => p.tier === 'paid').map(p => (
-                        <Button key={p.id}
-                          variant={editor.openRouterModel === p.id ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => editor.setOpenRouterModel(p.id)}
-                          className="text-[11px] font-body h-7"
-                          title={p.hint}>
-                          {p.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-1 border-t border-border/30">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">أو اكتب معرّف نموذج آخر:</span>
-                    <input type="text" placeholder="provider/model-name[:free]" value={editor.openRouterModel}
-                      onChange={(e) => editor.setOpenRouterModel(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs" dir="ltr" />
-                    <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">قائمة النماذج ↗</a>
-                  </div>
-                </div>
-                )
-                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح OpenRouter للبدء، أو اختر محرّكاً آخر.</p>}
-              </>
-              )}
-              {editor.translationEngine === 'groq' && (
-              <>
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                <div className="flex items-center gap-2 shrink-0">
-                  <Key className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">⚡ مفتاح Groq API</span>
-                </div>
-                <div className="flex gap-2 flex-1">
-                  <input type="password" placeholder="gsk_..." value={editor.userGroqKey}
-                    onChange={(e) => editor.setUserGroqKey(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-sm" dir="ltr" />
-                  {editor.userGroqKey && (
-                    <Button variant="ghost" size="sm" onClick={() => editor.setUserGroqKey('')} className="text-xs text-destructive shrink-0">مسح</Button>
-                  )}
-                </div>
-                <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-primary/80 shrink-0">احصل على مفتاح ↗</a>
-              </div>
-              {editor.userGroqKey
-                ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-secondary font-body">مفتاح Groq مفعّل — سيُستخدم للترجمة</p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-                    <div className="flex items-center gap-2 shrink-0">
-                      <BarChart3 className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-display font-bold">نموذج Groq</span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {[
-                        { id: 'llama-3.3-70b-versatile', label: '🦙 Llama 3.3 70B', hint: 'أفضل توازن بين الجودة والسرعة' },
-                        { id: 'llama-3.1-8b-instant', label: '⚡ Llama 3.1 8B', hint: 'أسرع نموذج — مناسب للنصوص القصيرة' },
-                        { id: 'gemma2-9b-it', label: '💎 Gemma 2 9B', hint: 'نموذج Google خفيف وسريع' },
-                        { id: 'mixtral-8x7b-32768', label: '🌀 Mixtral 8x7B', hint: 'نموذج Mistral مع سياق طويل' },
-                      ].map(m => (
-                        <Button key={m.id}
-                          variant={editor.groqModel === m.id ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => editor.setGroqModel(m.id)}
-                          className="text-[11px] font-body h-7"
-                          title={m.hint}>
-                          {m.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 pt-1 border-t border-border/30">
-                    <span className="text-xs font-body text-muted-foreground shrink-0">أو اكتب معرّف نموذج آخر:</span>
-                    <input type="text" placeholder="model-name" value={editor.groqModel}
-                      onChange={(e) => editor.setGroqModel(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs font-mono" dir="ltr" />
-                  </div>
-                </div>
-                )
-                : <p className="text-xs text-amber-500 font-body">⚠️ أدخل مفتاح Groq للبدء، أو اختر محرّكاً آخر.</p>}
-              </>
-              )}
-              {/* Auto-fallback toggle (P0 #9): on failure, retry with the next engine in the chain. */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-border/30">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={!!editor.autoFallback}
-                    onChange={(e) => editor.setAutoFallback(e.target.checked)}
-                    className="w-4 h-4" />
-                  <RotateCcw className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-display font-bold">🔁 احتياط تلقائي عند الفشل</span>
-                </label>
-                {editor.autoFallback && (
-                  <div className="flex flex-col gap-1 mr-6">
-                    <span className="text-xs font-body text-muted-foreground">
-                      الترتيب (افصل بفاصلة — يستخدم أول محرّك متاح):
-                    </span>
-                    <input type="text" value={editor.fallbackChainRaw}
-                      onChange={(e) => editor.setFallbackChainRaw(e.target.value)}
-                      placeholder="gemini,lovable,claude,mymemory,google"
-                      className="flex-1 px-3 py-1.5 rounded bg-background border border-border font-body text-xs font-mono" dir="ltr" />
-                    <span className="text-xs font-body text-muted-foreground">
-                      المحرّكات الصالحة: <span className="font-mono" dir="ltr">gemini, lovable, claude, bedrock, openrouter, groq, mymemory, google</span>
-                    </span>
-                  </div>
-                )}
-              </div>
               {/* Strict JSON via tool calling (P0 #24). Forces models to call a function
                   with a fixed schema instead of returning loose text — eliminates parse
                   failures from prose-prefixed JSON. Falls back to text parse if the
@@ -1042,7 +761,6 @@ const Editor = () => {
                 translations={editor.state.translations}
                 glossary={editor.activeGlossary}
                 onApplySuggestion={editor.updateTranslation}
-                userGroqKey={editor.userGroqKey}
               />
             </div>
           )}
@@ -1626,7 +1344,7 @@ const Editor = () => {
         {engineCompareEntry && editor.state && (
           <EngineComparePanel open={showEngineCompare} onClose={() => setShowEngineCompare(false)} entry={engineCompareEntry}
             entries={editor.state.entries} translations={editor.state.translations} glossary={editor.state.glossary}
-            userGeminiKey={editor.userGeminiKey} userClaudeKey={editor.userClaudeKey} userBedrockApiKey={editor.userBedrockApiKey} userBedrockRegion={editor.userBedrockRegion} bedrockModel={editor.bedrockModel} bedrockProxyUrl={editor.bedrockProxyUrl} myMemoryEmail={editor.myMemoryEmail} userOpenRouterKey={editor.userOpenRouterKey} userGroqKey={editor.userGroqKey} groqModel={editor.groqModel} onApplyTranslation={editor.updateTranslation} />
+            userGeminiKey={editor.userGeminiKey} myMemoryEmail={editor.myMemoryEmail} onApplyTranslation={editor.updateTranslation} />
         )}
         {editor.state && (
           <SmartBulkImprovePanel open={showSmartImprove} onClose={() => setShowSmartImprove(false)} entries={editor.state.entries}

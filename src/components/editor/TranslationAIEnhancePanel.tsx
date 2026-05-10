@@ -31,8 +31,6 @@ interface TranslationAIEnhancePanelProps {
   translations: Record<string, string>;
   onApplySuggestion: (key: string, newText: string) => void;
   glossary?: string;
-  /** User's Groq API key (gsk_...) — required when selecting a Groq model. */
-  userGroqKey?: string;
 }
 
 interface EnhanceSuggestion {
@@ -71,7 +69,7 @@ type Scope = "all" | "short" | "long" | "with_tags" | "no_arabic";
 const BATCH_SIZE = 50;
 const PARALLEL_REQUESTS = 3;
 
-interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free" | "groq"; }
+interface ModelOption { value: string; label: string; group: "google" | "openai" | "local" | "free"; }
 
 const MODEL_OPTIONS: ModelOption[] = [
   { value: "google-translate-check", label: "Google Translate — فحص دقة (مجاني)", group: "free" },
@@ -80,14 +78,9 @@ const MODEL_OPTIONS: ModelOption[] = [
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (متوازن)", group: "google" },
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (الأخف والأرخص)", group: "google" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro (دقة عالية، أبطأ)", group: "google" },
-  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (الجيل السابق)", group: "google" },
   { value: "gpt-5", label: "GPT-5 (دقة قصوى)", group: "openai" },
   { value: "gpt-5-mini", label: "GPT-5 mini (متوازن — أرخص)", group: "openai" },
   { value: "gpt-5-nano", label: "GPT-5 nano (الأسرع — الأرخص)", group: "openai" },
-  { value: "groq-llama-70b", label: "Llama 3.3 70B — Groq (سريع جداً)", group: "groq" },
-  { value: "groq-llama-8b", label: "Llama 3.1 8B — Groq (الأخف)", group: "groq" },
-  { value: "groq-gemma-9b", label: "Gemma 2 9B — Groq", group: "groq" },
-  { value: "groq-mixtral", label: "Mixtral 8x7B — Groq", group: "groq" },
 ];
 
 const GOOGLE_CHECK_CONCURRENCY = 3;
@@ -161,7 +154,6 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
   translations,
   onApplySuggestion,
   glossary,
-  userGroqKey,
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [suggestions, setSuggestions] = useState<EnhanceSuggestion[]>([]);
@@ -394,7 +386,6 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
               mode,
               glossary: glossary?.slice(0, 5000),
               aiModel: model,
-              userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined,
             },
           });
           if (error) throw error;
@@ -411,7 +402,7 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
             await new Promise(r => setTimeout(r, 5000));
             try {
               const { data } = await supabase.functions.invoke('enhance-translations', {
-                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model, userGroqKey: model.startsWith('groq-') ? userGroqKey : undefined },
+                body: { entries: textsToAnalyze, mode, glossary: glossary?.slice(0, 5000), aiModel: model },
               });
               for (const t of textsToAnalyze) processedKeysRef.current.set(t.key, t.translation);
               setProcessedCount(processedKeysRef.current.size);
@@ -927,19 +918,8 @@ const TranslationAIEnhancePanel: React.FC<TranslationAIEnhancePanelProps> = ({
                       <SelectLabel className="text-[10px]">OpenAI</SelectLabel>
                       {MODEL_OPTIONS.filter(m => m.group === "openai").map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
                     </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel className="text-[10px]">⚡ Groq {userGroqKey ? '' : '(يحتاج مفتاح)'}</SelectLabel>
-                      {MODEL_OPTIONS.filter(m => m.group === "groq").map(m => (
-                        <SelectItem key={m.value} value={m.value} className="text-xs" disabled={!userGroqKey}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
                   </SelectContent>
                 </Select>
-                {model.startsWith('groq-') && !userGroqKey && (
-                  <p className="text-[10px] text-amber-600 mt-1">أدخل مفتاح Groq من إعدادات المحركات أولاً.</p>
-                )}
               </div>
               <div>
                 <label className="text-[10px] text-muted-foreground mb-1 block">نطاق الفحص</label>

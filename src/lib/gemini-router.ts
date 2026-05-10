@@ -1,9 +1,9 @@
 // Smart routing for Gemini model selection based on text length.
 // When user picks 'auto', the front-end resolves the actual model per-batch
 // from the longest entry's character count. Short UI strings stay on the
-// cheap Flash 2.0 tier, long lore goes to Pro.
+// cheap Flash Lite tier, long lore goes to Pro.
 
-export type GeminiModel = 'gemini-2.0-flash' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
+export type GeminiModel = 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
 export type GeminiModelChoice = GeminiModel | 'auto';
 
 const SHORT_MAX_CHARS = 80;
@@ -20,7 +20,7 @@ export function resolveGeminiModel(
   for (const e of entries) {
     if (e.original.length > maxLen) maxLen = e.original.length;
   }
-  if (maxLen < SHORT_MAX_CHARS) return 'gemini-2.0-flash';
+  if (maxLen < SHORT_MAX_CHARS) return 'gemini-2.5-flash-lite';
   if (maxLen < MEDIUM_MAX_CHARS) return 'gemini-2.5-flash';
   return 'gemini-2.5-pro';
 }

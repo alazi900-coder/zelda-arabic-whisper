@@ -19,31 +19,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { entries, mode, glossary, aiModel, userGroqKey } = await req.json() as {
+    const { entries, mode, glossary, aiModel } = await req.json() as {
       entries: EnhanceEntry[];
       mode?: 'enhance' | 'grammar';
       glossary?: string;
       aiModel?: string;
-      userGroqKey?: string;
     };
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    // Groq direct-API model map (called via console.groq.com — needs user key)
-    const groqModelMap: Record<string, string> = {
-      'groq-llama-70b': 'llama-3.3-70b-versatile',
-      'groq-llama-8b': 'llama-3.1-8b-instant',
-      'groq-gemma-9b': 'gemma2-9b-it',
-      'groq-mixtral': 'mixtral-8x7b-32768',
-    };
-    const isGroq = aiModel && aiModel in groqModelMap;
-
-    if (isGroq && !userGroqKey?.trim()) {
-      return new Response(JSON.stringify({ error: 'تم اختيار محرّك Groq لكن المفتاح فارغ. أدخل مفتاح Groq من إعدادات المحركات.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    if (!isGroq && !LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const gatewayModelMap: Record<string, string> = {
       'gemini-3-flash-preview': 'google/gemini-3-flash-preview',
@@ -51,27 +35,11 @@ Deno.serve(async (req) => {
       'gemini-2.5-flash': 'google/gemini-2.5-flash',
       'gemini-2.5-flash-lite': 'google/gemini-2.5-flash-lite',
       'gemini-2.5-pro': 'google/gemini-2.5-pro',
-      'gemini-2.0-flash': 'google/gemini-2.0-flash',
-      'gpt-5': 'openai/gpt-5',
-      'gpt-5-mini': 'openai/gpt-5-mini',
-      'gpt-5-nano': 'openai/gpt-5-nano',
     };
-    const resolvedModel = isGroq
-      ? groqModelMap[aiModel!]
-      : ((aiModel && gatewayModelMap[aiModel]) || 'google/gemini-2.5-flash');
+    const resolvedModel = (aiModel && gatewayModelMap[aiModel]) || 'google/gemini-2.5-flash';
 
-    // Helper: call either Groq direct or Lovable AI gateway with shared payload shape.
+    // Helper: call Lovable AI gateway.
     const callAI = async (messages: Array<{ role: string; content: string }>) => {
-      if (isGroq) {
-        return await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${userGroqKey!.trim()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model: resolvedModel, messages, temperature: 0.3 }),
-        });
-      }
       return await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {

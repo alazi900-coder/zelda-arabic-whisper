@@ -30,21 +30,13 @@ interface Props {
   translations: Record<string, string>;
   glossary?: string;
   userGeminiKey: string;
-  userClaudeKey: string;
-  userBedrockApiKey: string;
-  userBedrockRegion: string;
-  bedrockModel: string;
-  bedrockProxyUrl: string;
   myMemoryEmail: string;
-  userOpenRouterKey?: string;
-  userGroqKey?: string;
-  groqModel?: string;
   onApplyTranslation: (key: string, translation: string) => void;
 }
 
 export default function EngineComparePanel({
   open, onClose, entry, entries, translations, glossary,
-  userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, userOpenRouterKey, userGroqKey, groqModel, onApplyTranslation,
+  userGeminiKey, myMemoryEmail, onApplyTranslation,
 }: Props) {
   const [results, setResults] = useState<EngineResult[]>([]);
   const [applied, setApplied] = useState<string | null>(null);
@@ -87,18 +79,6 @@ export default function EngineComparePanel({
     if (userGeminiKey) {
       engines.push({ id: "gemini", label: "Gemini (شخصي)", emoji: "✨" });
     }
-    if (userClaudeKey) {
-      engines.push({ id: "claude", label: "Claude (شخصي)", emoji: "🧠" });
-    }
-    if (userBedrockApiKey) {
-      engines.push({ id: "bedrock", label: "Amazon Bedrock", emoji: "☁️" });
-    }
-    if (userOpenRouterKey) {
-      engines.push({ id: "openrouter", label: "OpenRouter", emoji: "🌍" });
-    }
-    if (userGroqKey) {
-      engines.push({ id: "groq", label: "Groq", emoji: "⚡" });
-    }
 
     const initialResults: EngineResult[] = engines.map(e => ({
       engine: e.id, label: e.label, emoji: e.emoji,
@@ -131,14 +111,6 @@ export default function EngineComparePanel({
             glossary: glossary || undefined,
             context: contextEntries.length > 0 ? contextEntries : undefined,
             userApiKey: eng.id === 'gemini' ? userGeminiKey : undefined,
-            userClaudeKey: eng.id === 'claude' ? userClaudeKey : undefined,
-            userBedrockApiKey: eng.id === 'bedrock' ? userBedrockApiKey : undefined,
-            userBedrockRegion: eng.id === 'bedrock' ? userBedrockRegion : undefined,
-            userBedrockModel: eng.id === 'bedrock' ? bedrockModel : undefined,
-            bedrockProxyUrl: eng.id === 'bedrock' ? bedrockProxyUrl : undefined,
-            userOpenRouterKey: eng.id === 'openrouter' ? userOpenRouterKey : undefined,
-            userGroqKey: eng.id === 'groq' ? userGroqKey : undefined,
-            groqModel: eng.id === 'groq' ? (groqModel || 'llama-3.3-70b-versatile') : undefined,
             translationEngine: eng.id,
             translationQuality: 'quality',
             myMemoryEmail: eng.id === 'mymemory' ? myMemoryEmail : undefined,
@@ -173,7 +145,7 @@ export default function EngineComparePanel({
       cache.set(targetKey, prev);
       return prev;
     });
-  }, [entry, entries, translations, glossary, userGeminiKey, userClaudeKey, userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl, myMemoryEmail, userOpenRouterKey, userGroqKey, groqModel, targetKey]);
+  }, [entry, entries, translations, glossary, userGeminiKey, myMemoryEmail, targetKey]);
 
   const handleApply = (text: string, label: string, engine: string) => {
     if (!text) return;

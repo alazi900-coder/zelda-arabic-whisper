@@ -2,15 +2,22 @@ import { useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ARABIC_REGEX } from "@/lib/arabic-processing";
-import { resolveGeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
+import { resolveGeminiModel, type GeminiModel, type GeminiModelChoice } from "@/lib/gemini-router";
 import { precomputeCandidates, buildBatchTmExamples, type TmCandidate, type PrecomputedCandidate } from "@/lib/tm-boost";
 import { trimGlossaryToBatch } from "@/lib/glossary-trim";
 import { parseEmailList, pickNextEmail } from "@/lib/mymemory-rotation";
-import { parseChain, buildCallOrder, type EngineId } from "@/lib/fallback-chain";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
   categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
 } from "@/components/editor/types";
+
+// Per-model timeout: Pro 2.5 needs ~240s for full batches, Flash ~120s, Flash Lite ~60s.
+// Non-Gemini engines (MyMemory, Google) are quick — 60s is plenty.
+function resolveTimeoutMs(model: GeminiModel | undefined): number {
+  if (model === 'gemini-2.5-pro') return 240_000;
+  if (model === 'gemini-2.5-flash') return 120_000;
+  return 60_000;
+}
 
 interface UseEditorTranslationProps {
   state: EditorState | null;
@@ -24,8 +31,7 @@ interface UseEditorTranslationProps {
   parseGlossaryMap: (glossary: string) => Map<string, string>;
   paginatedEntries: ExtractedEntry[];
   userGeminiKey: string;
-  userClaudeKey: string;
-  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google' | 'claude' | 'bedrock' | 'openrouter' | 'groq';
+  translationEngine: 'gemini' | 'lovable' | 'mymemory' | 'google';
   translationQuality: 'fast' | 'quality';
   geminiModel?: GeminiModelChoice;
   filteredEntries: ExtractedEntry[];
@@ -35,28 +41,12 @@ interface UseEditorTranslationProps {
   setMyMemoryCharsUsed: React.Dispatch<React.SetStateAction<number>>;
   myMemoryDailyLimit: number;
   customPromptInstructions?: string;
-  userBedrockApiKey: string;
-  userBedrockRegion: string;
-  bedrockModel: string;
-  bedrockProxyUrl: string;
   // Per-engine creativity (temperature) — defaults to 0.2 each.
   geminiTemperature?: number;
-  claudeTemperature?: number;
-  bedrockTemperature?: number;
   lovableTemperature?: number;
   // MyMemory email rotation (round-robin index across parsed list).
   myMemoryEmailIndex?: number;
   setMyMemoryEmailIndex?: (idx: number) => void;
-  // OpenRouter unified gateway (P0 #13)
-  userOpenRouterKey?: string;
-  openRouterModel?: string;
-  // Groq ultra-fast inference
-  userGroqKey?: string;
-  groqModel?: string;
-  groqTemperature?: number;
-  // Auto-fallback chain (P0 #9)
-  autoFallback?: boolean;
-  fallbackChainRaw?: string;
   // Strict JSON via tool calling (P0 #24). Defaults to true on the server.
   userStrictJson?: boolean;
 }
@@ -82,26 +72,19 @@ function buildTmCandidates(
 
 export function useEditorTranslation({
   state, setState, setLastSaved, setTranslateProgress, setPreviousTranslations, updateTranslation,
-  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, userClaudeKey, translationEngine, translationQuality,
+  filterCategory, activeGlossary, parseGlossaryMap, paginatedEntries, userGeminiKey, translationEngine, translationQuality,
   geminiModel,
   filteredEntries, isFilterActive, myMemoryEmail, myMemoryCharsUsed, setMyMemoryCharsUsed, myMemoryDailyLimit,
   customPromptInstructions,
-  userBedrockApiKey, userBedrockRegion, bedrockModel, bedrockProxyUrl,
-  geminiTemperature, claudeTemperature, bedrockTemperature, lovableTemperature,
+  geminiTemperature, lovableTemperature,
   myMemoryEmailIndex, setMyMemoryEmailIndex,
-  userOpenRouterKey, openRouterModel,
-  userGroqKey, groqModel, groqTemperature,
-  autoFallback, fallbackChainRaw,
   userStrictJson,
 }: UseEditorTranslationProps) {
   // Pick the temperature for the active engine. Falls back to 0.2 (existing default).
   const resolveTemperature = (): number => {
     switch (translationEngine) {
       case 'gemini': return geminiTemperature ?? 0.2;
-      case 'claude': return claudeTemperature ?? 0.2;
-      case 'bedrock': return bedrockTemperature ?? 0.2;
       case 'lovable': return lovableTemperature ?? 0.2;
-      case 'groq': return groqTemperature ?? 0.2;
       default: return 0.2;
     }
   };
@@ -116,60 +99,20 @@ export function useEditorTranslation({
     return r.email;
   };
 
-  // Build the ordered list of engines to try for a single translate call.
-  // When autoFallback is on, on failure we'll iterate through the chain.
-  const buildEngineCallOrder = (): EngineId[] => {
-    const primary = translationEngine as EngineId;
-    if (!autoFallback) return [primary];
-    const chain = parseChain(fallbackChainRaw);
-    return buildCallOrder(primary, chain, {
-      gemini: !!userGeminiKey,
-      lovable: true,
-      claude: !!userClaudeKey,
-      bedrock: !!userBedrockApiKey,
-      mymemory: true,
-      google: true,
-      openrouter: !!userOpenRouterKey,
-      groq: !!userGroqKey,
-    });
-  };
-
-  // Send a translate-entries request, retrying through the fallback chain
-  // on transport errors (network failure or 5xx) when autoFallback is on.
-  // Returns the first successful Response. On total failure, throws the
-  // last error so existing call-site error handling continues to work.
-  const fetchTranslateWithFallback = async (
+  // Issue one translate-entries POST with the per-model timeout already
+  // applied. Pro 2.5 needs ~240s, Flash ~120s, everything else 60s.
+  const postTranslate = (
     url: string,
     headers: Record<string, string>,
     body: Record<string, unknown>,
     signal: AbortSignal | undefined,
+    effectiveModel: GeminiModel | undefined,
   ): Promise<Response> => {
-    const order = buildEngineCallOrder();
-    if (order.length === 0) {
-      // No usable engine — let the original engine path emit its own error.
-      return fetchWithTimeout(url, {
-        method: 'POST', headers, signal,
-        body: JSON.stringify({ ...body, translationEngine }),
-      });
-    }
-    let lastError: unknown = null;
-    for (let i = 0; i < order.length; i++) {
-      const engine = order[i];
-      try {
-        const r = await fetchWithTimeout(url, {
-          method: 'POST', headers, signal,
-          body: JSON.stringify({ ...body, translationEngine: engine }),
-        });
-        if (r.ok) return r;
-        // Retry only on 5xx; 4xx (e.g. bad payload) fail-fast.
-        if (r.status < 500 || r.status >= 600) return r;
-        lastError = new Error(`HTTP ${r.status}`);
-      } catch (e) {
-        lastError = e;
-        if ((e as { name?: string })?.name === 'AbortError') throw e;
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error('فشلت كل المحرّكات الاحتياطية');
+    return fetchWithTimeout(
+      url,
+      { method: 'POST', headers, signal, body: JSON.stringify({ ...body, translationEngine }) },
+      resolveTimeoutMs(effectiveModel),
+    );
   };
   const [translating, setTranslating] = useState(false);
   const [translatingSingle, setTranslatingSingle] = useState<string | null>(null);
@@ -229,7 +172,9 @@ export function useEditorTranslation({
         ? buildBatchTmExamples([{ original: entry.original }], precomputeCandidates(tmCandidates))
         : [];
 
-      const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+      const effectiveGeminiModel = resolveGeminiModel(geminiModel, [{ original: entry.original }]);
+      const response = await postTranslate(
+        `${supabaseUrl}/functions/v1/translate-entries`,
         { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
         {
           entries: [{ key, original: entry.original, label: entry.label, maxBytes: entry.maxBytes }],
@@ -237,22 +182,17 @@ export function useEditorTranslation({
           context: contextEntries.length > 0 ? contextEntries : undefined,
           tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
           userApiKey: userGeminiKey || undefined,
-          userClaudeKey: userClaudeKey || undefined,
-          userBedrockApiKey: userBedrockApiKey || undefined,
-          userBedrockRegion: userBedrockRegion || undefined,
-          userBedrockModel: bedrockModel || undefined,
-          bedrockProxyUrl: bedrockProxyUrl || undefined,
-          translationEngine,
           translationQuality,
-          geminiModel: resolveGeminiModel(geminiModel, [{ original: entry.original }]),
-          myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
-              strictJson: userStrictJson !== false,
+          geminiModel: effectiveGeminiModel,
+          myMemoryEmail: resolveMyMemoryEmail() || undefined,
+          temperature: resolveTemperature(),
+          strictJson: userStrictJson !== false,
           category: entryCategory,
           filePath: entry.msbtFile,
           extraInstructions: customPromptInstructions || undefined,
         },
         undefined,
+        effectiveGeminiModel,
       );
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
@@ -397,11 +337,13 @@ export function useEditorTranslation({
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const effectiveGeminiModel = resolveGeminiModel(geminiModel, entries);
         let response: Response;
         let retries = 0;
         const maxRetries = 3;
         while (true) {
-          response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+          response = await postTranslate(
+            `${supabaseUrl}/functions/v1/translate-entries`,
             { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
             {
               entries,
@@ -409,22 +351,17 @@ export function useEditorTranslation({
               context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
               tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
               userApiKey: userGeminiKey || undefined,
-              userClaudeKey: userClaudeKey || undefined,
-              userBedrockApiKey: userBedrockApiKey || undefined,
-              userBedrockRegion: userBedrockRegion || undefined,
-              userBedrockModel: bedrockModel || undefined,
-              bedrockProxyUrl: bedrockProxyUrl || undefined,
-              translationEngine,
               translationQuality,
-              geminiModel: resolveGeminiModel(geminiModel, entries),
-              myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
+              geminiModel: effectiveGeminiModel,
+              myMemoryEmail: resolveMyMemoryEmail() || undefined,
+              temperature: resolveTemperature(),
               strictJson: userStrictJson !== false,
               category: batchCategory,
               filePath: batchFilePath,
               extraInstructions: customPromptInstructions || undefined,
             },
             abortControllerRef.current.signal,
+            effectiveGeminiModel,
           );
           if (response.status === 429 && retries < maxRetries) {
             retries++;
@@ -553,7 +490,9 @@ export function useEditorTranslation({
         const batchCategory = categorizeFile(batch[0].msbtFile, batch[0].label);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+        const effectiveGeminiModel = resolveGeminiModel(geminiModel, entries);
+        const response = await postTranslate(
+          `${supabaseUrl}/functions/v1/translate-entries`,
           { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           {
             entries,
@@ -561,22 +500,17 @@ export function useEditorTranslation({
             context: contextEntries.length > 0 ? contextEntries.slice(0, 15) : undefined,
             tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
-            userClaudeKey: userClaudeKey || undefined,
-            userBedrockApiKey: userBedrockApiKey || undefined,
-            userBedrockRegion: userBedrockRegion || undefined,
-            userBedrockModel: bedrockModel || undefined,
-            bedrockProxyUrl: bedrockProxyUrl || undefined,
-            translationEngine,
             translationQuality,
-            geminiModel: resolveGeminiModel(geminiModel, entries),
-            myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
-              strictJson: userStrictJson !== false,
+            geminiModel: effectiveGeminiModel,
+            myMemoryEmail: resolveMyMemoryEmail() || undefined,
+            temperature: resolveTemperature(),
+            strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batch[0].msbtFile,
             extraInstructions: customPromptInstructions || undefined,
           },
           abortControllerRef.current.signal,
+          effectiveGeminiModel,
         );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -626,11 +560,23 @@ export function useEditorTranslation({
         const entries = batch.map(e => ({ key: `${e.msbtFile}:${e.index}`, original: e.original }));
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+        const effectiveGeminiModel = resolveGeminiModel(geminiModel, entries);
+        const response = await postTranslate(
+          `${supabaseUrl}/functions/v1/translate-entries`,
           { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
-          { entries, glossary: trimGlossaryToBatch(activeGlossary, entries), userApiKey: userGeminiKey || undefined, userClaudeKey: userClaudeKey || undefined, userBedrockApiKey: userBedrockApiKey || undefined, userBedrockRegion: userBedrockRegion || undefined, userBedrockModel: bedrockModel || undefined, bedrockProxyUrl: bedrockProxyUrl || undefined, translationEngine, translationQuality, geminiModel: resolveGeminiModel(geminiModel, entries), myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined, strictJson: userStrictJson !== false, extraInstructions: customPromptInstructions || undefined },
+          {
+            entries,
+            glossary: trimGlossaryToBatch(activeGlossary, entries),
+            userApiKey: userGeminiKey || undefined,
+            translationQuality,
+            geminiModel: effectiveGeminiModel,
+            myMemoryEmail: resolveMyMemoryEmail() || undefined,
+            temperature: resolveTemperature(),
+            strictJson: userStrictJson !== false,
+            extraInstructions: customPromptInstructions || undefined,
+          },
           abortControllerRef.current.signal,
+          effectiveGeminiModel,
         );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
@@ -797,29 +743,26 @@ export function useEditorTranslation({
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-        const response = await fetchTranslateWithFallback(`${supabaseUrl}/functions/v1/translate-entries`,
+        const effectiveGeminiModel = resolveGeminiModel(geminiModel, entries);
+        const response = await postTranslate(
+          `${supabaseUrl}/functions/v1/translate-entries`,
           { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey, 'Content-Type': 'application/json' },
           {
             entries,
             glossary: trimGlossaryToBatch(activeGlossary, entries),
             tmExamples: tmExamples.length > 0 ? tmExamples : undefined,
             userApiKey: userGeminiKey || undefined,
-            userClaudeKey: userClaudeKey || undefined,
-            userBedrockApiKey: userBedrockApiKey || undefined,
-            userBedrockRegion: userBedrockRegion || undefined,
-            userBedrockModel: bedrockModel || undefined,
-            bedrockProxyUrl: bedrockProxyUrl || undefined,
-            translationEngine,
             translationQuality,
-            geminiModel: resolveGeminiModel(geminiModel, entries),
-            myMemoryEmail: resolveMyMemoryEmail() || undefined, temperature: resolveTemperature(),
-              userOpenRouterKey: userOpenRouterKey || undefined, openRouterModel: openRouterModel || undefined, userGroqKey: userGroqKey || undefined, groqModel: groqModel || undefined,
-              strictJson: userStrictJson !== false,
+            geminiModel: effectiveGeminiModel,
+            myMemoryEmail: resolveMyMemoryEmail() || undefined,
+            temperature: resolveTemperature(),
+            strictJson: userStrictJson !== false,
             category: batchCategory,
             filePath: batchFilePath,
             extraInstructions: customPromptInstructions || undefined,
           },
           abortControllerRef.current.signal,
+          effectiveGeminiModel,
         );
         if (!response.ok) {
           const errData = await response.json().catch(() => null);
