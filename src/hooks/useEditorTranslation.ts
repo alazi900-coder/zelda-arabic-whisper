@@ -657,7 +657,9 @@ export function useEditorTranslation({
   };
 
   /**
-   * Translate current (possibly filtered) page with compare dialog.
+   * Translate page-translation candidates with compare dialog.
+   * - When a filter is active, scope = all filtered entries (across all pages).
+   * - When no filter is active, scope = current paginated page only.
    * - memoryOnly=true → use TM + Glossary only, no AI
    * - forceRetranslate=true → re-translate even entries that already have a translation
    * On completion, shows PageTranslationCompare dialog; user picks which translations to apply.
@@ -666,7 +668,8 @@ export function useEditorTranslation({
     if (!state) return;
     const arabicRegex = ARABIC_REGEX;
     let skipEmpty = 0, skipArabic = 0, skipTechnical = 0, skipTranslated = 0;
-    const candidates = paginatedEntries.filter(e => {
+    const sourceEntries = isFilterActive ? filteredEntries : paginatedEntries;
+    const candidates = sourceEntries.filter(e => {
       const key = `${e.msbtFile}:${e.index}`;
       if (!e.original.trim()) { skipEmpty++; return false; }
       if (arabicRegex.test(e.original)) { skipArabic++; return false; }
