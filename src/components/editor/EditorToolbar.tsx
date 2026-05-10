@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,10 +9,13 @@ import {
   Download, Upload, FileText, FileDown, BookOpen, Cloud, CloudUpload,
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
   Layers, MoreVertical, Save, Lightbulb, FlaskConical, SkipForward,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import type { useEditorState } from "@/hooks/useEditorState";
 
 type EditorState = ReturnType<typeof useEditorState>;
+type GroupKey = "nav" | "cloud" | "io" | "glossary" | "fix" | "clean" | "ai";
+const ALL_GROUPS: GroupKey[] = ["nav", "cloud", "io", "glossary", "fix", "clean", "ai"];
 
 interface EditorToolbarProps {
   isMobile: boolean;
