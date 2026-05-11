@@ -122,10 +122,35 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
 
     const sampleKeys = Object.keys(nonEmptyTranslations).slice(0, 10);
 
+    // حارس البناء: مسح سريع للرموز التقنية لاكتشاف المشاكل قبل الإرسال.
+    const TAG_REGEX_PRE = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
+    let tagIssueCount = 0;
+    const tagIssueSamples: { key: string; reason: string }[] = [];
+    for (const entry of state.entries) {
+      const key = `${entry.msbtFile}:${entry.index}`;
+      const trans = nonEmptyTranslations[key];
+      if (!trans) continue;
+      const origSeq = entry.original.match(TAG_REGEX_PRE) || [];
+      const transSeq = trans.match(TAG_REGEX_PRE) || [];
+      let reason = "";
+      if (transSeq.length < origSeq.length) reason = `رموز ناقصة (${origSeq.length - transSeq.length})`;
+      else if (transSeq.length > origSeq.length) reason = `رموز زائدة (${transSeq.length - origSeq.length})`;
+      else if (origSeq.length > 0) {
+        for (let i = 0; i < origSeq.length; i++) {
+          if (origSeq[i] !== transSeq[i]) { reason = "ترتيب/قِيَم رموز مختلفة"; break; }
+        }
+      }
+      if (reason) {
+        tagIssueCount++;
+        if (tagIssueSamples.length < 10) tagIssueSamples.push({ key, reason });
+      }
+    }
+
     console.log('[BUILD-PREVIEW] Total translations:', Object.keys(nonEmptyTranslations).length);
     console.log('[BUILD-PREVIEW] Protected entries:', protectedCount);
     console.log('[BUILD-PREVIEW] Categories:', categories);
     console.log('[BUILD-PREVIEW] Sample keys:', sampleKeys);
+    console.log('[BUILD-PREVIEW] Tag issues:', tagIssueCount);
 
     setBuildPreview({
       totalTranslations: Object.keys(nonEmptyTranslations).length,
@@ -133,6 +158,8 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       normalCount,
       categories,
       sampleKeys,
+      tagIssueCount,
+      tagIssueSamples,
     });
     setShowBuildConfirm(true);
   };
