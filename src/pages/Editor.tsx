@@ -39,6 +39,7 @@ import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
+import FixTagsLineBreaksDialog from "@/components/editor/FixTagsLineBreaksDialog";
 import ImportConflictDialog from "@/components/editor/ImportConflictDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 import SceneContextPanel from "@/components/editor/SceneContextPanel";
@@ -1245,6 +1246,13 @@ const Editor = () => {
           <FixPreviewDialog open={!!editor.fixPreview} onClose={() => editor.setFixPreview(null)} onApply={editor.handleApplyFixPreview}
             title={editor.fixPreview.title} items={editor.fixPreview.items} />
         )}
+
+        <FixTagsLineBreaksDialog
+          open={!!editor.restoreReport}
+          report={editor.restoreReport}
+          onClose={editor.dismissRestoreReport}
+          onApply={editor.handleApplyTagsAndLineBreaksFix}
+        />
 
         {editor.pendingImport && (
           <ImportConflictDialog

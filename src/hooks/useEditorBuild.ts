@@ -2,7 +2,8 @@ import { useState } from "react";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { idbGet } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, reverseBidi, removeArabicPresentationForms } from "@/lib/arabic-processing";
-import { EditorState, hasTechnicalTags, restoreTagsLocally } from "@/components/editor/types";
+import { EditorState } from "@/components/editor/types";
+import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations } from "@/lib/tag-restore";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
 
 export interface BuildStats {
@@ -151,32 +152,32 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       const nonEmptyTranslations: Record<string, string> = {};
       for (const [k, v] of Object.entries(state.translations)) { if (v.trim()) nonEmptyTranslations[k] = v; }
 
-      // Auto-fix damaged tags before build
+      // الحارس الأخير قبل البناء: يعيد الرموز التقنيّة وفواصل الأسطر لكلّ
+      // ترجمة، حتى لو لم تكن فيها وسوم — لأنّ \n قد يفقد من النصّ النظيف.
       let tagFixCount = 0;
+      let lineBreakFixCount = 0;
       let tagOkCount = 0;
+      const TAG_REGEX_G_BUILD = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
       for (const entry of state.entries) {
-        if (!hasTechnicalTags(entry.original)) continue;
         const key = `${entry.msbtFile}:${entry.index}`;
         const trans = nonEmptyTranslations[key];
         if (!trans) continue;
-        const origTagCount = (entry.original.match(/[\uFFF9-\uFFFC\uE000-\uE0FF]/g) || []).length;
-        const transTagCount = (trans.match(/[\uFFF9-\uFFFC\uE000-\uE0FF]/g) || []).length;
-        if (transTagCount < origTagCount) {
-          const fixed = restoreTagsLocally(entry.original, trans);
-          nonEmptyTranslations[key] = fixed;
-          tagFixCount++;
-          // Log DoCommand/LayoutMsg entries for debugging
-          if (entry.msbtFile.includes('DoCommand') || entry.msbtFile.includes('Pouch')) {
-            const fixedTagCount = (fixed.match(/[\uFFF9-\uFFFC\uE000-\uE0FF]/g) || []).length;
-            console.log(`[TAG-FIX] ${key}: orig=${origTagCount} tags, trans=${transTagCount} tags, fixed=${fixedTagCount} tags`);
-            console.log(`[TAG-FIX] Original: ${[...entry.original.substring(0, 30)].map(c => c.charCodeAt(0).toString(16).padStart(4,'0')).join(' ')}`);
-            console.log(`[TAG-FIX] Fixed: ${[...fixed.substring(0, 30)].map(c => c.charCodeAt(0).toString(16).padStart(4,'0')).join(' ')}`);
-          }
-        } else {
-          tagOkCount++;
+        const fixed = restoreTagsAndLineBreaks(entry.original, trans);
+        if (fixed === trans) { tagOkCount++; continue; }
+        nonEmptyTranslations[key] = fixed;
+        const origTagCount = (entry.original.match(TAG_REGEX_G_BUILD) || []).length;
+        const transTagCount = (trans.match(TAG_REGEX_G_BUILD) || []).length;
+        if (transTagCount < origTagCount) tagFixCount++;
+        const origBreaks = (entry.original.match(/\n/g) || []).length;
+        const normalized = normalizeLineBreakRepresentations(trans);
+        const transBreaks = (normalized.match(/\n/g) || []).length;
+        if (origBreaks > transBreaks) lineBreakFixCount++;
+        if (entry.msbtFile.includes('DoCommand') || entry.msbtFile.includes('Pouch')) {
+          const fixedTagCount = (fixed.match(TAG_REGEX_G_BUILD) || []).length;
+          console.log(`[TAG-FIX] ${key}: orig=${origTagCount} tags, trans=${transTagCount} tags, fixed=${fixedTagCount} tags`);
         }
       }
-      console.log(`[BUILD-TAGS] Fixed: ${tagFixCount}, Already OK: ${tagOkCount}`);
+      console.log(`[BUILD-TAGS] Fixed tags: ${tagFixCount}, Fixed line breaks: ${lineBreakFixCount}, Already OK: ${tagOkCount}`);
       
       // Validate translations size
       const translationsJson = JSON.stringify(nonEmptyTranslations);
