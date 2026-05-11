@@ -157,9 +157,33 @@ function insertOriginalTagsAtRelativePositions(original: string, translation: st
   }).join("\n");
 }
 
+/** كلمات قائمة الجرد/الفرز التي يجب أن يلتصق بها كود `0x0E` بدون مسافة. */
+const MENU_GLUE_WORDS = ["جديد", "فرز", "سقاط", "إسقاط", "جوع", "كمّ", "كم", "عدد"];
+
+/**
+ * يضمن التصاق رموز الـ PUA بالكلمة المتوقّعة في إدخالات القوائم.
+ * إذا كان الأصل بنمط «كلمة + رمز» (مثل `جديد\uE0XX`) ووجد الرمز في الترجمة
+ * منفصلاً عن الكلمة بمسافة أو علامة، يُلصَق به مباشرة بدون مسافة.
+ */
+function gluePuaToMenuWords(original: string, translation: string): string {
+  if (!translation || !TAG_REGEX_SINGLE.test(translation)) return translation;
+  let out = translation;
+  for (const word of MENU_GLUE_WORDS) {
+    if (!original.includes(word)) continue;
+    // كلمة + (مسافة/علامات) + رمز  →  كلمة + رمز
+    const re = new RegExp(`(${word})[\\s\\u00A0\\.\\,\\:\\;،؛]*([\\uE000-\\uE0FF\\uFFF9-\\uFFFC]+)`, "g");
+    out = out.replace(re, "$1$2");
+    // رمز + (مسافة/علامات) + كلمة  →  رمز + كلمة (لو الأصل بنمط رمز-قبل)
+    const reBefore = new RegExp(`([\\uE000-\\uE0FF\\uFFF9-\\uFFFC]+)[\\s\\u00A0\\.\\,\\:\\;،؛]*(${word})`, "g");
+    out = out.replace(reBefore, "$1$2");
+  }
+  return out;
+}
+
 export function restoreTechnicalTags(original: string, translation: string): string {
   if (!translation) return translation;
-  return insertOriginalTagsAtRelativePositions(original, translation);
+  const restored = insertOriginalTagsAtRelativePositions(original, translation);
+  return gluePuaToMenuWords(original, restored);
 }
 
 /** يحوّل تمثيلات الـ AI الشائعة للأسطر إلى \n حقيقي قبل أيّ معالجة. */
@@ -283,6 +307,35 @@ function extractTagSequence(text: string): string[] {
   return text.match(TAG_REGEX_G) || [];
 }
 
+/**
+ * يكتشف رموز PUA المحشورة داخل كلمة (بين حرفين/رقمين) في الترجمة بينما هي في الأصل
+ * على حدّ كلمة. يسبّب ظهور `??` لأنّ المحرّك يقرأ بايتات وسطية كأنّها بداية كود.
+ * يُرجِع عدد المواضع المعطوبة.
+ */
+function countPuaInsideWord(original: string, translation: string): number {
+  if (!translation || !TAG_REGEX_SINGLE.test(translation)) return 0;
+  const isWordChar = (ch: string) => /[\p{L}\p{N}]/u.test(ch);
+  let count = 0;
+  for (let i = 0; i < translation.length; i++) {
+    if (!TAG_REGEX_SINGLE.test(translation[i])) continue;
+    // تخطّي مجموعة الرمز كاملةً
+    let j = i;
+    while (j < translation.length && TAG_REGEX_SINGLE.test(translation[j])) j++;
+    const before = i > 0 ? translation[i - 1] : "";
+    const after = j < translation.length ? translation[j] : "";
+    if (before && after && isWordChar(before) && isWordChar(after)) {
+      // تحقّق أنّ الأصل لم يكن كذلك (لتجنّب اعتبار المتعمّد خطأً)
+      const stripIdx = stripTags(translation.slice(0, i)).length;
+      const origStripped = stripTags(original);
+      const ob = origStripped[stripIdx - 1] || "";
+      const oa = origStripped[stripIdx] || "";
+      if (!(ob && oa && isWordChar(ob) && isWordChar(oa))) count++;
+    }
+    i = j - 1;
+  }
+  return count;
+}
+
 function countMisplacedTagGroups(original: string, translation: string): number {
   const origSeq = extractTagSequence(original);
   const transSeq = extractTagSequence(translation);
@@ -380,6 +433,63 @@ export function buildSmartReorderUpdates(
     }
   }
   return { updates, previous };
+}
+
+/** فئة سبب لظهور `??` في اللعبة، مع توضيح إن كانت قابلة للإصلاح آلياً. */
+export type TagIssueCause =
+  | "pua-inside-word"     // رمز محشور بين حرفين → كسر بايتات
+  | "missing-tag"         // رمز ناقص في الترجمة
+  | "extra-tag"           // رمز زائد لا أصل له
+  | "wrong-order"         // نفس العدد لكن التسلسل/القيم تغيّرت
+  | "misplaced"           // الموقع النسبي اختلف
+  | "needs-line-break"    // فاصل سطر ناقص
+  | "literal-line-break"; // <br>/\n حرفي بدل سطر حقيقي
+
+export interface DetailedIssue {
+  key: string;
+  msbtFile: string;
+  index: number;
+  label: string;
+  original: string;
+  translation: string;
+  causes: TagIssueCause[];
+  /** نسخة مُصلَحة مقترحة. */
+  proposed: string;
+  autoFixable: boolean;
+}
+
+/**
+ * يُرجع قائمة مفصّلة بكلّ الترجمات المعطوبة (بدون سقف أمثلة).
+ * يصنّف السبب لكلّ ترجمة بحيث يمكن عرضها في تقرير «أين تظهر `??`».
+ */
+export function getDetailedRestoreIssues(
+  entries: { msbtFile: string; index: number; label: string; original: string }[],
+  translations: Record<string, string>,
+): DetailedIssue[] {
+  const out: DetailedIssue[] = [];
+  for (const entry of entries) {
+    const key = `${entry.msbtFile}:${entry.index}`;
+    const trans = translations[key];
+    if (!trans || !trans.trim()) continue;
+    const reasons = analyzeReasons(entry.original, trans);
+    const insideWord = countPuaInsideWord(entry.original, trans);
+    const causes: TagIssueCause[] = [];
+    if (insideWord > 0) causes.push("pua-inside-word");
+    if (reasons.missingTags > 0) causes.push("missing-tag");
+    if (reasons.extraTags > 0) causes.push("extra-tag");
+    if (reasons.changedTagPositions > 0) causes.push("wrong-order");
+    if (reasons.misplacedTags > 0) causes.push("misplaced");
+    if (reasons.missingLineBreaksAuto > 0 || reasons.missingLineBreaksPartial > 0) causes.push("needs-line-break");
+    if (reasons.needsNormalize) causes.push("literal-line-break");
+    if (causes.length === 0) continue;
+    const proposed = restoreTagsAndLineBreaks(entry.original, trans);
+    out.push({
+      key, msbtFile: entry.msbtFile, index: entry.index, label: entry.label,
+      original: entry.original, translation: trans,
+      causes, proposed, autoFixable: proposed !== trans,
+    });
+  }
+  return out;
 }
 
 /**

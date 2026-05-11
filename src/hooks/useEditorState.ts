@@ -27,6 +27,7 @@ import {
   buildRestoreUpdates,
   buildSmartReorderUpdates,
   collectRestoreIssueKeys,
+  getDetailedRestoreIssues,
   type RestoreReport,
 } from "@/lib/tag-restore";
 export function useEditorState() {
@@ -783,6 +784,31 @@ export function useEditorState() {
 
   const dismissRestoreReport = useCallback(() => setRestoreReport(null), []);
 
+  // === تقرير «أين تظهر `??`» — قائمة مفصّلة بأسباب لكلّ ترجمة معطوبة. ===
+  const [tagIssuesDetailed, setTagIssuesDetailed] = useState<import("@/lib/tag-restore").DetailedIssue[] | null>(null);
+
+  const openTagIssuesReport = useCallback(() => {
+    if (!state) return;
+    const list = getDetailedRestoreIssues(
+      state.entries.map(e => ({ msbtFile: e.msbtFile, index: e.index, label: e.label, original: e.original })),
+      state.translations,
+    );
+    setTagIssuesDetailed(list);
+  }, [state]);
+
+  const closeTagIssuesReport = useCallback(() => setTagIssuesDetailed(null), []);
+
+  const fixOneTagIssue = useCallback((key: string, proposed: string) => {
+    if (!state) return;
+    const prev = state.translations[key];
+    if (prev === proposed) return;
+    setPreviousTranslations(old => ({ ...old, [key]: prev }));
+    setState(p => p ? { ...p, translations: { ...p.translations, [key]: proposed } } : null);
+    // أعد بناء القائمة لإسقاط هذا الصفّ منها فوراً.
+    setTagIssuesDetailed(curr => curr ? curr.filter(i => i.key !== key) : null);
+    showLastSaved("✅ تمّ إصلاح الصفّ", 2500);
+  }, [state, setState, setPreviousTranslations, showLastSaved]);
+
   // === Deep tag scan: scan ALL entries for tag issues and propose fixes (preview before apply) ===
   // Detects: missing tags, duplicate (extra) tags, and order/identity mismatch — even when total counts are equal.
   // Uses no AI — fully offline. Pending updates are stored and applied only after the user confirms.
@@ -1362,6 +1388,7 @@ export function useEditorState() {
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     // New unified tool: tags + line breaks restore (preview + apply)
     restoreReport, handleScanTagsAndLineBreaks, handleApplyTagsAndLineBreaksFix, handleApplySmartTagReorder, dismissRestoreReport,
+    tagIssuesDetailed, openTagIssuesReport, closeTagIssuesReport, fixOneTagIssue,
     handleDeepTagScan, deepScanReport, setDeepScanReport, applyDeepScanFixes,
     handleTranslatePage, handleTranslateFromGlossaryOnly,
     showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,
