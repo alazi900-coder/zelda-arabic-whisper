@@ -182,58 +182,88 @@ export function reshapeArabic(text: string): string {
   return result.join('');
 }
 
+function isTagCode(code: number): boolean {
+  return (code >= 0xE000 && code <= 0xE0FF) || (code >= 0xFFF9 && code <= 0xFFFC);
+}
+
+// Reverse BiDi for the LTR game engine while keeping PUA/control tags
+// anchored to the same logical position they had in the source string.
 export function reverseBidi(text: string): string {
   return text.split('\n').map(line => {
-    const segments: { text: string; isLTR: boolean }[] = [];
-    let current = '';
-    let currentIsLTR: boolean | null = null;
-
-    for (const ch of line) {
-      const code = ch.charCodeAt(0);
-      if (code >= 0xE000 && code <= 0xE0FF) { current += ch; continue; }
-      if (code >= 0xFFF9 && code <= 0xFFFC) { current += ch; continue; }
-      
-      const charIsArabic = isArabicChar(ch);
-      const charIsLTR = /[a-zA-Z0-9]/.test(ch);
-      
-      if (charIsArabic) {
-        if (currentIsLTR === true && current) { segments.push({ text: current, isLTR: true }); current = ''; }
-        currentIsLTR = false;
-        current += ch;
-      } else if (charIsLTR) {
-        if (currentIsLTR === false && current) { segments.push({ text: current, isLTR: false }); current = ''; }
-        currentIsLTR = true;
-        current += ch;
+    // 1) Split line into clean (no-tag) characters + tag groups with anchors.
+    //    anchor = number of non-tag chars seen before the group in the original.
+    type TagGroup = { content: string; anchor: number };
+    const tagGroups: TagGroup[] = [];
+    const cleanChars: string[] = [];
+    const arr = [...line];
+    let i = 0;
+    while (i < arr.length) {
+      const code = arr[i].charCodeAt(0);
+      if (isTagCode(code)) {
+        let group = '';
+        while (i < arr.length && isTagCode(arr[i].charCodeAt(0))) {
+          group += arr[i]; i++;
+        }
+        tagGroups.push({ content: group, anchor: cleanChars.length });
       } else {
-        current += ch;
+        cleanChars.push(arr[i]); i++;
       }
     }
-    if (current) segments.push({ text: current, isLTR: currentIsLTR === true });
+    const M = cleanChars.length;
+    const cleanLine = cleanChars.join('');
 
-    return segments.reverse().map(seg => {
-      if (seg.isLTR) return seg.text;
-      // Reverse RTL segment using chunks: consecutive PUA/tag markers stay as atomic blocks
-      const chunks: string[] = [];
-      let ci = 0;
-      const chars = [...seg.text];
-      while (ci < chars.length) {
-        const cc = chars[ci].charCodeAt(0);
-        if ((cc >= 0xE000 && cc <= 0xE0FF) || (cc >= 0xFFF9 && cc <= 0xFFFC)) {
-          let group = '';
-          while (ci < chars.length) {
-            const gc = chars[ci].charCodeAt(0);
-            if ((gc >= 0xE000 && gc <= 0xE0FF) || (gc >= 0xFFF9 && gc <= 0xFFFC)) {
-              group += chars[ci]; ci++;
-            } else break;
-          }
-          chunks.push(group);
-        } else {
-          chunks.push(chars[ci]); ci++;
-        }
-      }
-      return chunks.reverse().join('');
-    }).join('');
+    // 2) Run standard BiDi reversal on the clean line (no tags inside).
+    const reversed = reverseBidiClean(cleanLine);
+    const reversedArr = [...reversed];
+
+    // 3) Re-insert each tag group at position (M - anchor) in the reversed line,
+    //    so it stays attached to the same logical neighbor character.
+    //    Multiple groups with same anchor preserve original order.
+    const insertions = new Map<number, string[]>();
+    for (const g of tagGroups) {
+      const pos = M - g.anchor;
+      if (!insertions.has(pos)) insertions.set(pos, []);
+      insertions.get(pos)!.push(g.content);
+    }
+
+    let out = '';
+    for (let p = 0; p <= M; p++) {
+      const ins = insertions.get(p);
+      if (ins) out += ins.join('');
+      if (p < M) out += reversedArr[p];
+    }
+    return out;
   }).join('\n');
+}
+
+// BiDi reversal on a string guaranteed to contain no tag characters.
+function reverseBidiClean(line: string): string {
+  const segments: { text: string; isLTR: boolean }[] = [];
+  let current = '';
+  let currentIsLTR: boolean | null = null;
+
+  for (const ch of line) {
+    const charIsArabic = isArabicChar(ch);
+    const charIsLTR = /[a-zA-Z0-9]/.test(ch);
+
+    if (charIsArabic) {
+      if (currentIsLTR === true && current) { segments.push({ text: current, isLTR: true }); current = ''; }
+      currentIsLTR = false;
+      current += ch;
+    } else if (charIsLTR) {
+      if (currentIsLTR === false && current) { segments.push({ text: current, isLTR: false }); current = ''; }
+      currentIsLTR = true;
+      current += ch;
+    } else {
+      current += ch;
+    }
+  }
+  if (current) segments.push({ text: current, isLTR: currentIsLTR === true });
+
+  return segments.reverse().map(seg => {
+    if (seg.isLTR) return seg.text;
+    return [...seg.text].reverse().join('');
+  }).join('');
 }
 
 const NUMERAL_MAP: Record<string, string> = {
