@@ -340,6 +340,40 @@ const Editor = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor.state, editor.displayedEntries, editor.currentPage, editor.setCurrentPage]);
 
+  // قفز عام لمفتاح معروف (msbtFile:index) — يحترم الفلتر إن كان النصّ ظاهراً،
+  // وإلا يلغي فلتر الحالة لإظهاره ثم يقفز.
+  const handleJumpToKey = React.useCallback((key: string) => {
+    if (!editor.state) return;
+    const entries = editor.state.entries;
+    const targetIdx = entries.findIndex(e => `${e.msbtFile}:${e.index}` === key);
+    if (targetIdx === -1) {
+      toast({ title: "لم يُعثر على النصّ", variant: "destructive" });
+      return;
+    }
+    // امسح فلاتر الحالة كي يظهر النصّ ضمن العرض المرقَّم
+    if (editor.filterStatus.size > 0) editor.setFilterStatus(new Set());
+    setTimeout(() => {
+      // أعد حساب الموقع داخل filteredEntries بعد إزالة الفلاتر
+      const filtered = editor.filteredEntries;
+      const inFiltered = filtered.findIndex(e => `${e.msbtFile}:${e.index}` === key);
+      const idxInList = inFiltered >= 0 ? inFiltered : targetIdx;
+      const page = Math.floor(idxInList / PAGE_SIZE);
+      editor.setCurrentPage(page);
+      setTimeout(() => {
+        const cards = document.querySelectorAll('[data-entry-key]');
+        for (const card of cards) {
+          if (card.getAttribute('data-entry-key') === key) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (card as HTMLElement).classList.add('ring-2', 'ring-orange-500');
+            setTimeout(() => (card as HTMLElement).classList.remove('ring-2', 'ring-orange-500'), 2500);
+            break;
+          }
+        }
+      }, 120);
+    }, 30);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor.state, editor.filterStatus, editor.filteredEntries, editor.setCurrentPage, editor.setFilterStatus]);
+
   if (!editor.state) {
     return (
       <div className="min-h-screen py-6 md:py-10 px-3 md:px-4 relative overflow-hidden">
