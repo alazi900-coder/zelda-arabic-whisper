@@ -263,10 +263,19 @@ describe("smartReorderTags", () => {
     expect(out).toContain("\uE002");
   });
 
-  it("returns translation unchanged when tags already match", () => {
+  it("keeps clean translations unchanged when tags already match original relative positions", () => {
     const original = "Hello \uE001 world \uE002";
     const translation = "مرحبا \uE001 عالم \uE002";
     expect(smartReorderTags(original, translation)).toBe(translation);
+  });
+
+  it("detects and fixes tags with correct sequence but wrong position", () => {
+    const original = "Hello \uE001 world";
+    const translation = "\uE001مرحبا عالم";
+    const report = scanTranslationsForRestore([{ msbtFile: "F.msbt", index: 0, label: "x", original }], { "F.msbt:0": translation });
+    expect(report.autoFixable).toBe(1);
+    expect(report.issueTotals.misplacedTags).toBeGreaterThan(0);
+    expect(report.autoExamples[0].after).toBe("مرحبا \uE001عالم");
   });
 
   it("returns translation unchanged when there are no tags", () => {
@@ -307,7 +316,7 @@ describe("buildSmartReorderUpdates", () => {
     expect(updates["F.msbt:0"].indexOf("\uE001")).toBeLessThan(updates["F.msbt:0"].indexOf("\uE002"));
   });
 
-  it("skips entries where tag count differs (those need manual review)", () => {
+  it("repairs entries where tag count differs", () => {
     const entries = [
       { msbtFile: "F.msbt", index: 0, original: "Press \uE001 then \uE002" },
     ];
@@ -315,7 +324,8 @@ describe("buildSmartReorderUpdates", () => {
       "F.msbt:0": "اضغط \uE001", // رمز واحد بدل اثنين
     };
     const { updates } = buildSmartReorderUpdates(entries, translations);
-    expect(Object.keys(updates).length).toBe(0);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
+    expect(updates["F.msbt:0"]).toContain("\uE002");
   });
 
   it("skips empty translations", () => {
