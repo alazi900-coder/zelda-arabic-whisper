@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Shield, FileText, Download, Sparkles, ChevronDown, Beaker, ArrowLeft } from "lucide-react";
+import { Shield, FileText, Download, Sparkles, ChevronDown, Beaker, ArrowLeft, Mic } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 
@@ -153,6 +153,31 @@ const Index = () => {
                   <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
               </div>
+            </div>
+          </Link>
+
+          {/* Dubbing Studio CTA */}
+          <Link
+            to="/dubbing"
+            className="group relative block mt-4 rounded-2xl border border-secondary/30 bg-gradient-to-br from-secondary/10 via-card to-primary/5 hover:from-secondary/15 hover:to-primary/10 transition-all overflow-hidden shadow-xl shadow-secondary/10"
+          >
+            <div className="relative p-5 sm:p-7 flex items-center gap-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-secondary/30 to-primary/15 border border-secondary/40 flex items-center justify-center shrink-0">
+                <Mic className="w-7 h-7 sm:w-8 sm:h-8 text-secondary drop-shadow-[0_0_12px_hsl(var(--secondary))]" />
+              </div>
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full bg-secondary/15 border border-secondary/30">
+                  <Sparkles className="w-3 h-3 text-secondary" />
+                  <span className="text-[10px] sm:text-xs text-secondary font-display font-semibold">جديد · مجاني</span>
+                </div>
+                <h2 className="text-lg sm:text-2xl font-display font-black mb-1">
+                  استوديو الدبلجة العربية
+                </h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  ولِّد أصوات شخصيات Zelda بالعربية (Link, Zelda, Ganon...) — يعمل عبر Lovable AI
+                </p>
+              </div>
+              <ArrowLeft className="w-5 h-5 text-secondary shrink-0 group-hover:translate-x-[-4px] transition-transform" />
             </div>
           </Link>
         </div>
