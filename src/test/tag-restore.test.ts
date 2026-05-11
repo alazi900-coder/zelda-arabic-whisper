@@ -275,7 +275,7 @@ describe("smartReorderTags", () => {
     const report = scanTranslationsForRestore([{ msbtFile: "F.msbt", index: 0, label: "x", original }], { "F.msbt:0": translation });
     expect(report.autoFixable).toBe(1);
     expect(report.issueTotals.misplacedTags).toBeGreaterThan(0);
-    expect(report.autoExamples[0].after).toBe("مرحبا \uE001عالم");
+    expect(report.autoExamples[0].after).toBe("مرحبا\uE001 عالم");
   });
 
   it("returns translation unchanged when there are no tags", () => {
@@ -298,7 +298,7 @@ describe("smartReorderTags", () => {
 });
 
 describe("buildSmartReorderUpdates", () => {
-  it("returns updates only for entries with reorderable tags", () => {
+  it("returns updates for entries with reorderable or misplaced tags", () => {
     const entries = [
       { msbtFile: "F.msbt", index: 0, original: "Press \uE001 then \uE002" },
       { msbtFile: "F.msbt", index: 1, original: "Clean text" },
@@ -310,8 +310,8 @@ describe("buildSmartReorderUpdates", () => {
       "F.msbt:2": "صحيح \uE003 مسبقاً \uE004",   // مطابق → لا تغيير
     };
     const { updates, previous } = buildSmartReorderUpdates(entries, translations);
-    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
-    expect(Object.keys(previous)).toEqual(["F.msbt:0"]);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0", "F.msbt:2"]);
+    expect(Object.keys(previous)).toEqual(["F.msbt:0", "F.msbt:2"]);
     expect(previous["F.msbt:0"]).toBe(translations["F.msbt:0"]);
     expect(updates["F.msbt:0"].indexOf("\uE001")).toBeLessThan(updates["F.msbt:0"].indexOf("\uE002"));
   });
