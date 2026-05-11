@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { notifyBlockedAI } from '@/lib/ai-blocked-notify';
 import { toast } from "@/hooks/use-toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ARABIC_REGEX } from "@/lib/arabic-processing";
@@ -201,6 +202,7 @@ export function useEditorTranslation({
         throw new Error(errData?.error || `خطأ ${response.status}`);
       }
       const data = await response.json();
+        notifyBlockedAI(data?.blocked);
       if (data.translations && data.translations[key]) {
         const translated = restoreTagsAndLineBreaks(entry.original, data.translations[key]);
         updateTranslation(key, translated);
@@ -384,6 +386,7 @@ export function useEditorTranslation({
           throw new Error(errData?.error || `خطأ ${response.status}`);
         }
         const data = await response.json();
+        notifyBlockedAI(data?.blocked);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations, entryMap);
           allTranslations = { ...allTranslations, ...fixedTranslations };
@@ -516,6 +519,7 @@ export function useEditorTranslation({
           throw new Error(errData?.error || `خطأ ${response.status}`);
         }
         const data = await response.json();
+        notifyBlockedAI(data?.blocked);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...fixedTranslations } } : null);
@@ -582,6 +586,7 @@ export function useEditorTranslation({
           throw new Error(errData?.error || `خطأ ${response.status}`);
         }
         const data = await response.json();
+        notifyBlockedAI(data?.blocked);
         if (data.translations) {
           const fixedTranslations = autoFixTags(data.translations);
           fixedCount += Object.keys(fixedTranslations).length;
@@ -768,6 +773,7 @@ export function useEditorTranslation({
           throw new Error(errData?.error || `خطأ ${response.status}`);
         }
         const data = await response.json();
+        notifyBlockedAI(data?.blocked);
         if (data.translations) {
           const fixed = autoFixTags(data.translations, entryMap);
           for (const [k, v] of Object.entries(fixed)) allTranslations[k] = v;

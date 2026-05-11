@@ -324,8 +324,39 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ---- Server-side guard: حظر إرسال النصوص التقنية البحتة للذكاء الاصطناعي ----
+    // PUA (E000–E0FF) و/أو علامات تنسيق Unicode (FFF9–FFFC) و/أو علامات BiDi/ZW
+    // و/أو علامات ترقيم — بدون أيّ حرف أو رقم — لا يجوز إرسالها لأنّها ستُنتج `??`.
+    const isOnlyTechnicalTagsServer = (text: string): boolean => {
+      if (!text) return false;
+      let t = text.replace(/[\s\u00A0\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "");
+      t = t.replace(/[\p{P}\p{S}]/gu, "");
+      if (!t) return false;
+      if (/[\p{L}\p{N}]/u.test(t)) return false;
+      return /[\uFFF9\uFFFA\uFFFB\uFFFC\uE000-\uE0FF]/.test(t);
+    };
+
+    const blocked: { key: string; original: string; reason: string }[] = [];
+    const allowedEntries: typeof entries = [];
+    for (const e of entries) {
+      if (isOnlyTechnicalTagsServer(e.original)) {
+        blocked.push({ key: e.key, original: e.original, reason: 'only-technical-tags' });
+      } else {
+        allowedEntries.push(e);
+      }
+    }
+    if (blocked.length > 0) {
+      console.warn(`[translate-entries] blocked ${blocked.length} technical-only entries from AI`);
+    }
+    if (allowedEntries.length === 0) {
+      return new Response(JSON.stringify({ translations: {}, blocked }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Protect tags in brackets before translation
-    const protectedEntries = entries.map(e => {
+    const protectedEntries = allowedEntries.map(e => {
       const { cleaned, tags } = protectTags(e.original);
       return { ...e, cleaned, tags };
     });
@@ -585,7 +616,7 @@ ${textsBlock}`;
           await new Promise(r => setTimeout(r, 150));
         }
       }
-      return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
+      return new Response(JSON.stringify({ translations: result, charsUsed: totalChars, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -669,7 +700,7 @@ ${textsBlock}`;
         }
       }
       
-      return new Response(JSON.stringify({ translations: result }), {
+      return new Response(JSON.stringify({ translations: result, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
@@ -732,7 +763,7 @@ ${textsBlock}`;
         }
       }
 
-      return new Response(JSON.stringify({ translations: result }), {
+      return new Response(JSON.stringify({ translations: result, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
