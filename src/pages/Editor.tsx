@@ -703,6 +703,10 @@ const Editor = () => {
             isDamagedTagsActive={editor.filterStatus.has("damaged-tags")} onFixDamagedTags={() => editor.handleFixDamagedTags(editor.qualityStats.damagedTagKeys)}
             onLocalFixDamagedTags={() => editor.handleLocalFixAllDamagedTags(editor.qualityStats.damagedTagKeys)} isFixing={editor.translating}
             onRedistributeTags={editor.handleRedistributeTags} tagsCount={editor.tagsCount}
+            tagLineIssuesCount={editor.tagLineIssueKeys.size}
+            isTagLineIssuesActive={editor.filterStatus.has("tag-line-issues")}
+            onFilterTagLineIssues={() => editor.toggleFilterStatus("tag-line-issues")}
+            onOpenFixTagLineIssues={editor.handleScanTagsAndLineBreaks}
           />
 
           {/* Progress Bar */}
