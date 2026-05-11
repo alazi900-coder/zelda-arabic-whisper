@@ -197,6 +197,8 @@ export interface RestoreIssueReasons {
   extraTags: number;
   /** عدد المواقع التي قيمة/ترتيب الرمز فيها تختلف بين الأصل والترجمة (نفس العدد). للمراجعة. */
   changedTagPositions: number;
+  /** نفس الرموز والتسلسل موجودة، لكن مواقعها النسبية داخل السطر تختلف عن الأصل. يُصلَح آلياً. */
+  misplacedTags: number;
   /** فاصل سطر ناقص يمكن إصلاحه آلياً (الأصل > 1 والترجمة = 1). */
   missingLineBreaksAuto: number;
   /** فاصل سطر ناقص لا نضمن تقسيمه (الأصل > 1 والترجمة > 1 ولكن أقلّ من الأصل). للمراجعة. */
@@ -254,6 +256,17 @@ function extractTagSequence(text: string): string[] {
   return text.match(TAG_REGEX_G) || [];
 }
 
+function countMisplacedTagGroups(original: string, translation: string): number {
+  const origSeq = extractTagSequence(original);
+  const transSeq = extractTagSequence(translation);
+  if (origSeq.length === 0 || origSeq.length !== transSeq.length) return 0;
+  for (let i = 0; i < origSeq.length; i++) if (origSeq[i] !== transSeq[i]) return 0;
+  const normalized = normalizeLineBreakRepresentations(translation);
+  const restored = restoreTechnicalTags(original, normalized);
+  if (restored === normalized) return 0;
+  return Math.max(1, extractOriginalTagGroups(original).length);
+}
+
 /** يحسب الأسباب لإدخالة واحدة دون الحاجة لاستدعاء التطبيق الفعلي. */
 function analyzeReasons(original: string, translation: string): RestoreIssueReasons {
   const normalized = normalizeLineBreakRepresentations(translation);
@@ -274,6 +287,7 @@ function analyzeReasons(original: string, translation: string): RestoreIssueReas
       if (origTagSeq[i] !== transTagSeq[i]) changedTagPositions++;
     }
   }
+  const misplacedTags = changedTagPositions === 0 ? countMisplacedTagGroups(original, translation) : 0;
 
   // فواصل الأسطر: نُفرّق بين القابل للإصلاح الآلي والقابل للمراجعة فقط
   let missingLineBreaksAuto = 0;
@@ -292,6 +306,7 @@ function analyzeReasons(original: string, translation: string): RestoreIssueReas
     missingTags,
     extraTags,
     changedTagPositions,
+    misplacedTags,
     missingLineBreaksAuto,
     missingLineBreaksPartial,
     needsNormalize,
@@ -299,11 +314,11 @@ function analyzeReasons(original: string, translation: string): RestoreIssueReas
 }
 
 function isAutoFix(r: RestoreIssueReasons): boolean {
-  return r.missingTags > 0 || r.missingLineBreaksAuto > 0 || r.needsNormalize;
+  return r.missingTags > 0 || r.misplacedTags > 0 || r.missingLineBreaksAuto > 0 || r.missingLineBreaksPartial > 0 || r.needsNormalize;
 }
 
 function isReview(r: RestoreIssueReasons): boolean {
-  return r.extraTags > 0 || r.changedTagPositions > 0 || r.missingLineBreaksPartial > 0;
+  return r.extraTags > 0 || r.changedTagPositions > 0;
 }
 
 /**
