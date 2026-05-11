@@ -191,72 +191,78 @@ function getNextArabicCodeStr(text: string, index: number): number | null {
 
 // ============= End Arabic Reshaping =============
 
-// BiDi reversal for LTR game engine
+// BiDi reversal for LTR game engine — keeps PUA/control tags anchored to
+// their original logical position so they don't drift across the line.
+function isTagCode(code: number): boolean {
+  return (code >= 0xE000 && code <= 0xE0FF) || (code >= 0xFFF9 && code <= 0xFFFC);
+}
+
+function reverseBidiClean(line: string): string {
+  const segments: { text: string; isLTR: boolean }[] = [];
+  let current = '';
+  let currentIsLTR: boolean | null = null;
+
+  for (let ci = 0; ci < line.length; ci++) {
+    const code = line.charCodeAt(ci);
+    const ch = line[ci];
+    const charIsArabic = isArabicCode(code);
+    const charIsLTR = (code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A);
+
+    if (charIsArabic) {
+      if (currentIsLTR === true && current) { segments.push({ text: current, isLTR: true }); current = ''; }
+      currentIsLTR = false;
+      current += ch;
+    } else if (charIsLTR) {
+      if (currentIsLTR === false && current) { segments.push({ text: current, isLTR: false }); current = ''; }
+      currentIsLTR = true;
+      current += ch;
+    } else {
+      current += ch;
+    }
+  }
+  if (current) segments.push({ text: current, isLTR: currentIsLTR === true });
+
+  return segments.reverse().map(seg => {
+    if (seg.isLTR) return seg.text;
+    return seg.text.split('').reverse().join('');
+  }).join('');
+}
+
 function reverseBidi(text: string): string {
   return text.split('\n').map(line => {
-    const segments: { text: string; isLTR: boolean }[] = [];
-    let current = '';
-    let currentIsLTR: boolean | null = null;
-
-    for (let ci = 0; ci < line.length; ci++) {
-      const code = line.charCodeAt(ci);
-      const ch = line[ci];
-      // PUA tag markers are treated as neutral (stay with current segment)
-      if (code >= 0xE000 && code <= 0xE0FF) {
-        current += ch;
-        continue;
-      }
-      // Unicode tag markers (FFF9-FFFC) also neutral
-      if (code >= 0xFFF9 && code <= 0xFFFC) {
-        current += ch;
-        continue;
-      }
-      
-      const charIsArabic = isArabicCode(code);
-      const charIsLTR = (code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A);
-      
-      if (charIsArabic) {
-        if (currentIsLTR === true && current) {
-          segments.push({ text: current, isLTR: true });
-          current = '';
+    type TagGroup = { content: string; anchor: number };
+    const tagGroups: TagGroup[] = [];
+    const cleanChars: string[] = [];
+    let i = 0;
+    while (i < line.length) {
+      const code = line.charCodeAt(i);
+      if (isTagCode(code)) {
+        let group = '';
+        while (i < line.length && isTagCode(line.charCodeAt(i))) {
+          group += line[i]; i++;
         }
-        currentIsLTR = false;
-        current += ch;
-      } else if (charIsLTR) {
-        if (currentIsLTR === false && current) {
-          segments.push({ text: current, isLTR: false });
-          current = '';
-        }
-        currentIsLTR = true;
-        current += ch;
+        tagGroups.push({ content: group, anchor: cleanChars.length });
       } else {
-        current += ch;
+        cleanChars.push(line[i]); i++;
       }
     }
-    if (current) segments.push({ text: current, isLTR: currentIsLTR === true });
+    const M = cleanChars.length;
+    const reversed = reverseBidiClean(cleanChars.join(''));
 
-    return segments.reverse().map(seg => {
-      if (seg.isLTR) return seg.text;
-      // Reverse RTL segment using chunks: consecutive PUA/tag markers stay as atomic blocks
-      const chunks: string[] = [];
-      let ci = 0;
-      while (ci < seg.text.length) {
-        const cc = seg.text.charCodeAt(ci);
-        if ((cc >= 0xE000 && cc <= 0xE0FF) || (cc >= 0xFFF9 && cc <= 0xFFFC)) {
-          let group = '';
-          while (ci < seg.text.length) {
-            const gc = seg.text.charCodeAt(ci);
-            if ((gc >= 0xE000 && gc <= 0xE0FF) || (gc >= 0xFFF9 && gc <= 0xFFFC)) {
-              group += seg.text[ci]; ci++;
-            } else break;
-          }
-          chunks.push(group);
-        } else {
-          chunks.push(seg.text[ci]); ci++;
-        }
-      }
-      return chunks.reverse().join('');
-    }).join('');
+    const insertions = new Map<number, string[]>();
+    for (const g of tagGroups) {
+      const pos = M - g.anchor;
+      if (!insertions.has(pos)) insertions.set(pos, []);
+      insertions.get(pos)!.push(g.content);
+    }
+
+    let out = '';
+    for (let p = 0; p <= M; p++) {
+      const ins = insertions.get(p);
+      if (ins) out += ins.join('');
+      if (p < M) out += reversed[p];
+    }
+    return out;
   }).join('\n');
 }
 
