@@ -72,7 +72,7 @@ describe("tag-report-format snapshot", () => {
         orig  : <PUA:E000><PUA:E001>
         trans : <PUA:E001><PUA:E000>
         fixed : <PUA:E000><PUA:E001>
-        diff  : Δ@5: «<PUA:E001><PUA:E000>» → «<PUA:E000><PUA:E001>»"
+        diff  : Δ@0: «<PUA:E001><PUA:E000>» → «<PUA:E000><PUA:E001>»"
     `);
   });
 });
