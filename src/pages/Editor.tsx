@@ -1252,6 +1252,8 @@ const Editor = () => {
           report={editor.restoreReport}
           onClose={editor.dismissRestoreReport}
           onApply={editor.handleApplyTagsAndLineBreaksFix}
+          onUpdateTranslation={editor.updateTranslation}
+          onRescan={editor.handleScanTagsAndLineBreaks}
         />
 
         {editor.pendingImport && (
