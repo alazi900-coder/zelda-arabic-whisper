@@ -356,11 +356,14 @@ export { isArabicChar, hasArabicChars, reverseBidi as unReverseBidi } from "@/li
  */
 export function isOnlyTechnicalTags(text: string): boolean {
   if (!text) return false;
-  const t = text.replace(/[\s\u00A0]/g, "");
+  // أزل المسافات (بما فيها NBSP، Tab، أسطر) وعلامات BiDi/ZW (LRM/RLM/LRE/RLE/PDF/LRO/RLO/ZWJ/ZWNJ/BOM).
+  let t = text.replace(/[\s\u00A0\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "");
+  // أزل علامات الترقيم اللاتينية والعربية (نقطة، فاصلة، أقواس، شَرطَة، علامات استفهام/تعجّب…).
+  t = t.replace(/[\p{P}\p{S}]/gu, "");
   if (!t) return false;
-  // كلّ المحارف رموز تقنية أو علامات ترقيم بسيطة، ولا يوجد أيّ حرف/رقم.
+  // إن بقي أيّ حرف أو رقم → النصّ يحوي محتوى لغوياً قابلاً للترجمة.
   if (/[\p{L}\p{N}]/u.test(t)) return false;
-  // يجب أن يحتوي على رمز تقنيّ واحد على الأقلّ حتى نحميه (وإلا فهو نصّ فارغ من المعنى).
+  // يجب أن يحتوي على رمز تقنيّ واحد على الأقلّ (PUA أو علامات تنسيق Unicode الخاصّة).
   return /[\uFFF9\uFFFA\uFFFB\uFFFC\uE000-\uE0FF]/.test(t);
 }
 
