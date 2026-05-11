@@ -1,7 +1,7 @@
 import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { FILE_CATEGORIES, categorizeFile } from "./types";
-import { AlertTriangle, Wrench, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { AlertTriangle, Wrench, Loader2, Sparkles, RefreshCw, Tag } from "lucide-react";
 
 interface CategoryProgressProps {
   categoryProgress: Record<string, { total: number; translated: number }>;
@@ -15,9 +15,14 @@ interface CategoryProgressProps {
   onLocalFixDamagedTags?: () => void;
   onRedistributeTags?: () => void;
   tagsCount?: number;
+  // بطاقة مشاكل الرموز/فواصل الأسطر — مصدرها أداة «الرموز وفواصل الأسطر».
+  tagLineIssuesCount?: number;
+  isTagLineIssuesActive?: boolean;
+  onFilterTagLineIssues?: () => void;
+  onOpenFixTagLineIssues?: () => void;
 }
 
-const CategoryProgress: React.FC<CategoryProgressProps> = ({ categoryProgress, filterCategory, setFilterCategory, damagedTagsCount = 0, onFilterDamagedTags, isDamagedTagsActive, onFixDamagedTags, isFixing, onLocalFixDamagedTags, onRedistributeTags, tagsCount = 0 }) => {
+const CategoryProgress: React.FC<CategoryProgressProps> = ({ categoryProgress, filterCategory, setFilterCategory, damagedTagsCount = 0, onFilterDamagedTags, isDamagedTagsActive, onFixDamagedTags, isFixing, onLocalFixDamagedTags, onRedistributeTags, tagsCount = 0, tagLineIssuesCount = 0, isTagLineIssuesActive, onFilterTagLineIssues, onOpenFixTagLineIssues }) => {
   const activeCats = FILE_CATEGORIES.filter(cat => categoryProgress[cat.id]);
   if (activeCats.length === 0 && !categoryProgress['other']) return null;
 
