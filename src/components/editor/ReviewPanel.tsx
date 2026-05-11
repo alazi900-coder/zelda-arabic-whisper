@@ -2,45 +2,10 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Sparkles, Loader2 } from "lucide-react";
-import { FILE_CATEGORIES } from "./types";
+import { FILE_CATEGORIES, ReviewIssue, ReviewResults, ShortSuggestion, ImproveResult } from "./types";
 
-export interface ReviewIssue {
-  key: string;
-  message: string;
-  suggestion?: string;
-  severity: "error" | "warning";
-}
-
-export interface ReviewSummary {
-  checked: number;
-  errors: number;
-  warnings: number;
-}
-
-export interface ReviewResults {
-  issues: ReviewIssue[];
-  summary: ReviewSummary;
-}
-
-export interface ShortSuggestion {
-  key: string;
-  original: string;
-  current: string;
-  suggested: string;
-  currentBytes: number;
-  suggestedBytes: number;
-  maxBytes: number;
-}
-
-export interface ImproveResultItem {
-  key: string;
-  original: string;
-  current: string;
-  improved: string;
-  currentBytes: number;
-  improvedBytes: number;
-  maxBytes: number;
-}
+type ImproveResultItem = ImproveResult;
+export type { ReviewIssue, ReviewResults, ShortSuggestion, ImproveResult, ImproveResultItem };
 
 interface ReviewPanelProps {
   reviewResults: ReviewResults | null;
