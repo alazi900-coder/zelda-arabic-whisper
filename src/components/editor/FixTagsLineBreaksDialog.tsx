@@ -503,13 +503,22 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
           </div>
         </div>
 
+        {report && totalIssues > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 rounded-md border bg-muted/30 p-2 text-center shrink-0">
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground">مفقودة <strong className="text-foreground tabular-nums">{report.issueTotals.missingTags}</strong></div>
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground">زائدة/فاسدة <strong className="text-foreground tabular-nums">{report.issueTotals.extraTags + report.issueTotals.changedTagPositions}</strong></div>
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground">مكان خاطئ <strong className="text-foreground tabular-nums">{report.issueTotals.misplacedTags}</strong></div>
+            <div className="text-[10px] sm:text-[11px] text-muted-foreground">فواصل أسطر <strong className="text-foreground tabular-nums">{report.issueTotals.missingLineBreaksAuto + report.issueTotals.missingLineBreaksPartial}</strong></div>
+          </div>
+        )}
+
         {totalIssues === 0 ? (
           <div className="flex-1 flex items-center justify-center py-12">
             <div className="text-center space-y-2">
               <Sparkles className="h-8 w-8 mx-auto text-emerald-500" />
               <div className="text-base font-semibold">كلّ الترجمات سليمة</div>
               <div className="text-sm text-muted-foreground">
-                لا توجد رموز مفقودة ولا فواصل أسطر ناقصة.
+                لا توجد رموز مفقودة/زائدة/فاسدة/مزاحة ولا فواصل أسطر ناقصة.
               </div>
             </div>
           </div>
@@ -557,7 +566,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                 ) : (
                   <>
                     <div className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 leading-relaxed">
-                      عند الضغط على «طبّق الإصلاح الآليّ» سيُحدَّث {report.autoFixable} ترجمة. يمكنك التراجع لكلّ ترجمة على حدة من قائمة التراجع.
+                      عند الضغط على «طبّق الإصلاح الآليّ» سيُعاد بناء الرموز من الأصل وتُصلح فواصل الأسطر في {report.autoFixable} ترجمة. يمكنك التراجع لكلّ ترجمة على حدة.
                     </div>
                     <ScrollArea className="flex-1 min-h-0 pr-1">
                       <div className="space-y-2.5 pb-2">
@@ -609,7 +618,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                       </div>
                     )}
                     <div className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 leading-relaxed">
-                      هذه الترجمات لا تُعدَّل آلياً (تقسيم جزئي، رمز مختلف، رمز زائد). اضغط «تعديل» في أيّ ترجمة، عدّلها هنا مباشرةً، ثم «حفظ».
+                      هذه الترجمات بقيت للمراجعة فقط إذا لم يمكن تطبيق إصلاح آمن. اضغط «تعديل» في أيّ ترجمة، عدّلها هنا مباشرةً، ثم «حفظ».
                       {resolvedReviewCount > 0 && (
                         <span className="text-emerald-700 dark:text-emerald-300 font-semibold mr-1">
                           أصلحت {resolvedReviewCount} يدويّاً.
