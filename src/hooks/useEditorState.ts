@@ -26,6 +26,7 @@ import {
   scanTranslationsForRestore,
   buildRestoreUpdates,
   buildSmartReorderUpdates,
+  collectRestoreIssueKeys,
   type RestoreReport,
 } from "@/lib/tag-restore";
 export function useEditorState() {
@@ -530,6 +531,16 @@ export function useEditorState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries]);
 
+  // === Live scan for tag/line-break issues (independent of damaged-tags). ===
+  // يُحدَّث تلقائياً عند تغيّر الترجمات → يستخدم لإظهار البطاقة المخصّصة وفلترة العرض.
+  const tagLineIssueKeys = useMemo(() => {
+    if (!state) return new Set<string>();
+    const entriesForScan = state.entries.map(e => ({
+      msbtFile: e.msbtFile, index: e.index, original: e.original,
+    }));
+    return collectRestoreIssueKeys(entriesForScan, state.translations);
+  }, [state?.entries, state?.translations]);
+
   // === Filtered entries ===
   const filteredEntries = useMemo(() => {
     if (!state) return [];
@@ -568,7 +579,8 @@ export function useEditorState() {
             (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key)) ||
             (fs === "duplicates" && qualityStats.duplicateTranslationKeys.has(key)) ||
             (fs === "punctuation" && qualityStats.punctuationMismatchKeys.has(key)) ||
-            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key))
+            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key)) ||
+            (fs === "tag-line-issues" && tagLineIssueKeys.has(key))
           )
         ));
       const matchTechnical = 
@@ -577,7 +589,7 @@ export function useEditorState() {
         (filterTechnical === "exclude" && !isTechnical);
       return matchSearch && matchFile && matchCategory && matchStatus && matchTechnical;
     });
-  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, qualityStats.damagedTagKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
+  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, qualityStats.damagedTagKeys, tagLineIssueKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { if (!isPinned) setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical, isPinned]);
 
@@ -1322,7 +1334,7 @@ export function useEditorState() {
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
     fixingMixed, filtersOpen, isPinned, isPageLocked, buildStats, buildPreview, showBuildConfirm, fixPreview,
-    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
+    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, tagLineIssueKeys, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, displayedEntries, paginatedEntries, totalPages,
     user,

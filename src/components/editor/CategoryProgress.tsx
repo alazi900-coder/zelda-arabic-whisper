@@ -1,7 +1,7 @@
 import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { FILE_CATEGORIES, categorizeFile } from "./types";
-import { AlertTriangle, Wrench, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { AlertTriangle, Wrench, Loader2, Sparkles, RefreshCw, Tag } from "lucide-react";
 
 interface CategoryProgressProps {
   categoryProgress: Record<string, { total: number; translated: number }>;
@@ -15,9 +15,14 @@ interface CategoryProgressProps {
   onLocalFixDamagedTags?: () => void;
   onRedistributeTags?: () => void;
   tagsCount?: number;
+  // بطاقة مشاكل الرموز/فواصل الأسطر — مصدرها أداة «الرموز وفواصل الأسطر».
+  tagLineIssuesCount?: number;
+  isTagLineIssuesActive?: boolean;
+  onFilterTagLineIssues?: () => void;
+  onOpenFixTagLineIssues?: () => void;
 }
 
-const CategoryProgress: React.FC<CategoryProgressProps> = ({ categoryProgress, filterCategory, setFilterCategory, damagedTagsCount = 0, onFilterDamagedTags, isDamagedTagsActive, onFixDamagedTags, isFixing, onLocalFixDamagedTags, onRedistributeTags, tagsCount = 0 }) => {
+const CategoryProgress: React.FC<CategoryProgressProps> = ({ categoryProgress, filterCategory, setFilterCategory, damagedTagsCount = 0, onFilterDamagedTags, isDamagedTagsActive, onFixDamagedTags, isFixing, onLocalFixDamagedTags, onRedistributeTags, tagsCount = 0, tagLineIssuesCount = 0, isTagLineIssuesActive, onFilterTagLineIssues, onOpenFixTagLineIssues }) => {
   const activeCats = FILE_CATEGORIES.filter(cat => categoryProgress[cat.id]);
   if (activeCats.length === 0 && !categoryProgress['other']) return null;
 
@@ -77,6 +82,34 @@ const CategoryProgress: React.FC<CategoryProgressProps> = ({ categoryProgress, f
           >
             <RefreshCw className="w-3 h-3" />
             إعادة توزيع الرموز
+          </button>
+        </div>
+      )}
+      {/* Tag/line-break issues card — entries flagged by «الرموز وفواصل الأسطر». */}
+      {tagLineIssuesCount > 0 && (
+        <div
+          className={`p-2 rounded-lg border text-xs text-right transition-colors ${
+            isTagLineIssuesActive
+              ? 'border-orange-500 bg-orange-500/10'
+              : 'border-orange-500/40 bg-orange-500/5 hover:border-orange-500/60'
+          }`}
+        >
+          <button onClick={onFilterTagLineIssues} className="w-full text-right">
+            <div className="flex items-center justify-between mb-1">
+              <Tag className="w-4 h-4 text-orange-400" />
+              <span className="font-mono text-orange-400 font-bold">{tagLineIssuesCount}</span>
+            </div>
+            <p className="font-display font-bold truncate text-orange-400">رموز/أسطر بحاجة إصلاح</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {isTagLineIssuesActive ? 'الفلتر مُفعَّل — اضغط لإلغائه' : 'اضغط لعرض هذه النصوص فقط'}
+            </p>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenFixTagLineIssues?.(); }}
+            className="mt-1.5 w-full flex items-center justify-center gap-1 px-2 py-1 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-bold text-[11px] transition-colors"
+          >
+            <Wrench className="w-3 h-3" />
+            فتح أداة الإصلاح
           </button>
         </div>
       )}
