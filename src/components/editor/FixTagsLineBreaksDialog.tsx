@@ -97,6 +97,7 @@ function describeReasons(r: RestoreIssueReasons): string[] {
   if (r.missingTags > 0) out.push(`رموز مفقودة: ${r.missingTags}`);
   if (r.extraTags > 0) out.push(`رموز زائدة: ${r.extraTags}`);
   if (r.changedTagPositions > 0) out.push(`رموز اختلف ترتيبها/قيمتها: ${r.changedTagPositions}`);
+  if (r.misplacedTags > 0) out.push(`رموز في مكان خاطئ: ${r.misplacedTags}`);
   if (r.missingLineBreaksAuto > 0) out.push(`فواصل أسطر ناقصة: ${r.missingLineBreaksAuto}`);
   if (r.missingLineBreaksPartial > 0) out.push(`فواصل أسطر ناقصة (تقسيم جزئي): ${r.missingLineBreaksPartial}`);
   if (r.needsNormalize) out.push("يحتوي <br> / \\n / CR يجب تحويلها");
