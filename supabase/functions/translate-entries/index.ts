@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
       console.warn(`[translate-entries] blocked ${blocked.length} technical-only entries from AI`);
     }
     if (allowedEntries.length === 0) {
-      return new Response(JSON.stringify({ result: {}, blocked }), {
+      return new Response(JSON.stringify({ translations: {}, blocked }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -616,7 +616,7 @@ ${textsBlock}`;
           await new Promise(r => setTimeout(r, 150));
         }
       }
-      return new Response(JSON.stringify({ translations: result, charsUsed: totalChars }), {
+      return new Response(JSON.stringify({ translations: result, charsUsed: totalChars, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -700,7 +700,7 @@ ${textsBlock}`;
         }
       }
       
-      return new Response(JSON.stringify({ translations: result }), {
+      return new Response(JSON.stringify({ translations: result, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
@@ -763,7 +763,7 @@ ${textsBlock}`;
         }
       }
 
-      return new Response(JSON.stringify({ translations: result }), {
+      return new Response(JSON.stringify({ translations: result, blocked }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
