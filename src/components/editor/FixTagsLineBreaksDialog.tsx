@@ -13,8 +13,10 @@ import type { RestoreReport, RestoreIssue, RestoreIssueReasons } from "@/lib/tag
 interface FixTagsLineBreaksDialogProps {
   open: boolean;
   report: RestoreReport | null;
-  onConfirm: () => void;
-  onCancel: () => void;
+  /** يُغلق النافذة دون تطبيق أيّ إصلاح. */
+  onClose: () => void;
+  /** يطبّق الإصلاح الآليّ فقط (لا يلمس عناصر «للمراجعة»). */
+  onApply: () => void;
 }
 
 /** يُظهر الرموز المخفيّة (PUA و FFF9..FFFC) بشكل قابل للقراءة. */
@@ -144,8 +146,8 @@ const IssueCard: React.FC<{ issue: RestoreIssue; index: number }> = ({ issue, in
 export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = ({
   open,
   report,
-  onConfirm,
-  onCancel,
+  onClose,
+  onApply,
 }) => {
   const [tab, setTab] = useState<"auto" | "review">("auto");
 
@@ -163,7 +165,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
   }, [report]);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
         className="max-w-5xl max-h-[90vh] flex flex-col"
         dir="rtl"
@@ -306,11 +308,11 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
         )}
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onClose}>
             إغلاق
           </Button>
           <Button
-            onClick={onConfirm}
+            onClick={onApply}
             disabled={!report || report.autoFixable === 0}
             className="gap-1.5"
           >
