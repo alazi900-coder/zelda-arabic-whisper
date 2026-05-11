@@ -570,7 +570,7 @@ const Editor = () => {
               {(() => {
                 const remaining = editor.filteredEntries.filter((e) => !editor.state?.translations?.[`${e.msbtFile}:${e.index}`]);
                 if (remaining.length === 0) return null;
-                const modelId = resolveModelId(editor.translationEngine, editor.geminiModel, editor.translationQuality);
+                const modelId = resolveModelId(editor.translationEngine, editor.geminiModel);
                 const est = estimateBatchCost(remaining, modelId);
                 return (
                   <div className="flex items-center gap-2 pt-2 border-t border-border/30">
