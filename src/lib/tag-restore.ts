@@ -307,6 +307,35 @@ function extractTagSequence(text: string): string[] {
   return text.match(TAG_REGEX_G) || [];
 }
 
+/**
+ * يكتشف رموز PUA المحشورة داخل كلمة (بين حرفين/رقمين) في الترجمة بينما هي في الأصل
+ * على حدّ كلمة. يسبّب ظهور `??` لأنّ المحرّك يقرأ بايتات وسطية كأنّها بداية كود.
+ * يُرجِع عدد المواضع المعطوبة.
+ */
+function countPuaInsideWord(original: string, translation: string): number {
+  if (!translation || !TAG_REGEX_SINGLE.test(translation)) return 0;
+  const isWordChar = (ch: string) => /[\p{L}\p{N}]/u.test(ch);
+  let count = 0;
+  for (let i = 0; i < translation.length; i++) {
+    if (!TAG_REGEX_SINGLE.test(translation[i])) continue;
+    // تخطّي مجموعة الرمز كاملةً
+    let j = i;
+    while (j < translation.length && TAG_REGEX_SINGLE.test(translation[j])) j++;
+    const before = i > 0 ? translation[i - 1] : "";
+    const after = j < translation.length ? translation[j] : "";
+    if (before && after && isWordChar(before) && isWordChar(after)) {
+      // تحقّق أنّ الأصل لم يكن كذلك (لتجنّب اعتبار المتعمّد خطأً)
+      const stripIdx = stripTags(translation.slice(0, i)).length;
+      const origStripped = stripTags(original);
+      const ob = origStripped[stripIdx - 1] || "";
+      const oa = origStripped[stripIdx] || "";
+      if (!(ob && oa && isWordChar(ob) && isWordChar(oa))) count++;
+    }
+    i = j - 1;
+  }
+  return count;
+}
+
 function countMisplacedTagGroups(original: string, translation: string): number {
   const origSeq = extractTagSequence(original);
   const transSeq = extractTagSequence(translation);
