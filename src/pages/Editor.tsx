@@ -1296,6 +1296,18 @@ const Editor = () => {
           onApplySmartReorder={editor.handleApplySmartTagReorder}
         />
 
+        <TagIssuesReportDialog
+          open={!!editor.tagIssuesDetailed}
+          issues={editor.tagIssuesDetailed || []}
+          onClose={editor.closeTagIssuesReport}
+          onJumpToEntry={handleJumpToKey}
+          onFixOne={editor.fixOneTagIssue}
+          onFixAllAuto={() => {
+            editor.handleScanTagsAndLineBreaks();
+            editor.closeTagIssuesReport();
+          }}
+        />
+
         {editor.pendingImport && (
           <ImportConflictDialog
             open={!!editor.pendingImport}
