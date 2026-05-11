@@ -7,7 +7,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileDown, Loader2 } from "lucide-react";
+import { FileDown, Loader2, AlertTriangle } from "lucide-react";
+
+export interface BuildPreviewTagIssue {
+  key: string;
+  reason: string;
+}
 
 export interface BuildPreview {
   totalTranslations: number;
@@ -15,6 +20,10 @@ export interface BuildPreview {
   normalCount: number;
   categories: Record<string, number>;
   sampleKeys: string[];
+  /** عدد الترجمات التي رموزها التقنية مفقودة/زائدة/مختلفة الترتيب عن الأصل. */
+  tagIssueCount?: number;
+  /** عيّنة من الترجمات المعيبة لعرضها في حوار التأكيد. */
+  tagIssueSamples?: BuildPreviewTagIssue[];
 }
 
 interface BuildConfirmDialogProps {
