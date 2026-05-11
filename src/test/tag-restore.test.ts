@@ -200,11 +200,10 @@ describe("scanTranslationsForRestore — auto vs review classification", () => {
     const e = [{ msbtFile: "Talk.msbt", index: 0, label: "Simmerstone", original }];
     const t = { "Talk.msbt:0": translation };
     const report = scanTranslationsForRestore(e, t);
-    // الأصل فيه أسطر فارغة (فواصل فقرة) لا توجد في الترجمة → يجب الكشف عنها.
+    // الأصل فيه أسطر فارغة (فواصل فقرة) لا توجد في الترجمة → يجب الكشف عنها وإصلاحها.
     expect(report.needsReview + report.autoFixable).toBeGreaterThan(0);
-    // والترجمة مقسّمة جزئياً (لا سطر واحد) → لا نخمّن آلياً، نعرضها للمراجعة.
-    expect(report.needsReview).toBe(1);
-    expect(report.autoFixable).toBe(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
   });
 });
 
@@ -225,11 +224,12 @@ describe("buildRestoreUpdates", () => {
     expect(updates["F1.msbt:0"].split("\n").length).toBe(2);
   });
 
-  it("does NOT auto-modify partial line-count mismatches (those require manual review)", () => {
+  it("auto-modifies partial line-count mismatches", () => {
     const entries = [{ msbtFile: "F.msbt", index: 0, original: "A\nB\nC" }];
     const translations = { "F.msbt:0": "أ\nب ج" };
     const { updates } = buildRestoreUpdates(entries, translations);
-    expect(Object.keys(updates).length).toBe(0);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
+    expect(updates["F.msbt:0"].split("\n").length).toBe(3);
   });
 });
 
@@ -255,10 +255,12 @@ describe("smartReorderTags", () => {
     expect(out).not.toContain("\uE034");
   });
 
-  it("returns translation unchanged when tag count differs", () => {
+  it("restores original tags even when tag count differs", () => {
     const original = "Press \uE001 then \uE002";
     const translation = "اضغط \uE001"; // رمز واحد فقط
-    expect(smartReorderTags(original, translation)).toBe(translation);
+    const out = smartReorderTags(original, translation);
+    expect(out).toContain("\uE001");
+    expect(out).toContain("\uE002");
   });
 
   it("returns translation unchanged when tags already match", () => {
