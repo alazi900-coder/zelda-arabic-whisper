@@ -1334,7 +1334,7 @@ export function useEditorState() {
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
     fixingMixed, filtersOpen, isPinned, isPageLocked, buildStats, buildPreview, showBuildConfirm, fixPreview,
-    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, exportQualityReport,
+    categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, tagLineIssueKeys, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, displayedEntries, paginatedEntries, totalPages,
     user,
