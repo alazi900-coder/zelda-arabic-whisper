@@ -1,3 +1,4 @@
+import { AIBlockedEntriesNotifier } from "@/components/editor/AIBlockedEntriesNotifier";
 import React from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -405,6 +406,7 @@ const Editor = () => {
 
   return (
     <TooltipProvider>
+      <AIBlockedEntriesNotifier />
       <div className="min-h-screen py-4 md:py-8 px-3 md:px-4 relative" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
         {isDragging && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm border-4 border-dashed border-primary/50 pointer-events-none">
