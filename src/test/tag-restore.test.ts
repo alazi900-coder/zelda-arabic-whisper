@@ -58,11 +58,11 @@ describe("restoreLineBreaks", () => {
     expect(out).toBe("أ\nب");
   });
 
-  it("does not guess when translation is partially split (avoids over-fitting)", () => {
+  it("rebuilds partially split translations to match the original line count", () => {
     const original = "A\nB\nC";
     const translation = "أ\nب ج";
     const out = restoreLineBreaks(original, translation);
-    expect(out).toBe("أ\nب ج");
+    expect(out.split("\n").length).toBe(3);
   });
 
   it("handles 3-line originals merged into one", () => {
@@ -162,33 +162,33 @@ describe("scanTranslationsForRestore — auto vs review classification", () => {
     expect(report.needsReview).toBe(0);
   });
 
-  it("flags partial line-count mismatches as 'review' (not auto)", () => {
-    // الأصل 3 أسطر، الترجمة 2 أسطر → لا نخمّن آلياً.
+  it("flags partial line-count mismatches as auto-fixable", () => {
+    // الأصل 3 أسطر، الترجمة 2 أسطر → تُعاد فواصل الأسطر تلقائياً حسب وزن أسطر الأصل.
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "A\nB\nC" }];
     const t = { "F.msbt:0": "أ\nب ج" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.autoFixable).toBe(0);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.missingLineBreaksPartial).toBeGreaterThan(0);
-    expect(report.reviewExamples[0].reasons.missingLineBreaksAuto).toBe(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
+    expect(report.autoExamples[0].reasons.missingLineBreaksPartial).toBeGreaterThan(0);
+    expect(report.autoExamples[0].reasons.missingLineBreaksAuto).toBe(0);
   });
 
-  it("flags tag-identity mismatches as 'review' even when counts match", () => {
-    // نفس عدد الرموز ولكنّ القيم مختلفة → للمراجعة.
+  it("flags tag-identity mismatches as auto-fixable even when counts match", () => {
+    // نفس عدد الرموز ولكنّ القيم مختلفة → تُعاد الرموز من الأصل تلقائياً.
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "Press \uE001 \uE002" }];
     const t = { "F.msbt:0": "اضغط \uE034 \uE002" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.autoFixable).toBe(0);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.changedTagPositions).toBeGreaterThan(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
+    expect(report.autoExamples[0].reasons.changedTagPositions).toBeGreaterThan(0);
   });
 
-  it("flags extra tags (added by AI) as 'review'", () => {
+  it("flags extra tags (added by AI) as auto-fixable", () => {
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "Hello" }];
     const t = { "F.msbt:0": "مرحبا \uE001" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.extraTags).toBe(1);
+    expect(report.autoFixable).toBe(1);
+    expect(report.autoExamples[0].reasons.extraTags).toBe(1);
   });
 
   it("matches user-reported Simmerstone Springs case: partial line mismatch is detected", () => {
