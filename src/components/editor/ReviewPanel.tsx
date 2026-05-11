@@ -147,7 +147,7 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({
                   <p className="text-xs mb-2"><strong>الأصلي:</strong> {item.original}</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs mb-2">
                     <div>
-                      <p className="text-muted-foreground">الحالي ({item.currentBytes} بايت)</p>
+                      <p className="text-muted-foreground">الحالي</p>
                       <p className="p-2 bg-muted/30 rounded border border-border/30" dir="rtl">{item.current}</p>
                     </div>
                     <div>
