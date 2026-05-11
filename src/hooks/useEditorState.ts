@@ -1388,6 +1388,7 @@ export function useEditorState() {
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     // New unified tool: tags + line breaks restore (preview + apply)
     restoreReport, handleScanTagsAndLineBreaks, handleApplyTagsAndLineBreaksFix, handleApplySmartTagReorder, dismissRestoreReport,
+    tagIssuesDetailed, openTagIssuesReport, closeTagIssuesReport, fixOneTagIssue,
     handleDeepTagScan, deepScanReport, setDeepScanReport, applyDeepScanFixes,
     handleTranslatePage, handleTranslateFromGlossaryOnly,
     showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,
