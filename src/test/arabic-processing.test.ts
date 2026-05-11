@@ -234,6 +234,46 @@ describe('Arabic Processing', () => {
       const input = '?\uE000,';
       const result = mirrorPunctuation(input);
       expect(result).toBe('؟\uE000،');
+  });
+
+  describe('PUA tag anchoring (logical position preserved)', () => {
+    it('PUA at logical end of Arabic line lands at start of reversed line', () => {
+      const input = 'زيادة الهجوم\uE000';
+      const result = processArabicText(input);
+      const codes = [...result].map(c => c.charCodeAt(0));
+      expect(codes[0]).toBe(0xE000);
+    });
+
+    it('PUA at logical start of Arabic line lands at end of reversed line', () => {
+      const input = '\uE000زيادة الهجوم';
+      const result = processArabicText(input);
+      const codes = [...result].map(c => c.charCodeAt(0));
+      expect(codes[codes.length - 1]).toBe(0xE000);
+    });
+
+    it('PUA in the middle stays attached to the same logical neighbor', () => {
+      const input = 'كلمة\uE000\uE001 ثانية';
+      const result = processArabicText(input);
+      const chars = [...result];
+      const puaIdx = chars.findIndex(c => c.charCodeAt(0) === 0xE000);
+      const isTag = (c: string) => {
+        const cc = c.charCodeAt(0);
+        return (cc >= 0xE000 && cc <= 0xE0FF) || (cc >= 0xFFF9 && cc <= 0xFFFC);
+      };
+      const before = chars.slice(0, puaIdx).filter(c => !isTag(c)).length;
+      const after = chars.slice(puaIdx + 2).filter(c => !isTag(c)).length;
+      expect(before).toBe(6);
+      expect(after).toBe(4);
+      expect(chars[puaIdx + 1].charCodeAt(0)).toBe(0xE001);
+    });
+
+    it('two distinct PUA groups swap relative order (logical-end first in reversed)', () => {
+      const input = 'ابج\uE000دهو\uE001زحط';
+      const result = processArabicText(input);
+      const chars = [...result];
+      const idx0 = chars.findIndex(c => c.charCodeAt(0) === 0xE000);
+      const idx1 = chars.findIndex(c => c.charCodeAt(0) === 0xE001);
+      expect(idx1).toBeLessThan(idx0);
     });
   });
 });
