@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { idbGet } from "@/lib/idb-storage";
-import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms } from "@/lib/arabic-processing";
+import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, reverseBidi, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { EditorState, hasTechnicalTags, restoreTagsLocally } from "@/components/editor/types";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
 
@@ -23,6 +23,30 @@ interface UseEditorBuildProps {
   setLastSaved: (msg: string) => void;
   arabicNumerals: boolean;
   mirrorPunctuation: boolean;
+}
+
+// فكّ روابط لام-ألف من حرف واحد (FEF5..FEFC) إلى حرفين منفصلين قبل
+// تطبيق removeArabicPresentationForms (الذي يفترض تعيين 1→1).
+// مطابقة معكوسة لـ LAM_ALEF_LIGATURES في arabic-processing.ts.
+const LAM = 0x0644;
+const LAM_ALEF_LIGATURE_REVERSE: Record<number, number> = {
+  0xFEF5: 0x0622, 0xFEF6: 0x0622,
+  0xFEF7: 0x0623, 0xFEF8: 0x0623,
+  0xFEF9: 0x0625, 0xFEFA: 0x0625,
+  0xFEFB: 0x0627, 0xFEFC: 0x0627,
+};
+function expandLamAlefLigatures(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    const alef = LAM_ALEF_LIGATURE_REVERSE[code];
+    if (alef !== undefined) {
+      out += String.fromCharCode(LAM) + String.fromCharCode(alef);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation }: UseEditorBuildProps) {
@@ -48,6 +72,31 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
     setState(prev => prev ? { ...prev, translations: newTranslations } : null);
     setApplyingArabic(false);
     setLastSaved(`✅ تم تطبيق المعالجة العربية على ${processedCount} نص` + (skippedCount > 0 ? ` (تم تخطي ${skippedCount} نص معالج مسبقاً)` : ''));
+    setTimeout(() => setLastSaved(""), 5000);
+  };
+
+  // عكس "تطبيق المعالجة العربية":
+  // 1) عكس BiDi (دالة involutive — تطبيقها مرّتين يُرجع الأصل).
+  // 2) فكّ روابط لام-ألف إلى حرفين منفصلين.
+  // 3) إرجاع باقي أشكال العرض إلى الحروف العربية الأساسية.
+  // يلمس فقط النصوص التي تحتوي أشكال العرض (أي مرّت بـ processArabicText فعلاً).
+  const handleUndoArabicProcessing = () => {
+    if (!state) return;
+    setApplyingArabic(true);
+    const newTranslations = { ...state.translations };
+    let restoredCount = 0, skippedCount = 0;
+    for (const [key, value] of Object.entries(newTranslations)) {
+      if (!value?.trim()) continue;
+      if (!hasArabicPresentationForms(value)) { skippedCount++; continue; }
+      let restored = reverseBidi(value);
+      restored = expandLamAlefLigatures(restored);
+      restored = removeArabicPresentationForms(restored);
+      newTranslations[key] = restored;
+      restoredCount++;
+    }
+    setState(prev => prev ? { ...prev, translations: newTranslations } : null);
+    setApplyingArabic(false);
+    setLastSaved(`✅ تم التراجع عن المعالجة العربية لـ ${restoredCount} نص` + (skippedCount > 0 ? ` (تم تخطي ${skippedCount} نص غير معالج)` : ''));
     setTimeout(() => setLastSaved(""), 5000);
   };
 
@@ -204,6 +253,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
     showBuildConfirm,
     setShowBuildConfirm,
     handleApplyArabicProcessing,
+    handleUndoArabicProcessing,
     handlePreBuild,
     handleBuild,
   };

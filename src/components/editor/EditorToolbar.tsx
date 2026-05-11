@@ -9,7 +9,7 @@ import {
   Download, Upload, FileText, FileDown, BookOpen, Cloud, CloudUpload,
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
   Layers, MoreVertical, Save, Lightbulb, FlaskConical, SkipForward,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Undo2,
 } from "lucide-react";
 import type { useEditorState } from "@/hooks/useEditorState";
 
@@ -105,6 +105,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-card border-border z-50">
             <DropdownMenuItem onClick={editor.handleApplyArabicProcessing} disabled={editor.applyingArabic}><Sparkles className="w-4 h-4" /> تطبيق المعالجة العربية ✨</DropdownMenuItem>
+            <DropdownMenuItem onClick={editor.handleUndoArabicProcessing} disabled={editor.applyingArabic}><Undo2 className="w-4 h-4" /> تراجع عن المعالجة العربية ↺</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleFixAllReversed}><RotateCcw className="w-4 h-4" /> تصحيح الكل (معكوس)</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleReviewTranslations} disabled={editor.reviewing || editor.translatedCount === 0}><ShieldCheck className="w-4 h-4" /> مراجعة ذكية 🔍</DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleImproveTranslations} disabled={editor.improvingTranslations || editor.translatedCount === 0}><Sparkles className="w-4 h-4" /> تحسين الترجمات ✨</DropdownMenuItem>
@@ -336,6 +337,9 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={editor.handleFixAllReversed} className="font-body border-accent/30 text-accent hover:text-accent">
                 <RotateCcw className="w-4 h-4" /> تصحيح المعكوس
+              </Button>
+              <Button variant="outline" size="sm" onClick={editor.handleUndoArabicProcessing} disabled={editor.applyingArabic} className="font-body border-orange-500/40 text-orange-700 hover:text-orange-800" title="عكس آثار 'تطبيق المعالجة العربية' وإرجاع النصوص لشكلها القابل للقراءة">
+                {editor.applyingArabic ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />} تراجع عن المعالجة العربية ↺
               </Button>
               <Button variant="outline" size="sm" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
                 {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح المختلطة 🌐
