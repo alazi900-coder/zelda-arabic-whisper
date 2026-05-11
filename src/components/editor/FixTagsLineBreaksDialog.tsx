@@ -625,7 +625,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                         </span>
                       )}
                     </div>
-                    <ScrollArea className="flex-1 min-h-0 pr-1">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
                       <div className="space-y-2.5 pb-2">
                         {report.reviewExamples.map((issue, i) => (
                           <IssueCard
@@ -657,7 +657,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                           </div>
                         )}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </>
                 )}
               </div>
