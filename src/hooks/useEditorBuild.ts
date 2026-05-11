@@ -3,7 +3,7 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { idbGet } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, reverseBidi, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { EditorState } from "@/components/editor/types";
-import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations } from "@/lib/tag-restore";
+import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations, scanTranslationsForRestore } from "@/lib/tag-restore";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
 
 export interface BuildStats {
@@ -122,29 +122,22 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
 
     const sampleKeys = Object.keys(nonEmptyTranslations).slice(0, 10);
 
-    // حارس البناء: مسح سريع للرموز التقنية لاكتشاف المشاكل قبل الإرسال.
-    const TAG_REGEX_PRE = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
-    let tagIssueCount = 0;
-    const tagIssueSamples: { key: string; reason: string }[] = [];
-    for (const entry of state.entries) {
-      const key = `${entry.msbtFile}:${entry.index}`;
-      const trans = nonEmptyTranslations[key];
-      if (!trans) continue;
-      const origSeq = entry.original.match(TAG_REGEX_PRE) || [];
-      const transSeq = trans.match(TAG_REGEX_PRE) || [];
-      let reason = "";
-      if (transSeq.length < origSeq.length) reason = `رموز ناقصة (${origSeq.length - transSeq.length})`;
-      else if (transSeq.length > origSeq.length) reason = `رموز زائدة (${transSeq.length - origSeq.length})`;
-      else if (origSeq.length > 0) {
-        for (let i = 0; i < origSeq.length; i++) {
-          if (origSeq[i] !== transSeq[i]) { reason = "ترتيب/قِيَم رموز مختلفة"; break; }
-        }
-      }
-      if (reason) {
-        tagIssueCount++;
-        if (tagIssueSamples.length < 10) tagIssueSamples.push({ key, reason });
-      }
-    }
+    // حارس البناء: نفس فاحص أداة «الرموز وفواصل الأسطر» حتى لا تفوته الرموز المزاحة أو فواصل الأسطر.
+    const restoreReport = scanTranslationsForRestore(
+      state.entries.map(e => ({ msbtFile: e.msbtFile, index: e.index, label: e.label, original: e.original })),
+      nonEmptyTranslations,
+      10,
+    );
+    const tagIssueCount = restoreReport.issueTotals.affectedTranslations;
+    const tagIssueSamples = [...restoreReport.autoExamples, ...restoreReport.reviewExamples].slice(0, 10).map(issue => {
+      const reasons: string[] = [];
+      if (issue.reasons.missingTags) reasons.push(`مفقودة ${issue.reasons.missingTags}`);
+      if (issue.reasons.extraTags) reasons.push(`زائدة ${issue.reasons.extraTags}`);
+      if (issue.reasons.changedTagPositions) reasons.push(`فاسدة/ترتيب ${issue.reasons.changedTagPositions}`);
+      if (issue.reasons.misplacedTags) reasons.push(`مكان خاطئ ${issue.reasons.misplacedTags}`);
+      if (issue.reasons.missingLineBreaksAuto || issue.reasons.missingLineBreaksPartial) reasons.push(`فواصل أسطر ${(issue.reasons.missingLineBreaksAuto || 0) + (issue.reasons.missingLineBreaksPartial || 0)}`);
+      return { key: issue.key, reason: reasons.join("، ") || "مشكلة رموز/فواصل" };
+    });
 
     console.log('[BUILD-PREVIEW] Total translations:', Object.keys(nonEmptyTranslations).length);
     console.log('[BUILD-PREVIEW] Protected entries:', protectedCount);
