@@ -76,10 +76,9 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {reviewResults.issues.slice(0, 50).map((issue: ReviewIssue, i: number) => (
-                  <div key={i} className={`p-2 rounded text-xs border ${issue.severity === 'error' ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                  <div key={i} className={`p-2 rounded text-xs border ${issue.type === 'error' ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
                     <p className="font-mono text-muted-foreground mb-1">{issue.key}</p>
                     <p>{issue.message}</p>
-                    {issue.suggestion && <p className="text-primary mt-1">💡 {issue.suggestion}</p>}
                   </div>
                 ))}
                 {reviewResults.issues.length > 50 && (
