@@ -349,7 +349,23 @@ export function categorizeFile(filePath: string, label?: string): string {
 // Re-export from canonical source to avoid duplication
 export { isArabicChar, hasArabicChars, reverseBidi as unReverseBidi } from "@/lib/arabic-processing";
 
+/**
+ * يحدّد إن كان النصّ مكوّناً فقط من رموز تقنية (PUA / FFF9-FFFC) ومسافات/علامات،
+ * بدون أيّ حروف أو أرقام قابلة للترجمة. مثل هذه النصوص يجب ألا تُرسَل للذكاء
+ * الاصطناعي لأنّ الترجمة ستُتلف الرموز وتتسبّب بظهور `??` داخل اللعبة.
+ */
+export function isOnlyTechnicalTags(text: string): boolean {
+  if (!text) return false;
+  const t = text.replace(/[\s\u00A0]/g, "");
+  if (!t) return false;
+  // كلّ المحارف رموز تقنية أو علامات ترقيم بسيطة، ولا يوجد أيّ حرف/رقم.
+  if (/[\p{L}\p{N}]/u.test(t)) return false;
+  // يجب أن يحتوي على رمز تقنيّ واحد على الأقلّ حتى نحميه (وإلا فهو نصّ فارغ من المعنى).
+  return /[\uFFF9\uFFFA\uFFFB\uFFFC\uE000-\uE0FF]/.test(t);
+}
+
 export function isTechnicalText(text: string): boolean {
+  if (isOnlyTechnicalTags(text)) return true;
   if (/^[0-9A-Fa-f\-._:/]+$/.test(text.trim())) return true;
   if (/\[[^\]]*\]/.test(text) && text.length < 50) return true;
   if (/<[^>]+>/.test(text)) return true;
