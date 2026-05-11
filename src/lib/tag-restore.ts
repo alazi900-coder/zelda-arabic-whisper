@@ -2,6 +2,7 @@
 // 1) يعيد ترميز PUA (U+E000..U+E0FF) و FFF9..FFFC التي يحذفها/يشوّهها مترجِم AI.
 // 2) يعيد فواصل الأسطر (\n) عندما يدمج المترجِم الأسطر في سطر واحد، أو
 //    يحوّل \\n الحرفية و <br> إلى أسطر حقيقية.
+// 3) يرصد الحالات «المشكوك فيها» (لا يصلحها آلياً) لعرضها للمراجعة اليدويّة.
 //
 // كلّ مسار ترجمة / بناء يجب أن يمرّ عبر `restoreTagsAndLineBreaks` كحارس أخير.
 
@@ -23,7 +24,6 @@ export function normalizeLineBreakRepresentations(text: string): string {
   // \r\n / \r → \n
   out = out.replace(/\r\n?/g, "\n");
   // backslash-n الحرفي (مثل النصّ "\n") → \n
-  // مهم: لا نلمس \\n المكتوب فعلاً (الباك‑سلاش ثم n حقيقيّاً ضمن النصّ يأتي عبر AI).
   out = out.replace(/\\n/g, "\n");
   return out;
 }
@@ -34,7 +34,7 @@ export function normalizeLineBreakRepresentations(text: string): string {
  * - يحوّل التمثيلات الحرفية (\\n, <br>, CR) إلى \n حقيقي.
  * - إن كان الأصل بأكثر من سطر والترجمة سطر واحد، يقسّم الترجمة عند أقرب
  *   نقطة طبيعية (علامة ترقيم) لمواقع متناسبة مع طول كلّ سطر في الأصل.
- * - لا يلمس الترجمة لو كانت مقسّمة جزئياً (لتجنّب تخمين خاطئ).
+ * - لا يلمس الترجمة لو كانت مقسّمة جزئياً (لتجنّب تخمين خاطئ — تُعرَض للمراجعة).
  */
 export function restoreLineBreaks(original: string, translation: string): string {
   if (!original || !translation) return translation;
@@ -70,7 +70,6 @@ export function restoreLineBreaks(original: string, translation: string): string
     }
     const idealEnd = Math.max(pos + 1, Math.round(text.length * t));
 
-    // ابحث عن أقرب علامة ترقيم طبيعية حول النقطة المثاليّة.
     let best = -1;
     for (let d = 0; d <= SEARCH_WINDOW; d++) {
       const left = idealEnd - d;
@@ -78,7 +77,6 @@ export function restoreLineBreaks(original: string, translation: string): string
       if (left > pos && left < text.length && NATURAL_BREAKS.has(text[left])) { best = left + 1; break; }
       if (right > pos && right < text.length && NATURAL_BREAKS.has(text[right])) { best = right + 1; break; }
     }
-    // ثم بأقرب مسافة.
     if (best === -1) {
       for (let d = 0; d <= SEARCH_WINDOW; d++) {
         const left = idealEnd - d;
@@ -100,14 +98,30 @@ export function restoreLineBreaks(original: string, translation: string): string
 }
 
 /**
- * إصلاح موحَّد: يطبّق إعادة الرموز ثم إعادة فواصل الأسطر بهذا الترتيب.
- * - الرموز أوّلاً لأنها قد تنتقل بين الأسطر بعد التقسيم.
+ * إصلاح موحَّد: يطبّق إعادة فواصل الأسطر ثم إعادة الرموز بهذا الترتيب.
+ * - فواصل الأسطر أوّلاً لأنّ الرموز قد تتحرّك بعد التقسيم.
  * - يضمن أنّ كلّ ما يخرج من أيّ مترجِم يمرّ عبر هذا قبل الحفظ والبناء.
  */
 export function restoreTagsAndLineBreaks(original: string, translation: string): string {
   if (!translation) return translation;
   const afterLineBreaks = restoreLineBreaks(original, translation);
   return restoreTagsLocally(original, afterLineBreaks);
+}
+
+/** أسباب اعتبار الترجمة مكسورة. */
+export interface RestoreIssueReasons {
+  /** عدد الرموز الناقصة (الأصل أكثر). يُصلَح آلياً. */
+  missingTags: number;
+  /** عدد الرموز الزائدة في الترجمة (لا يوجد ما يقابلها بالأصل). للمراجعة. */
+  extraTags: number;
+  /** عدد المواقع التي قيمة/ترتيب الرمز فيها تختلف بين الأصل والترجمة (نفس العدد). للمراجعة. */
+  changedTagPositions: number;
+  /** فاصل سطر ناقص يمكن إصلاحه آلياً (الأصل > 1 والترجمة = 1). */
+  missingLineBreaksAuto: number;
+  /** فاصل سطر ناقص لا نضمن تقسيمه (الأصل > 1 والترجمة > 1 ولكن أقلّ من الأصل). للمراجعة. */
+  missingLineBreaksPartial: number;
+  /** الترجمة فيها <br>/CR/\\n الحرفي يلزم تحويلها لأسطر حقيقيّة. يُصلَح آلياً. */
+  needsNormalize: boolean;
 }
 
 export interface RestoreIssue {
@@ -117,23 +131,31 @@ export interface RestoreIssue {
   original: string;
   before: string;
   after: string;
-  missingTags: number;
-  missingLineBreaks: number;
+  /** auto = يصلَح آلياً عند الضغط على «إصلاح». review = يحتاج مراجعتك (لا نخمّن). */
+  kind: "auto" | "review";
+  reasons: RestoreIssueReasons;
 }
 
 export interface RestoreReport {
   scanned: number;
-  fixable: number;
+  /** عدد الترجمات التي تُصلَح آلياً. */
+  autoFixable: number;
+  /** عدد الترجمات التي تحتاج مراجعة يدويّة. */
+  needsReview: number;
+  /** اسم الملفّ → عدد الترجمات المتأثّرة فيه (auto + review). */
   byFile: Record<string, number>;
-  examples: RestoreIssue[];
+  /** أمثلة من الفئة «الإصلاح الآلي». */
+  autoExamples: RestoreIssue[];
+  /** أمثلة من الفئة «للمراجعة». */
+  reviewExamples: RestoreIssue[];
+  /** اسم احتياطي للتوافق مع الكود القديم: نفس `autoFixable`. */
+  fixable: number;
 }
 
-/** يحسب عدد الرموز التقنية في نصّ. */
 function countTags(text: string): number {
   return (text.match(TAG_REGEX_G) || []).length;
 }
 
-/** يحسب عدد فواصل الأسطر في نصّ. */
 function countLineBreaks(text: string): number {
   if (!text) return 0;
   let n = 0;
@@ -141,19 +163,81 @@ function countLineBreaks(text: string): number {
   return n;
 }
 
+/** يستخرج تتابع الرموز بترتيب ظهورها في النصّ. */
+function extractTagSequence(text: string): string[] {
+  return text.match(TAG_REGEX_G) || [];
+}
+
+/** يحسب الأسباب لإدخالة واحدة دون الحاجة لاستدعاء التطبيق الفعلي. */
+function analyzeReasons(original: string, translation: string): RestoreIssueReasons {
+  const normalized = normalizeLineBreakRepresentations(translation);
+  const origTagSeq = extractTagSequence(original);
+  const transTagSeq = extractTagSequence(translation);
+  const origBreaks = countLineBreaks(original);
+  const transBreaks = countLineBreaks(normalized);
+  const origLines = original.split("\n").length;
+  const transLines = normalized.split("\n").length;
+
+  const missingTags = Math.max(0, origTagSeq.length - transTagSeq.length);
+  const extraTags = Math.max(0, transTagSeq.length - origTagSeq.length);
+
+  // مقارنة الترتيب/القيم لو العدد متطابق
+  let changedTagPositions = 0;
+  if (origTagSeq.length === transTagSeq.length && origTagSeq.length > 0) {
+    for (let i = 0; i < origTagSeq.length; i++) {
+      if (origTagSeq[i] !== transTagSeq[i]) changedTagPositions++;
+    }
+  }
+
+  // فواصل الأسطر: نُفرّق بين القابل للإصلاح الآلي والقابل للمراجعة فقط
+  let missingLineBreaksAuto = 0;
+  let missingLineBreaksPartial = 0;
+  if (origLines > 1 && origBreaks > transBreaks) {
+    if (transLines === 1) {
+      missingLineBreaksAuto = origBreaks - transBreaks;
+    } else {
+      missingLineBreaksPartial = origBreaks - transBreaks;
+    }
+  }
+
+  const needsNormalize = translation !== normalized;
+
+  return {
+    missingTags,
+    extraTags,
+    changedTagPositions,
+    missingLineBreaksAuto,
+    missingLineBreaksPartial,
+    needsNormalize,
+  };
+}
+
+function isAutoFix(r: RestoreIssueReasons): boolean {
+  return r.missingTags > 0 || r.missingLineBreaksAuto > 0 || r.needsNormalize;
+}
+
+function isReview(r: RestoreIssueReasons): boolean {
+  return r.extraTags > 0 || r.changedTagPositions > 0 || r.missingLineBreaksPartial > 0;
+}
+
 /**
- * يفحص كلّ الترجمات ويُرجع تقريراً عن الإدخالات التي ينقصها رموز و/أو فواصل أسطر،
- * مع معاينة "قبل/بعد" بدون تطبيق. يستعمل قبل عرض شاشة التأكيد.
+ * يفحص كلّ الترجمات ويُرجع تقريراً مصنّفاً (auto / review).
+ *
+ * - **auto**: الإصلاح آمن — رموز ناقصة، أو سطر واحد يجب تقسيمه، أو تمثيلات `<br>`/`\\n`.
+ * - **review**: لا نضمن الإصلاح — الترجمة مقسّمة جزئياً، أو الرموز نفس عددها ولكن
+ *   قِيَمها/ترتيبها تغيّر، أو فيها رموز زائدة. تُعرَض لك لتُقرّر.
  */
 export function scanTranslationsForRestore(
   entries: { msbtFile: string; index: number; label: string; original: string }[],
   translations: Record<string, string>,
-  maxExamples = 5,
+  maxExamples = 20,
 ): RestoreReport {
   const byFile: Record<string, number> = {};
-  const examples: RestoreIssue[] = [];
+  const autoExamples: RestoreIssue[] = [];
+  const reviewExamples: RestoreIssue[] = [];
   let scanned = 0;
-  let fixable = 0;
+  let autoFixable = 0;
+  let needsReview = 0;
 
   for (const entry of entries) {
     const key = `${entry.msbtFile}:${entry.index}`;
@@ -161,36 +245,62 @@ export function scanTranslationsForRestore(
     if (!trans || !trans.trim()) continue;
     scanned++;
 
-    const origTags = countTags(entry.original);
-    const origBreaks = countLineBreaks(entry.original);
-    const transTags = countTags(trans);
-    const transBreaks = countLineBreaks(normalizeLineBreakRepresentations(trans));
+    const reasons = analyzeReasons(entry.original, trans);
+    const auto = isAutoFix(reasons);
+    const review = isReview(reasons);
+    if (!auto && !review) continue;
 
-    const needsTags = origTags > transTags;
-    const needsBreaks = origBreaks > transBreaks || trans !== normalizeLineBreakRepresentations(trans);
-    if (!needsTags && !needsBreaks) continue;
-
-    const after = restoreTagsAndLineBreaks(entry.original, trans);
-    if (after === trans) continue;
-
-    fixable++;
-    byFile[entry.msbtFile] = (byFile[entry.msbtFile] || 0) + 1;
-    if (examples.length < maxExamples) {
-      examples.push({
-        key, msbtFile: entry.msbtFile, label: entry.label,
-        original: entry.original, before: trans, after,
-        missingTags: Math.max(0, origTags - transTags),
-        missingLineBreaks: Math.max(0, origBreaks - transBreaks),
-      });
+    if (auto) {
+      const after = restoreTagsAndLineBreaks(entry.original, trans);
+      if (after === trans && reasons.missingLineBreaksAuto === 0 && !reasons.needsNormalize) {
+        // الإصلاح الآلي لم يُحدِث تغييراً (مثلاً: رموز ناقصة في مجموعة كاملة) → ننقلها للمراجعة.
+        needsReview++;
+        byFile[entry.msbtFile] = (byFile[entry.msbtFile] || 0) + 1;
+        if (reviewExamples.length < maxExamples) {
+          reviewExamples.push({
+            key, msbtFile: entry.msbtFile, label: entry.label,
+            original: entry.original, before: trans, after: trans,
+            kind: "review", reasons,
+          });
+        }
+        continue;
+      }
+      autoFixable++;
+      byFile[entry.msbtFile] = (byFile[entry.msbtFile] || 0) + 1;
+      if (autoExamples.length < maxExamples) {
+        autoExamples.push({
+          key, msbtFile: entry.msbtFile, label: entry.label,
+          original: entry.original, before: trans, after,
+          kind: "auto", reasons,
+        });
+      }
+    } else {
+      needsReview++;
+      byFile[entry.msbtFile] = (byFile[entry.msbtFile] || 0) + 1;
+      if (reviewExamples.length < maxExamples) {
+        reviewExamples.push({
+          key, msbtFile: entry.msbtFile, label: entry.label,
+          original: entry.original, before: trans, after: trans,
+          kind: "review", reasons,
+        });
+      }
     }
   }
 
-  return { scanned, fixable, byFile, examples };
+  return {
+    scanned,
+    autoFixable,
+    needsReview,
+    byFile,
+    autoExamples,
+    reviewExamples,
+    fixable: autoFixable,
+  };
 }
 
 /**
- * يحسب التحديثات الفعليّة لتطبيق الإصلاح على كلّ الترجمات.
- * يُرجع `updates` (المفاتيح والقيم الجديدة فقط) و`previous` (لاسترجاع التراجع).
+ * يحسب التحديثات الفعليّة لتطبيق الإصلاح الآلي فقط (لا يلمس الإدخالات «للمراجعة»).
+ * يُرجع `updates` (المفاتيح والقيم الجديدة) و`previous` (لاسترجاع التراجع).
  */
 export function buildRestoreUpdates(
   entries: { msbtFile: string; index: number; original: string }[],
