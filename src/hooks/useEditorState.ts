@@ -21,6 +21,12 @@ import {
   ReviewIssue, ReviewSummary, ReviewResults, ShortSuggestion, ImproveResult,
   restoreTagsLocally,
 } from "@/components/editor/types";
+import {
+  restoreTagsAndLineBreaks,
+  scanTranslationsForRestore,
+  buildRestoreUpdates,
+  type RestoreReport,
+} from "@/lib/tag-restore";
 export function useEditorState() {
   const [state, setState] = useState<EditorState | null>(null);
   const [search, setSearch] = useState("");
@@ -355,21 +361,17 @@ export function useEditorState() {
             }
           }
         }
-        // === One-time auto-repair: fix ONLY entries where translation has FEWER tags than original ===
+        // إصلاح تلقائي عند التحميل: يتعامل مع فقدان الرموز التقنيّة وفواصل
+        // الأسطر معاً. لا يُعدَّل النصّ لو لم يصدر تغيير فعلي، فلا خطر من التشغيل الدوري.
         let autoFixCount = 0;
         for (const entry of stored.entries) {
-          if (!hasTechnicalTags(entry.original)) continue;
           const key = `${entry.msbtFile}:${entry.index}`;
           const trans = mergedTranslations[key] || '';
           if (!trans.trim()) continue;
-          const origTags = entry.original.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
-          const transTags = trans.match(/[\uFFF9-\uFFFC\uE000-\uF8FF]/g) || [];
-          if (transTags.length < origTags.length) {
-            const fixed = restoreTagsLocally(entry.original, trans);
-            if (fixed !== trans) {
-              mergedTranslations[key] = fixed;
-              autoFixCount++;
-            }
+          const fixed = restoreTagsAndLineBreaks(entry.original, trans);
+          if (fixed !== trans) {
+            mergedTranslations[key] = fixed;
+            autoFixCount++;
           }
         }
         const finalState: EditorState = {
@@ -645,13 +647,13 @@ export function useEditorState() {
     applyPageTranslations, discardPageTranslations,
   } = translation;
 
-  // === Local (offline) fix for damaged tags — no AI needed ===
+  // === إصلاح محلّي (بدون AI) — يغطّي الرموز + فواصل الأسطر معاً ===
   const handleLocalFixDamagedTag = useCallback((entry: ExtractedEntry) => {
     if (!state) return;
     const key = `${entry.msbtFile}:${entry.index}`;
     const translation = state.translations[key] || '';
     if (!translation.trim()) return;
-    const fixed = restoreTagsLocally(entry.original, translation);
+    const fixed = restoreTagsAndLineBreaks(entry.original, translation);
     if (fixed !== translation) {
       setPreviousTranslations(old => ({ ...old, [key]: translation }));
       setState(prev => prev ? { ...prev, translations: { ...prev.translations, [key]: fixed } } : null);
@@ -667,7 +669,7 @@ export function useEditorState() {
       if (!damagedTagKeys.has(key)) continue;
       const translation = state.translations[key] || '';
       if (!translation.trim()) continue;
-      const fixed = restoreTagsLocally(entry.original, translation);
+      const fixed = restoreTagsAndLineBreaks(entry.original, translation);
       if (fixed !== translation) {
         prevTrans[key] = translation;
         updates[key] = fixed;
@@ -683,6 +685,58 @@ export function useEditorState() {
     toast({ title: "✅ تم الإصلاح المحلي", description: `تم استعادة الرموز في ${fixedCount} نص بدون ذكاء اصطناعي` });
     showLastSaved(`✅ تم إصلاح ${fixedCount} نص محلياً`, 4000);
   }, [state, setState, setPreviousTranslations, showLastSaved]);
+
+  // === أداة موحَّدة: إصلاح الرموز التقنية + فواصل الأسطر (محلي، بدون AI) ===
+  // 1) فحص أولاً → تقرير قابل للعرض في ديالوغ معاينة.
+  // 2) تطبيق → يحدِّث الترجمات ويسجّل قيم سابقة للتراجع.
+  const [restoreReport, setRestoreReport] = useState<RestoreReport | null>(null);
+
+  const handleScanTagsAndLineBreaks = useCallback(() => {
+    if (!state) {
+      toast({ title: "⚠️ لا توجد بيانات", description: "حمّل ملفاً أولاً", variant: "destructive" });
+      return;
+    }
+    const entriesForScan = state.entries.map(e => ({
+      msbtFile: e.msbtFile,
+      index: e.index,
+      label: e.label,
+      original: e.original,
+    }));
+    const report = scanTranslationsForRestore(entriesForScan, state.translations);
+    setRestoreReport(report);
+    if (report.fixable === 0) {
+      toast({
+        title: "✅ كلّ الترجمات سليمة",
+        description: `تمّ فحص ${report.scanned} ترجمة — لا توجد رموز مفقودة ولا فواصل أسطر ناقصة.`,
+      });
+    }
+  }, [state]);
+
+  const handleApplyTagsAndLineBreaksFix = useCallback(() => {
+    if (!state || !restoreReport) return;
+    const entriesForFix = state.entries.map(e => ({
+      msbtFile: e.msbtFile,
+      index: e.index,
+      original: e.original,
+    }));
+    const { updates, previous } = buildRestoreUpdates(entriesForFix, state.translations);
+    const count = Object.keys(updates).length;
+    if (count === 0) {
+      setRestoreReport(null);
+      toast({ title: "✅ لا تغييرات", description: "لا توجد ترجمات بحاجة إلى إصلاح." });
+      return;
+    }
+    setPreviousTranslations(old => ({ ...old, ...previous }));
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    setRestoreReport(null);
+    toast({
+      title: "✅ تمّ الإصلاح",
+      description: `استُعيدت الرموز/فواصل الأسطر في ${count} ترجمة. (يمكنك التراجع لكلّ ترجمة على حدة)`,
+    });
+    showLastSaved(`✅ تمّ إصلاح ${count} ترجمة`, 4000);
+  }, [state, restoreReport, setState, setPreviousTranslations, showLastSaved]);
+
+  const dismissRestoreReport = useCallback(() => setRestoreReport(null), []);
 
   // === Deep tag scan: scan ALL entries for tag issues and propose fixes (preview before apply) ===
   // Detects: missing tags, duplicate (extra) tags, and order/identity mismatch — even when total counts are equal.
@@ -1261,6 +1315,8 @@ export function useEditorState() {
     updateTranslation, handleUndoTranslation,
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
+    // New unified tool: tags + line breaks restore (preview + apply)
+    restoreReport, handleScanTagsAndLineBreaks, handleApplyTagsAndLineBreaksFix, dismissRestoreReport,
     handleDeepTagScan, deepScanReport, setDeepScanReport, applyDeepScanFixes,
     handleTranslatePage, handleTranslateFromGlossaryOnly,
     showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,

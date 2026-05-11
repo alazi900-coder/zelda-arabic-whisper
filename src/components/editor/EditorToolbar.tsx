@@ -9,7 +9,7 @@ import {
   Download, Upload, FileText, FileDown, BookOpen, Cloud, CloudUpload,
   Loader2, RotateCcw, ShieldCheck, Sparkles, Filter, Wand2, Search,
   Layers, MoreVertical, Save, Lightbulb, FlaskConical, SkipForward,
-  ChevronDown, ChevronUp, Undo2,
+  ChevronDown, ChevronUp, Undo2, Wrench,
 } from "lucide-react";
 import type { useEditorState } from "@/hooks/useEditorState";
 
@@ -51,6 +51,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </Button>
         <Button variant="outline" size="sm" onClick={editor.handleCloudLoad} disabled={!editor.user || editor.cloudSyncing} className="font-body text-xs">
           <Cloud className="w-3 h-3" /> تحميل
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={editor.handleScanTagsAndLineBreaks}
+          className="font-body text-xs border-blue-500/40 text-blue-700 hover:text-blue-800"
+          title="فحص ثمّ استعادة الرموز التقنيّة وفواصل الأسطر في كلّ الترجمات"
+        >
+          <Wrench className="w-3 h-3" /> الرموز وفواصل الأسطر 🛠️
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -340,6 +349,9 @@ const DesktopToolbar: React.FC<Omit<EditorToolbarProps, "isMobile">> = ({
               </Button>
               <Button variant="outline" size="sm" onClick={editor.handleUndoArabicProcessing} disabled={editor.applyingArabic} className="font-body border-orange-500/40 text-orange-700 hover:text-orange-800" title="عكس آثار 'تطبيق المعالجة العربية' وإرجاع النصوص لشكلها القابل للقراءة">
                 {editor.applyingArabic ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />} تراجع عن المعالجة العربية ↺
+              </Button>
+              <Button variant="outline" size="sm" onClick={editor.handleScanTagsAndLineBreaks} className="font-body border-blue-500/40 text-blue-700 hover:text-blue-800" title="فحص ثمّ استعادة الرموز التقنيّة (PUA) وفواصل الأسطر (\n) في كلّ الترجمات">
+                <Wrench className="w-4 h-4" /> إصلاح الرموز وفواصل الأسطر 🛠️
               </Button>
               <Button variant="outline" size="sm" onClick={editor.handleFixMixedLanguage} disabled={editor.fixingMixed || editor.needsImproveCount.mixed === 0} className="font-body border-primary/30 text-primary hover:text-primary">
                 {editor.fixingMixed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />} إصلاح المختلطة 🌐

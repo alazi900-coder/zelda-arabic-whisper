@@ -8,8 +8,9 @@ import { trimGlossaryToBatch } from "@/lib/glossary-trim";
 import { parseEmailList, pickNextEmail } from "@/lib/mymemory-rotation";
 import {
   ExtractedEntry, EditorState, AI_BATCH_SIZE,
-  categorizeFile, isTechnicalText, hasTechnicalTags, restoreTagsLocally,
+  categorizeFile, isTechnicalText, hasTechnicalTags,
 } from "@/components/editor/types";
+import { restoreTagsAndLineBreaks } from "@/lib/tag-restore";
 
 // Per-model timeout: Pro 2.5 needs ~240s for full batches, Flash ~120s, Flash Lite ~60s.
 // Non-Gemini engines (MyMemory, Google) are quick — 60s is plenty.
@@ -125,16 +126,17 @@ export function useEditorTranslation({
   const [oldPageTranslations, setOldPageTranslations] = useState<Record<string, string>>({});
   const [pageTranslationOriginals, setPageTranslationOriginals] = useState<Record<string, string>>({});
 
-  /** Auto-fix: restore any tags the AI dropped from translations.
-   *  Uses the provided entryMap for O(1) lookups instead of stale state reference. */
+  /** Auto-fix (نقطة دخول موحَّدة لكلّ مسارات AI): يعيد الرموز التقنيّة وفواصل
+   *  الأسطر التي قد يسقطها/يدمجها المترجِم. يطبَّق على كلّ المُدخلات حتى لو لم يكن
+   *  فيها وسوم — لأنّ فواصل الأسطر (\n) قد تُفقد حتى من النصّ النظيف. */
   const autoFixTags = (translations: Record<string, string>, entryMap?: Map<string, ExtractedEntry>): Record<string, string> => {
     const lookup = entryMap || (state ? new Map(state.entries.map(e => [`${e.msbtFile}:${e.index}`, e])) : null);
     if (!lookup) return translations;
     const fixed: Record<string, string> = {};
     for (const [key, trans] of Object.entries(translations)) {
       const entry = lookup.get(key);
-      if (entry && hasTechnicalTags(entry.original)) {
-        fixed[key] = restoreTagsLocally(entry.original, trans);
+      if (entry) {
+        fixed[key] = restoreTagsAndLineBreaks(entry.original, trans);
       } else {
         fixed[key] = trans;
       }
@@ -200,10 +202,7 @@ export function useEditorTranslation({
       }
       const data = await response.json();
       if (data.translations && data.translations[key]) {
-        let translated = data.translations[key];
-        if (hasTechnicalTags(entry.original)) {
-          translated = restoreTagsLocally(entry.original, translated);
-        }
+        const translated = restoreTagsAndLineBreaks(entry.original, data.translations[key]);
         updateTranslation(key, translated);
       }
     } catch (err) { console.error('Single translate error:', err); }
