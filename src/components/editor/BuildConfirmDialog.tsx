@@ -91,6 +91,29 @@ const BuildConfirmDialog = ({ open, onOpenChange, preview, onConfirm, building }
           )}
         </div>
 
+          {!!preview.tagIssueCount && preview.tagIssueCount > 0 && (
+            <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
+                <p className="text-sm font-display font-bold">
+                  تحذير: {preview.tagIssueCount} ترجمة فيها مشاكل في الرموز التقنية
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground font-body">
+                الرموز مفقودة/زائدة أو ترتيبها يختلف عن الأصل. قد تظهر «??» في اللعبة.
+                يُنصح بفتح أداة «إصلاح الرموز التقنية» قبل البناء.
+              </p>
+              {!!preview.tagIssueSamples?.length && (
+                <ul className="text-[11px] font-mono text-muted-foreground max-h-24 overflow-y-auto space-y-0.5 pl-2">
+                  {preview.tagIssueSamples.slice(0, 5).map((s) => (
+                    <li key={s.key} className="truncate">• {s.key} — {s.reason}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="font-body">
             إلغاء
