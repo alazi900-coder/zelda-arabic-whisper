@@ -27,6 +27,7 @@ import {
   buildRestoreUpdates,
   buildSmartReorderUpdates,
   collectRestoreIssueKeys,
+  getDetailedRestoreIssues,
   type RestoreReport,
 } from "@/lib/tag-restore";
 export function useEditorState() {
