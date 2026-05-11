@@ -16,6 +16,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import QualityLab from "./pages/QualityLab";
+import Dubbing from "./pages/Dubbing";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const AnimatedRoutes = () => {
         <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
         <Route path="/install" element={<PageTransition><Install /></PageTransition>} />
         <Route path="/quality-lab" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في مختبر الجودة"><QualityLab /></ErrorBoundary></PageTransition>} />
+        <Route path="/dubbing" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في استوديو الدبلجة"><Dubbing /></ErrorBoundary></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
