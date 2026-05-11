@@ -25,6 +25,7 @@ import {
   restoreTagsAndLineBreaks,
   scanTranslationsForRestore,
   buildRestoreUpdates,
+  buildSmartReorderUpdates,
   type RestoreReport,
 } from "@/lib/tag-restore";
 export function useEditorState() {
@@ -736,6 +737,38 @@ export function useEditorState() {
     showLastSaved(`✅ تمّ إصلاح ${count} ترجمة`, 4000);
   }, [state, restoreReport, setState, setPreviousTranslations, showLastSaved]);
 
+  const handleApplySmartTagReorder = useCallback(() => {
+    if (!state || !restoreReport) return;
+    const entriesForFix = state.entries.map(e => ({
+      msbtFile: e.msbtFile,
+      index: e.index,
+      original: e.original,
+    }));
+    const { updates, previous } = buildSmartReorderUpdates(entriesForFix, state.translations);
+    const count = Object.keys(updates).length;
+    if (count === 0) {
+      toast({ title: "ℹ️ لا تغييرات", description: "لا توجد ترجمات قابلة لإعادة ترتيب الرموز تلقائياً." });
+      return;
+    }
+    setPreviousTranslations(old => ({ ...old, ...previous }));
+    setState(prev => prev ? { ...prev, translations: { ...prev.translations, ...updates } } : null);
+    // أعد الفحص ليتحدّث التقرير ويختفي ما تم إصلاحه من «للمراجعة».
+    const entriesForScan = state.entries.map(e => ({
+      msbtFile: e.msbtFile,
+      index: e.index,
+      label: e.label,
+      original: e.original,
+    }));
+    const updatedTranslations = { ...state.translations, ...updates };
+    const newReport = scanTranslationsForRestore(entriesForScan, updatedTranslations);
+    setRestoreReport(newReport);
+    toast({
+      title: "✅ تمّ الإصلاح الذكيّ",
+      description: `أُعيد ترتيب الرموز في ${count} ترجمة. (يمكنك التراجع لكلّ ترجمة على حدة)`,
+    });
+    showLastSaved(`✅ تمّ الإصلاح الذكيّ لـ ${count} ترجمة`, 4000);
+  }, [state, restoreReport, setState, setPreviousTranslations, showLastSaved]);
+
   const dismissRestoreReport = useCallback(() => setRestoreReport(null), []);
 
   // === Deep tag scan: scan ALL entries for tag issues and propose fixes (preview before apply) ===
@@ -1316,7 +1349,7 @@ export function useEditorState() {
     handleTranslateSingle, handleAutoTranslate, handleStopTranslate,
     handleRetranslatePage, handleFixDamagedTags, handleLocalFixDamagedTag, handleLocalFixAllDamagedTags, handleRedistributeTags, handleReviewTranslations,
     // New unified tool: tags + line breaks restore (preview + apply)
-    restoreReport, handleScanTagsAndLineBreaks, handleApplyTagsAndLineBreaksFix, dismissRestoreReport,
+    restoreReport, handleScanTagsAndLineBreaks, handleApplyTagsAndLineBreaksFix, handleApplySmartTagReorder, dismissRestoreReport,
     handleDeepTagScan, deepScanReport, setDeepScanReport, applyDeepScanFixes,
     handleTranslatePage, handleTranslateFromGlossaryOnly,
     showPageCompare, pendingPageTranslations, oldPageTranslations, pageTranslationOriginals,

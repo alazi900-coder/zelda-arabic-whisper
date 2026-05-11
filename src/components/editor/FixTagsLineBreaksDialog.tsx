@@ -23,6 +23,8 @@ interface FixTagsLineBreaksDialogProps {
   onUpdateTranslation?: (key: string, value: string) => void;
   /** إعادة فحص بعد التعديلات اليدويّة. */
   onRescan?: () => void;
+  /** إعادة ترتيب الرموز تلقائياً لكلّ ما هو ممكن (نفس العدد، ترتيب/قيم مختلفة). */
+  onApplySmartReorder?: () => void;
 }
 
 const TAG_REGEX = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
@@ -354,8 +356,8 @@ const IssueCard: React.FC<IssueCardProps> = ({
         <div
           className={`rounded border p-2 ${
             isResolved
-              ? "border-emerald-500/60 bg-emerald-50 dark:bg-emerald-950/40"
-              : "border-rose-500/40 bg-rose-50 dark:bg-rose-950/40"
+              ? "border-emerald-500/60 bg-emerald-100 text-emerald-950 dark:bg-emerald-900/70 dark:text-emerald-50 dark:border-emerald-400/60"
+              : "border-rose-500/60 bg-rose-100 text-rose-950 dark:bg-rose-900/70 dark:text-rose-50 dark:border-rose-400/60"
           }`}
         >
           <div className="flex items-center justify-between gap-2 mb-1">
@@ -392,7 +394,7 @@ const IssueCard: React.FC<IssueCardProps> = ({
             )}
           </div>
           <div
-            className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-foreground"
+            className="text-[15px] leading-relaxed whitespace-pre-wrap break-words"
             dir="rtl"
           >
             {renderInvisible(issue.before)}
@@ -401,13 +403,13 @@ const IssueCard: React.FC<IssueCardProps> = ({
       )}
 
       {showAfter && (
-        <div className="rounded border border-emerald-500/60 bg-emerald-50 dark:bg-emerald-950/40 p-2">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200 mb-1">
+        <div className="rounded border border-emerald-500/60 bg-emerald-100 text-emerald-950 dark:bg-emerald-900/70 dark:text-emerald-50 dark:border-emerald-400/60 p-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-100 mb-1">
             <FileCheck2 className="h-3 w-3" />
             بعد الإصلاح الآليّ
           </div>
           <div
-            className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-foreground"
+            className="text-[15px] leading-relaxed whitespace-pre-wrap break-words"
             dir="rtl"
           >
             {renderInvisible(issue.after)}
@@ -425,6 +427,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
   onApply,
   onUpdateTranslation,
   onRescan,
+  onApplySmartReorder,
 }) => {
   const [tab, setTab] = useState<"auto" | "review">("auto");
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -588,6 +591,22 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                   </div>
                 ) : (
                   <>
+                    {onApplySmartReorder && report.smartReorderable > 0 && (
+                      <div className="rounded-md border border-sky-500/60 bg-sky-100 text-sky-950 dark:bg-sky-900/70 dark:text-sky-50 dark:border-sky-400/60 p-2 mb-1.5 flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="text-[11px] sm:text-xs leading-relaxed flex-1">
+                          يوجد <strong className="tabular-nums">{report.smartReorderable}</strong> ترجمة فيها رموز بنفس عدد الأصل لكنّ ترتيبها أو قيمها مختلفة. يمكن إصلاحها كلّها تلقائياً الآن.
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={onApplySmartReorder}
+                          className="gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shrink-0"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          إصلاح ذكيّ للرموز ({report.smartReorderable})
+                        </Button>
+                      </div>
+                    )}
                     <div className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 leading-relaxed">
                       هذه الترجمات لا تُعدَّل آلياً (تقسيم جزئي، رمز مختلف، رمز زائد). اضغط «تعديل» في أيّ ترجمة، عدّلها هنا مباشرةً، ثم «حفظ».
                       {resolvedReviewCount > 0 && (

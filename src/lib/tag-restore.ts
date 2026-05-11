@@ -142,6 +142,11 @@ export interface RestoreReport {
   autoFixable: number;
   /** عدد الترجمات التي تحتاج مراجعة يدويّة. */
   needsReview: number;
+  /**
+   * عدد الترجمات (داخل needsReview) التي رموزها بنفس العدد كالأصل
+   * لكنّ ترتيبها/قِيَمها مختلفة، وبالتالي يمكن إعادة ترتيبها تلقائياً.
+   */
+  smartReorderable: number;
   /** اسم الملفّ → عدد الترجمات المتأثّرة فيه (auto + review). */
   byFile: Record<string, number>;
   /** أمثلة من الفئة «الإصلاح الآلي». */
@@ -221,6 +226,48 @@ function isReview(r: RestoreIssueReasons): boolean {
 }
 
 /**
+ * إصلاح ذكيّ للرموز فقط: لو الترجمة لها نفس عدد الرموز كالأصل ولكن بترتيب/قيم مختلفة،
+ * نستبدل كلّ رمز في الترجمة بالرمز المناظر من الأصل (بنفس الترتيب).
+ * لا يلمس فواصل الأسطر، ولا يلمس الترجمات التي فيها رموز زائدة أو ناقصة.
+ */
+export function smartReorderTags(original: string, translation: string): string {
+  if (!original || !translation) return translation;
+  const origSeq = extractTagSequence(original);
+  const transSeq = extractTagSequence(translation);
+  if (origSeq.length === 0 || origSeq.length !== transSeq.length) return translation;
+  let differs = false;
+  for (let i = 0; i < origSeq.length; i++) {
+    if (origSeq[i] !== transSeq[i]) { differs = true; break; }
+  }
+  if (!differs) return translation;
+  let i = 0;
+  return translation.replace(TAG_REGEX_G, () => origSeq[i++] ?? "");
+}
+
+/**
+ * يحسب التحديثات لإعادة ترتيب الرموز فقط (لا يلمس فواصل الأسطر ولا الرموز الناقصة).
+ * يُستخدم من زرّ «إصلاح ذكيّ للرموز» في نافذة الإصلاح.
+ */
+export function buildSmartReorderUpdates(
+  entries: { msbtFile: string; index: number; original: string }[],
+  translations: Record<string, string>,
+): { updates: Record<string, string>; previous: Record<string, string> } {
+  const updates: Record<string, string> = {};
+  const previous: Record<string, string> = {};
+  for (const entry of entries) {
+    const key = `${entry.msbtFile}:${entry.index}`;
+    const trans = translations[key];
+    if (!trans || !trans.trim()) continue;
+    const after = smartReorderTags(entry.original, trans);
+    if (after !== trans) {
+      updates[key] = after;
+      previous[key] = trans;
+    }
+  }
+  return { updates, previous };
+}
+
+/**
  * يفحص كلّ الترجمات ويُرجع تقريراً مصنّفاً (auto / review).
  *
  * - **auto**: الإصلاح آمن — رموز ناقصة، أو سطر واحد يجب تقسيمه، أو تمثيلات `<br>`/`\\n`.
@@ -238,6 +285,7 @@ export function scanTranslationsForRestore(
   let scanned = 0;
   let autoFixable = 0;
   let needsReview = 0;
+  let smartReorderable = 0;
 
   for (const entry of entries) {
     const key = `${entry.msbtFile}:${entry.index}`;
@@ -249,6 +297,7 @@ export function scanTranslationsForRestore(
     const auto = isAutoFix(reasons);
     const review = isReview(reasons);
     if (!auto && !review) continue;
+    if (reasons.changedTagPositions > 0) smartReorderable++;
 
     if (auto) {
       const after = restoreTagsAndLineBreaks(entry.original, trans);
@@ -291,6 +340,7 @@ export function scanTranslationsForRestore(
     scanned,
     autoFixable,
     needsReview,
+    smartReorderable,
     byFile,
     autoExamples,
     reviewExamples,

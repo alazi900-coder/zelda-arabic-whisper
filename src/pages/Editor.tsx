@@ -1254,6 +1254,7 @@ const Editor = () => {
           onApply={editor.handleApplyTagsAndLineBreaksFix}
           onUpdateTranslation={editor.updateTranslation}
           onRescan={editor.handleScanTagsAndLineBreaks}
+          onApplySmartReorder={editor.handleApplySmartTagReorder}
         />
 
         {editor.pendingImport && (
