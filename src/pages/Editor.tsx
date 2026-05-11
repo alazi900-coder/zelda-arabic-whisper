@@ -741,7 +741,7 @@ const Editor = () => {
             tagLineIssuesCount={editor.tagLineIssueKeys.size}
             isTagLineIssuesActive={editor.filterStatus.has("tag-line-issues")}
             onFilterTagLineIssues={() => editor.toggleFilterStatus("tag-line-issues")}
-            onOpenFixTagLineIssues={editor.handleScanTagsAndLineBreaks}
+            onOpenFixTagLineIssues={editor.openTagIssuesReport}
           />
 
           {/* Progress Bar */}
