@@ -234,6 +234,7 @@ describe('Arabic Processing', () => {
       const input = '?\uE000,';
       const result = mirrorPunctuation(input);
       expect(result).toBe('؟\uE000،');
+    });
   });
 
   describe('PUA tag anchoring (logical position preserved)', () => {
