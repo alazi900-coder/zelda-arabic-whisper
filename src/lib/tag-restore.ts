@@ -172,55 +172,10 @@ export function restoreLineBreaks(original: string, translation: string): string
 
   const workLines = work.split("\n");
   if (workLines.length === origLines.length) return work;
-  // الترجمة مقسّمة جزئياً — لا نخمّن.
-  if (workLines.length > 1) return work;
 
-  // الأصل > 1 سطر، الترجمة سطر واحد: نعيد التقسيم.
-  const text = work;
-  const totalOrigLen = origLines.reduce((s, l) => s + l.length, 0) || 1;
-  const targets: number[] = [];
-  let cum = 0;
-  for (let i = 0; i < origLines.length - 1; i++) {
-    cum += origLines[i].length;
-    targets.push(cum / totalOrigLen);
-  }
-
-  const result: string[] = [];
-  let pos = 0;
-  const SEARCH_WINDOW = 12;
-
-  for (const t of targets) {
-    if (pos >= text.length) {
-      result.push("");
-      continue;
-    }
-    const idealEnd = Math.max(pos + 1, Math.round(text.length * t));
-
-    let best = -1;
-    for (let d = 0; d <= SEARCH_WINDOW; d++) {
-      const left = idealEnd - d;
-      const right = idealEnd + d;
-      if (left > pos && left < text.length && NATURAL_BREAKS.has(text[left])) { best = left + 1; break; }
-      if (right > pos && right < text.length && NATURAL_BREAKS.has(text[right])) { best = right + 1; break; }
-    }
-    if (best === -1) {
-      for (let d = 0; d <= SEARCH_WINDOW; d++) {
-        const left = idealEnd - d;
-        const right = idealEnd + d;
-        if (left > pos && left < text.length && text[left] === " ") { best = left; break; }
-        if (right > pos && right < text.length && text[right] === " ") { best = right; break; }
-      }
-    }
-    if (best === -1 || best <= pos) best = Math.min(idealEnd, text.length);
-
-    const segment = text.slice(pos, best).replace(/\s+$/, "");
-    result.push(segment);
-    pos = best;
-    while (pos < text.length && text[pos] === " ") pos++;
-  }
-
-  result.push(text.slice(pos));
-  return result.join("\n");
+  const mergedTranslation = workLines.map(line => line.trim()).filter(Boolean).join(" ");
+  const weights = origLines.map(line => stripTags(line).trim().length);
+  return splitTextToWeightedSegments(mergedTranslation, weights).join("\n");
 }
 
 /**
@@ -231,7 +186,7 @@ export function restoreLineBreaks(original: string, translation: string): string
 export function restoreTagsAndLineBreaks(original: string, translation: string): string {
   if (!translation) return translation;
   const afterLineBreaks = restoreLineBreaks(original, translation);
-  return restoreTagsLocally(original, afterLineBreaks);
+  return restoreTechnicalTags(original, afterLineBreaks);
 }
 
 /** أسباب اعتبار الترجمة مكسورة. */
