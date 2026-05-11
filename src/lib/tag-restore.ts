@@ -207,6 +207,10 @@ export interface RestoreIssueReasons {
   needsNormalize: boolean;
 }
 
+export interface RestoreIssueTotals extends RestoreIssueReasons {
+  affectedTranslations: number;
+}
+
 export interface RestoreIssue {
   key: string;
   msbtFile: string;
@@ -225,6 +229,8 @@ export interface RestoreReport {
   autoFixable: number;
   /** عدد الترجمات التي تحتاج مراجعة يدويّة. */
   needsReview: number;
+  /** تفصيل عددي لكل أنواع المشاكل المكتشفة، وليس فقط عدد الترجمات. */
+  issueTotals: RestoreIssueTotals;
   /**
    * عدد الترجمات (داخل needsReview) التي رموزها بنفس العدد كالأصل
    * لكنّ ترتيبها/قِيَمها مختلفة، وبالتالي يمكن إعادة ترتيبها تلقائياً.
@@ -374,6 +380,16 @@ export function scanTranslationsForRestore(
   let autoFixable = 0;
   let needsReview = 0;
   let smartReorderable = 0;
+  const issueTotals: RestoreIssueTotals = {
+    affectedTranslations: 0,
+    missingTags: 0,
+    extraTags: 0,
+    changedTagPositions: 0,
+    misplacedTags: 0,
+    missingLineBreaksAuto: 0,
+    missingLineBreaksPartial: 0,
+    needsNormalize: false,
+  };
 
   for (const entry of entries) {
     const key = `${entry.msbtFile}:${entry.index}`;
@@ -385,6 +401,14 @@ export function scanTranslationsForRestore(
     const auto = isAutoFix(reasons);
     const review = isReview(reasons);
     if (!auto && !review) continue;
+    issueTotals.affectedTranslations++;
+    issueTotals.missingTags += reasons.missingTags;
+    issueTotals.extraTags += reasons.extraTags;
+    issueTotals.changedTagPositions += reasons.changedTagPositions;
+    issueTotals.misplacedTags += reasons.misplacedTags;
+    issueTotals.missingLineBreaksAuto += reasons.missingLineBreaksAuto;
+    issueTotals.missingLineBreaksPartial += reasons.missingLineBreaksPartial;
+    issueTotals.needsNormalize ||= reasons.needsNormalize;
     if (reasons.changedTagPositions > 0) smartReorderable++;
 
     if (auto) {
@@ -428,6 +452,7 @@ export function scanTranslationsForRestore(
     scanned,
     autoFixable,
     needsReview,
+    issueTotals,
     smartReorderable,
     byFile,
     autoExamples,
