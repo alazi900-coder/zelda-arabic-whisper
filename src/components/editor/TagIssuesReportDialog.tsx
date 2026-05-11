@@ -40,7 +40,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col" dir="rtl">
+      <DialogContent className="max-w-5xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-3 sm:p-6 gap-2" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-display">تقرير: أين تظهر `??` ولماذا</DialogTitle>
           <DialogDescription className="font-body text-sm">
