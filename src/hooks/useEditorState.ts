@@ -531,6 +531,16 @@ export function useEditorState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.entries]);
 
+  // === Live scan for tag/line-break issues (independent of damaged-tags). ===
+  // يُحدَّث تلقائياً عند تغيّر الترجمات → يستخدم لإظهار البطاقة المخصّصة وفلترة العرض.
+  const tagLineIssueKeys = useMemo(() => {
+    if (!state) return new Set<string>();
+    const entriesForScan = state.entries.map(e => ({
+      msbtFile: e.msbtFile, index: e.index, original: e.original,
+    }));
+    return collectRestoreIssueKeys(entriesForScan, state.translations);
+  }, [state?.entries, state?.translations]);
+
   // === Filtered entries ===
   const filteredEntries = useMemo(() => {
     if (!state) return [];
