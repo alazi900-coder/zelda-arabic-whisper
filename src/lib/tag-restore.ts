@@ -383,6 +383,25 @@ export function buildSmartReorderUpdates(
 }
 
 /**
+ * يجمع كلّ مفاتيح الترجمات التي بها مشكلة رموز/فواصل أسطر — للاستخدام في فلتر العرض.
+ * أخفّ من `scanTranslationsForRestore` لأنّه لا يبني تقريراً ولا يحفظ أمثلة.
+ */
+export function collectRestoreIssueKeys(
+  entries: { msbtFile: string; index: number; original: string }[],
+  translations: Record<string, string>,
+): Set<string> {
+  const keys = new Set<string>();
+  for (const entry of entries) {
+    const key = `${entry.msbtFile}:${entry.index}`;
+    const trans = translations[key];
+    if (!trans || !trans.trim()) continue;
+    const reasons = analyzeReasons(entry.original, trans);
+    if (isAutoFix(reasons) || isReview(reasons)) keys.add(key);
+  }
+  return keys;
+}
+
+/**
  * يفحص كلّ الترجمات ويُرجع تقريراً مصنّفاً (auto / review).
  *
  * - **auto**: الإصلاح آمن — رموز ناقصة، أو سطر واحد يجب تقسيمه، أو تمثيلات `<br>`/`\\n`.
