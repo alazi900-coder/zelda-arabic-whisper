@@ -89,7 +89,6 @@ const BuildConfirmDialog = ({ open, onOpenChange, preview, onConfirm, building }
               <p className="text-xs text-muted-foreground font-body">تأكد من أنك أدخلت ترجمات في المحرر</p>
             </div>
           )}
-        </div>
 
           {!!preview.tagIssueCount && preview.tagIssueCount > 0 && (
             <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 space-y-2">
