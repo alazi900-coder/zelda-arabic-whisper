@@ -101,6 +101,26 @@ function splitTextToWeightedSegments(text: string, weights: number[]): string[] 
   return segments;
 }
 
+function nearestTextBoundary(line: string, rawPosition: number): number {
+  const boundaries = new Set<number>([0, line.length]);
+  for (let i = 0; i < line.length; i++) {
+    if (/\s/.test(line[i]) || NATURAL_BREAKS.has(line[i])) {
+      boundaries.add(i);
+      boundaries.add(Math.min(line.length, i + 1));
+    }
+  }
+  let best = Math.max(0, Math.min(line.length, rawPosition));
+  let bestDistance = Infinity;
+  for (const boundary of boundaries) {
+    const distance = Math.abs(boundary - rawPosition);
+    if (distance < bestDistance) {
+      best = boundary;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 function insertOriginalTagsAtRelativePositions(original: string, translation: string): string {
   const originalGroups = extractOriginalTagGroups(original);
   const cleanTranslation = stripTags(translation);
@@ -120,7 +140,8 @@ function insertOriginalTagsAtRelativePositions(original: string, translation: st
     if (!lineGroups?.length) return line;
     const insertions = new Map<number, string[]>();
     for (const group of lineGroups) {
-      const pos = Math.max(0, Math.min(line.length, Math.round(group.lineRelativePosition * line.length)));
+      const rawPos = Math.max(0, Math.min(line.length, Math.round(group.lineRelativePosition * line.length)));
+      const pos = nearestTextBoundary(line, rawPos);
       const atPos = insertions.get(pos) || [];
       atPos.push(group.chars);
       insertions.set(pos, atPos);
