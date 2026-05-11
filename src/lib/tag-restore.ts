@@ -2,18 +2,144 @@
 // 1) يعيد ترميز PUA (U+E000..U+E0FF) و FFF9..FFFC التي يحذفها/يشوّهها مترجِم AI.
 // 2) يعيد فواصل الأسطر (\n) عندما يدمج المترجِم الأسطر في سطر واحد، أو
 //    يحوّل \\n الحرفية و <br> إلى أسطر حقيقية.
-// 3) يرصد الحالات «المشكوك فيها» (لا يصلحها آلياً) لعرضها للمراجعة اليدويّة.
+// 3) يرصد إزاحة الرموز حتى لو كان العدد والتسلسل صحيحين، ثم يعيدها تلقائياً
+//    إلى مواقعها النسبية حسب الأصل.
 //
 // كلّ مسار ترجمة / بناء يجب أن يمرّ عبر `restoreTagsAndLineBreaks` كحارس أخير.
 
-import { restoreTagsLocally } from "@/components/editor/types";
-
 const TAG_REGEX_G = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
+const TAG_REGEX_SINGLE = /[\uFFF9-\uFFFC\uE000-\uE0FF]/;
 
 /** علامات الترقيم العربية والإنجليزية التي يُفضَّل القطع عندها لإعادة بناء سطر مدموج. */
 const NATURAL_BREAKS = new Set([
   "،", ",", ".", "؟", "?", "!", "؛", ";", ":", "…",
 ]);
+
+interface OriginalTagGroup {
+  chars: string;
+  lineIndex: number;
+  lineRelativePosition: number;
+}
+
+function stripTags(text: string): string {
+  return text.replace(TAG_REGEX_G, "");
+}
+
+function extractOriginalTagGroups(original: string): OriginalTagGroup[] {
+  const lineLengths = original.split("\n").map(line => stripTags(line).length);
+  const groups: OriginalTagGroup[] = [];
+  let lineIndex = 0;
+  let lineCleanIndex = 0;
+  let i = 0;
+
+  while (i < original.length) {
+    const ch = original[i];
+    if (TAG_REGEX_SINGLE.test(ch)) {
+      let chars = "";
+      while (i < original.length && TAG_REGEX_SINGLE.test(original[i])) {
+        chars += original[i];
+        i++;
+      }
+      const lineLength = lineLengths[lineIndex] || 0;
+      groups.push({
+        chars,
+        lineIndex,
+        lineRelativePosition: lineLength === 0 ? 0 : lineCleanIndex / lineLength,
+      });
+      continue;
+    }
+
+    if (ch === "\n") {
+      lineIndex++;
+      lineCleanIndex = 0;
+    } else {
+      lineCleanIndex++;
+    }
+    i++;
+  }
+
+  return groups;
+}
+
+function splitTextToWeightedSegments(text: string, weights: number[]): string[] {
+  if (weights.length === 0) return [];
+  if (weights.length === 1) return [text.trim()];
+
+  const totalWeight = weights.reduce((sum, w) => sum + Math.max(1, w), 0) || 1;
+  const segments: string[] = [];
+  let consumedWeight = 0;
+  let pos = 0;
+  const SEARCH_WINDOW = 18;
+
+  for (let i = 0; i < weights.length - 1; i++) {
+    consumedWeight += Math.max(1, weights[i]);
+    const idealEnd = Math.max(pos + 1, Math.round(text.length * (consumedWeight / totalWeight)));
+    let best = -1;
+
+    for (let d = 0; d <= SEARCH_WINDOW; d++) {
+      const left = idealEnd - d;
+      const right = idealEnd + d;
+      if (left > pos && left < text.length && NATURAL_BREAKS.has(text[left])) { best = left + 1; break; }
+      if (right > pos && right < text.length && NATURAL_BREAKS.has(text[right])) { best = right + 1; break; }
+    }
+    if (best === -1) {
+      for (let d = 0; d <= SEARCH_WINDOW; d++) {
+        const left = idealEnd - d;
+        const right = idealEnd + d;
+        if (left > pos && left < text.length && /\s/.test(text[left])) { best = left; break; }
+        if (right > pos && right < text.length && /\s/.test(text[right])) { best = right; break; }
+      }
+    }
+    if (best === -1 || best <= pos) best = Math.min(Math.max(idealEnd, pos + 1), text.length);
+
+    segments.push(text.slice(pos, best).trim());
+    pos = best;
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+  }
+
+  segments.push(text.slice(pos).trim());
+  return segments;
+}
+
+function insertOriginalTagsAtRelativePositions(original: string, translation: string): string {
+  const originalGroups = extractOriginalTagGroups(original);
+  const cleanTranslation = stripTags(translation);
+  if (originalGroups.length === 0) return cleanTranslation;
+
+  const lines = cleanTranslation.split("\n");
+  const groupedByLine = new Map<number, OriginalTagGroup[]>();
+  for (const group of originalGroups) {
+    const lineIndex = Math.min(group.lineIndex, Math.max(0, lines.length - 1));
+    const lineGroups = groupedByLine.get(lineIndex) || [];
+    lineGroups.push(group);
+    groupedByLine.set(lineIndex, lineGroups);
+  }
+
+  return lines.map((line, lineIndex) => {
+    const lineGroups = groupedByLine.get(lineIndex);
+    if (!lineGroups?.length) return line;
+    const insertions = new Map<number, string[]>();
+    for (const group of lineGroups) {
+      const pos = Math.max(0, Math.min(line.length, Math.round(group.lineRelativePosition * line.length)));
+      const atPos = insertions.get(pos) || [];
+      atPos.push(group.chars);
+      insertions.set(pos, atPos);
+    }
+
+    let out = "";
+    for (let pos = 0; pos <= line.length; pos++) {
+      const tags = insertions.get(pos);
+      if (tags) out += tags.join("");
+      if (pos < line.length) out += line[pos];
+    }
+    return out;
+  }).join("\n");
+}
+
+export function restoreTechnicalTags(original: string, translation: string): string {
+  if (!translation) return translation;
+  return insertOriginalTagsAtRelativePositions(original, translation);
+}
 
 /** يحوّل تمثيلات الـ AI الشائعة للأسطر إلى \n حقيقي قبل أيّ معالجة. */
 export function normalizeLineBreakRepresentations(text: string): string {
