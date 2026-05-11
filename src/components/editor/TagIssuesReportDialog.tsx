@@ -4,7 +4,6 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Wrench, ArrowLeftCircle, Loader2 } from "lucide-react";
 import { DetailedIssue, TagIssueCause } from "@/lib/tag-restore";
@@ -41,7 +40,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col" dir="rtl">
+      <DialogContent className="max-w-5xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-3 sm:p-6 gap-2" dir="rtl">
         <DialogHeader>
           <DialogTitle className="font-display">تقرير: أين تظهر `??` ولماذا</DialogTitle>
           <DialogDescription className="font-body text-sm">
@@ -63,7 +62,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
           })}
         </div>
 
-        <ScrollArea className="flex-1 border rounded-md">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain border rounded-md [-webkit-overflow-scrolling:touch]">
           <ul className="divide-y divide-border">
             {issues.map(issue => (
               <li key={issue.key} className="p-3 hover:bg-muted/30 transition-colors">
@@ -104,7 +103,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
               <li className="p-6 text-center text-sm text-muted-foreground font-body">لا توجد مشاكل مكتشفة 🎉</li>
             )}
           </ul>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="gap-2 mt-3">
           <Button variant="outline" onClick={onClose}>إغلاق</Button>

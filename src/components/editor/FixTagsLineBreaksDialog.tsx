@@ -4,7 +4,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Textarea } from "@/components/ui/textarea";
 import {
   Wrench, FileText, FileCheck2, AlertTriangle, Sparkles,
@@ -568,7 +568,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                     <div className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 leading-relaxed">
                       عند الضغط على «طبّق الإصلاح الآليّ» سيُعاد بناء الرموز من الأصل وتُصلح فواصل الأسطر في {report.autoFixable} ترجمة. يمكنك التراجع لكلّ ترجمة على حدة.
                     </div>
-                    <ScrollArea className="flex-1 min-h-0 pr-1">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
                       <div className="space-y-2.5 pb-2">
                         {report.autoExamples.map((issue, i) => (
                           <IssueCard
@@ -589,7 +589,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                           </div>
                         )}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </>
                 )}
               </div>
@@ -625,7 +625,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                         </span>
                       )}
                     </div>
-                    <ScrollArea className="flex-1 min-h-0 pr-1">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
                       <div className="space-y-2.5 pb-2">
                         {report.reviewExamples.map((issue, i) => (
                           <IssueCard
@@ -657,7 +657,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                           </div>
                         )}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </>
                 )}
               </div>
