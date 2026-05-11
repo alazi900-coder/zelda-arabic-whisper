@@ -152,7 +152,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
         body: formData,
-      });
+      }, 300_000);
       if (!response.ok) {
         const ct = response.headers.get('content-type') || '';
         if (ct.includes('json')) { const err = await response.json(); throw new Error(err.error || `خطأ ${response.status}`); }
