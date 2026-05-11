@@ -579,7 +579,8 @@ export function useEditorState() {
             (fs === "damaged-tags" && qualityStats.damagedTagKeys.has(key)) ||
             (fs === "duplicates" && qualityStats.duplicateTranslationKeys.has(key)) ||
             (fs === "punctuation" && qualityStats.punctuationMismatchKeys.has(key)) ||
-            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key))
+            (fs === "unclosed-brackets" && qualityStats.unclosedBracketKeys.has(key)) ||
+            (fs === "tag-line-issues" && tagLineIssueKeys.has(key))
           )
         ));
       const matchTechnical = 
@@ -588,7 +589,7 @@ export function useEditorState() {
         (filterTechnical === "exclude" && !isTechnical);
       return matchSearch && matchFile && matchCategory && matchStatus && matchTechnical;
     });
-  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, qualityStats.damagedTagKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
+  }, [state, search, filterFile, filterCategory, filterStatus, filterTechnical, qualityStats.problemKeys, qualityStats.duplicateTranslationKeys, qualityStats.punctuationMismatchKeys, qualityStats.unclosedBracketKeys, qualityStats.damagedTagKeys, tagLineIssueKeys, needsImprovement, isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage]);
 
   useEffect(() => { if (!isPinned) setCurrentPage(0); }, [search, filterFile, filterCategory, filterStatus, filterTechnical, isPinned]);
 
