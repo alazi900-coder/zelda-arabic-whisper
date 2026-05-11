@@ -58,11 +58,11 @@ describe("restoreLineBreaks", () => {
     expect(out).toBe("أ\nب");
   });
 
-  it("does not guess when translation is partially split (avoids over-fitting)", () => {
+  it("rebuilds partially split translations to match the original line count", () => {
     const original = "A\nB\nC";
     const translation = "أ\nب ج";
     const out = restoreLineBreaks(original, translation);
-    expect(out).toBe("أ\nب ج");
+    expect(out.split("\n").length).toBe(3);
   });
 
   it("handles 3-line originals merged into one", () => {
@@ -162,33 +162,33 @@ describe("scanTranslationsForRestore — auto vs review classification", () => {
     expect(report.needsReview).toBe(0);
   });
 
-  it("flags partial line-count mismatches as 'review' (not auto)", () => {
-    // الأصل 3 أسطر، الترجمة 2 أسطر → لا نخمّن آلياً.
+  it("flags partial line-count mismatches as auto-fixable", () => {
+    // الأصل 3 أسطر، الترجمة 2 أسطر → تُعاد فواصل الأسطر تلقائياً حسب وزن أسطر الأصل.
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "A\nB\nC" }];
     const t = { "F.msbt:0": "أ\nب ج" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.autoFixable).toBe(0);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.missingLineBreaksPartial).toBeGreaterThan(0);
-    expect(report.reviewExamples[0].reasons.missingLineBreaksAuto).toBe(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
+    expect(report.autoExamples[0].reasons.missingLineBreaksPartial).toBeGreaterThan(0);
+    expect(report.autoExamples[0].reasons.missingLineBreaksAuto).toBe(0);
   });
 
-  it("flags tag-identity mismatches as 'review' even when counts match", () => {
-    // نفس عدد الرموز ولكنّ القيم مختلفة → للمراجعة.
+  it("flags tag-identity mismatches as auto-fixable even when counts match", () => {
+    // نفس عدد الرموز ولكنّ القيم مختلفة → تُعاد الرموز من الأصل تلقائياً.
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "Press \uE001 \uE002" }];
     const t = { "F.msbt:0": "اضغط \uE034 \uE002" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.autoFixable).toBe(0);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.changedTagPositions).toBeGreaterThan(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
+    expect(report.autoExamples[0].reasons.changedTagPositions).toBeGreaterThan(0);
   });
 
-  it("flags extra tags (added by AI) as 'review'", () => {
+  it("flags extra tags (added by AI) as auto-fixable", () => {
     const e = [{ msbtFile: "F.msbt", index: 0, label: "x", original: "Hello" }];
     const t = { "F.msbt:0": "مرحبا \uE001" };
     const report = scanTranslationsForRestore(e, t);
-    expect(report.needsReview).toBe(1);
-    expect(report.reviewExamples[0].reasons.extraTags).toBe(1);
+    expect(report.autoFixable).toBe(1);
+    expect(report.autoExamples[0].reasons.extraTags).toBe(1);
   });
 
   it("matches user-reported Simmerstone Springs case: partial line mismatch is detected", () => {
@@ -200,11 +200,10 @@ describe("scanTranslationsForRestore — auto vs review classification", () => {
     const e = [{ msbtFile: "Talk.msbt", index: 0, label: "Simmerstone", original }];
     const t = { "Talk.msbt:0": translation };
     const report = scanTranslationsForRestore(e, t);
-    // الأصل فيه أسطر فارغة (فواصل فقرة) لا توجد في الترجمة → يجب الكشف عنها.
+    // الأصل فيه أسطر فارغة (فواصل فقرة) لا توجد في الترجمة → يجب الكشف عنها وإصلاحها.
     expect(report.needsReview + report.autoFixable).toBeGreaterThan(0);
-    // والترجمة مقسّمة جزئياً (لا سطر واحد) → لا نخمّن آلياً، نعرضها للمراجعة.
-    expect(report.needsReview).toBe(1);
-    expect(report.autoFixable).toBe(0);
+    expect(report.autoFixable).toBe(1);
+    expect(report.needsReview).toBe(0);
   });
 });
 
@@ -225,11 +224,12 @@ describe("buildRestoreUpdates", () => {
     expect(updates["F1.msbt:0"].split("\n").length).toBe(2);
   });
 
-  it("does NOT auto-modify partial line-count mismatches (those require manual review)", () => {
+  it("auto-modifies partial line-count mismatches", () => {
     const entries = [{ msbtFile: "F.msbt", index: 0, original: "A\nB\nC" }];
     const translations = { "F.msbt:0": "أ\nب ج" };
     const { updates } = buildRestoreUpdates(entries, translations);
-    expect(Object.keys(updates).length).toBe(0);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
+    expect(updates["F.msbt:0"].split("\n").length).toBe(3);
   });
 });
 
@@ -255,16 +255,27 @@ describe("smartReorderTags", () => {
     expect(out).not.toContain("\uE034");
   });
 
-  it("returns translation unchanged when tag count differs", () => {
+  it("restores original tags even when tag count differs", () => {
     const original = "Press \uE001 then \uE002";
     const translation = "اضغط \uE001"; // رمز واحد فقط
-    expect(smartReorderTags(original, translation)).toBe(translation);
+    const out = smartReorderTags(original, translation);
+    expect(out).toContain("\uE001");
+    expect(out).toContain("\uE002");
   });
 
-  it("returns translation unchanged when tags already match", () => {
+  it("keeps clean translations unchanged when tags already match original relative positions", () => {
     const original = "Hello \uE001 world \uE002";
     const translation = "مرحبا \uE001 عالم \uE002";
     expect(smartReorderTags(original, translation)).toBe(translation);
+  });
+
+  it("detects and fixes tags with correct sequence but wrong position", () => {
+    const original = "Hello \uE001 world";
+    const translation = "\uE001مرحبا عالم";
+    const report = scanTranslationsForRestore([{ msbtFile: "F.msbt", index: 0, label: "x", original }], { "F.msbt:0": translation });
+    expect(report.autoFixable).toBe(1);
+    expect(report.issueTotals.misplacedTags).toBeGreaterThan(0);
+    expect(report.autoExamples[0].after).toBe("مرحبا\uE001 عالم");
   });
 
   it("returns translation unchanged when there are no tags", () => {
@@ -287,7 +298,7 @@ describe("smartReorderTags", () => {
 });
 
 describe("buildSmartReorderUpdates", () => {
-  it("returns updates only for entries with reorderable tags", () => {
+  it("returns updates for entries with reorderable or misplaced tags", () => {
     const entries = [
       { msbtFile: "F.msbt", index: 0, original: "Press \uE001 then \uE002" },
       { msbtFile: "F.msbt", index: 1, original: "Clean text" },
@@ -299,13 +310,13 @@ describe("buildSmartReorderUpdates", () => {
       "F.msbt:2": "صحيح \uE003 مسبقاً \uE004",   // مطابق → لا تغيير
     };
     const { updates, previous } = buildSmartReorderUpdates(entries, translations);
-    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
-    expect(Object.keys(previous)).toEqual(["F.msbt:0"]);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0", "F.msbt:2"]);
+    expect(Object.keys(previous)).toEqual(["F.msbt:0", "F.msbt:2"]);
     expect(previous["F.msbt:0"]).toBe(translations["F.msbt:0"]);
     expect(updates["F.msbt:0"].indexOf("\uE001")).toBeLessThan(updates["F.msbt:0"].indexOf("\uE002"));
   });
 
-  it("skips entries where tag count differs (those need manual review)", () => {
+  it("repairs entries where tag count differs", () => {
     const entries = [
       { msbtFile: "F.msbt", index: 0, original: "Press \uE001 then \uE002" },
     ];
@@ -313,7 +324,8 @@ describe("buildSmartReorderUpdates", () => {
       "F.msbt:0": "اضغط \uE001", // رمز واحد بدل اثنين
     };
     const { updates } = buildSmartReorderUpdates(entries, translations);
-    expect(Object.keys(updates).length).toBe(0);
+    expect(Object.keys(updates)).toEqual(["F.msbt:0"]);
+    expect(updates["F.msbt:0"]).toContain("\uE002");
   });
 
   it("skips empty translations", () => {
