@@ -322,22 +322,14 @@ function isReview(r: RestoreIssueReasons): boolean {
 }
 
 /**
- * إصلاح ذكيّ للرموز فقط: لو الترجمة لها نفس عدد الرموز كالأصل ولكن بترتيب/قيم مختلفة،
- * نستبدل كلّ رمز في الترجمة بالرمز المناظر من الأصل (بنفس الترتيب).
- * لا يلمس فواصل الأسطر، ولا يلمس الترجمات التي فيها رموز زائدة أو ناقصة.
+ * إصلاح ذكيّ للرموز فقط: يعيد بناء الرموز حسب الأصل ومواقعها النسبية.
+ * لا يلمس فواصل الأسطر، ولا يلمس الترجمات التي ليس في أصلها رموز.
  */
 export function smartReorderTags(original: string, translation: string): string {
   if (!original || !translation) return translation;
   const origSeq = extractTagSequence(original);
-  const transSeq = extractTagSequence(translation);
-  if (origSeq.length === 0 || origSeq.length !== transSeq.length) return translation;
-  let differs = false;
-  for (let i = 0; i < origSeq.length; i++) {
-    if (origSeq[i] !== transSeq[i]) { differs = true; break; }
-  }
-  if (!differs) return translation;
-  let i = 0;
-  return translation.replace(TAG_REGEX_G, () => origSeq[i++] ?? "");
+  if (origSeq.length === 0) return translation;
+  return restoreTechnicalTags(original, translation);
 }
 
 /**
@@ -397,7 +389,7 @@ export function scanTranslationsForRestore(
 
     if (auto) {
       const after = restoreTagsAndLineBreaks(entry.original, trans);
-      if (after === trans && reasons.missingLineBreaksAuto === 0 && !reasons.needsNormalize) {
+      if (after === trans && reasons.missingLineBreaksAuto === 0 && reasons.missingLineBreaksPartial === 0 && reasons.misplacedTags === 0 && !reasons.needsNormalize) {
         // الإصلاح الآلي لم يُحدِث تغييراً (مثلاً: رموز ناقصة في مجموعة كاملة) → ننقلها للمراجعة.
         needsReview++;
         byFile[entry.msbtFile] = (byFile[entry.msbtFile] || 0) + 1;
@@ -445,7 +437,7 @@ export function scanTranslationsForRestore(
 }
 
 /**
- * يحسب التحديثات الفعليّة لتطبيق الإصلاح الآلي فقط (لا يلمس الإدخالات «للمراجعة»).
+ * يحسب التحديثات الفعليّة لتطبيق الإصلاح الآلي للرموز وفواصل الأسطر.
  * يُرجع `updates` (المفاتيح والقيم الجديدة) و`previous` (لاسترجاع التراجع).
  */
 export function buildRestoreUpdates(
