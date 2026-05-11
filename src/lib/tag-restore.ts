@@ -435,6 +435,63 @@ export function buildSmartReorderUpdates(
   return { updates, previous };
 }
 
+/** فئة سبب لظهور `??` في اللعبة، مع توضيح إن كانت قابلة للإصلاح آلياً. */
+export type TagIssueCause =
+  | "pua-inside-word"     // رمز محشور بين حرفين → كسر بايتات
+  | "missing-tag"         // رمز ناقص في الترجمة
+  | "extra-tag"           // رمز زائد لا أصل له
+  | "wrong-order"         // نفس العدد لكن التسلسل/القيم تغيّرت
+  | "misplaced"           // الموقع النسبي اختلف
+  | "needs-line-break"    // فاصل سطر ناقص
+  | "literal-line-break"; // <br>/\n حرفي بدل سطر حقيقي
+
+export interface DetailedIssue {
+  key: string;
+  msbtFile: string;
+  index: number;
+  label: string;
+  original: string;
+  translation: string;
+  causes: TagIssueCause[];
+  /** نسخة مُصلَحة مقترحة. */
+  proposed: string;
+  autoFixable: boolean;
+}
+
+/**
+ * يُرجع قائمة مفصّلة بكلّ الترجمات المعطوبة (بدون سقف أمثلة).
+ * يصنّف السبب لكلّ ترجمة بحيث يمكن عرضها في تقرير «أين تظهر `??`».
+ */
+export function getDetailedRestoreIssues(
+  entries: { msbtFile: string; index: number; label: string; original: string }[],
+  translations: Record<string, string>,
+): DetailedIssue[] {
+  const out: DetailedIssue[] = [];
+  for (const entry of entries) {
+    const key = `${entry.msbtFile}:${entry.index}`;
+    const trans = translations[key];
+    if (!trans || !trans.trim()) continue;
+    const reasons = analyzeReasons(entry.original, trans);
+    const insideWord = countPuaInsideWord(entry.original, trans);
+    const causes: TagIssueCause[] = [];
+    if (insideWord > 0) causes.push("pua-inside-word");
+    if (reasons.missingTags > 0) causes.push("missing-tag");
+    if (reasons.extraTags > 0) causes.push("extra-tag");
+    if (reasons.changedTagPositions > 0) causes.push("wrong-order");
+    if (reasons.misplacedTags > 0) causes.push("misplaced");
+    if (reasons.missingLineBreaksAuto > 0 || reasons.missingLineBreaksPartial > 0) causes.push("needs-line-break");
+    if (reasons.needsNormalize) causes.push("literal-line-break");
+    if (causes.length === 0) continue;
+    const proposed = restoreTagsAndLineBreaks(entry.original, trans);
+    out.push({
+      key, msbtFile: entry.msbtFile, index: entry.index, label: entry.label,
+      original: entry.original, translation: trans,
+      causes, proposed, autoFixable: proposed !== trans,
+    });
+  }
+  return out;
+}
+
 /**
  * يجمع كلّ مفاتيح الترجمات التي بها مشكلة رموز/فواصل أسطر — للاستخدام في فلتر العرض.
  * أخفّ من `scanTranslationsForRestore` لأنّه لا يبني تقريراً ولا يحفظ أمثلة.
