@@ -193,9 +193,9 @@ export function restoreTagsAndLineBreaks(original: string, translation: string):
 export interface RestoreIssueReasons {
   /** عدد الرموز الناقصة (الأصل أكثر). يُصلَح آلياً. */
   missingTags: number;
-  /** عدد الرموز الزائدة في الترجمة (لا يوجد ما يقابلها بالأصل). للمراجعة. */
+  /** عدد الرموز الزائدة في الترجمة (لا يوجد ما يقابلها بالأصل). يُصلَح آلياً بحذفها. */
   extraTags: number;
-  /** عدد المواقع التي قيمة/ترتيب الرمز فيها تختلف بين الأصل والترجمة (نفس العدد). للمراجعة. */
+  /** عدد المواقع التي قيمة/ترتيب الرمز فيها تختلف بين الأصل والترجمة (نفس العدد). يُصلَح آلياً بإعادة الأصل. */
   changedTagPositions: number;
   /** نفس الرموز والتسلسل موجودة، لكن مواقعها النسبية داخل السطر تختلف عن الأصل. يُصلَح آلياً. */
   misplacedTags: number;
@@ -314,11 +314,11 @@ function analyzeReasons(original: string, translation: string): RestoreIssueReas
 }
 
 function isAutoFix(r: RestoreIssueReasons): boolean {
-  return r.missingTags > 0 || r.misplacedTags > 0 || r.missingLineBreaksAuto > 0 || r.missingLineBreaksPartial > 0 || r.needsNormalize;
+  return r.missingTags > 0 || r.extraTags > 0 || r.changedTagPositions > 0 || r.misplacedTags > 0 || r.missingLineBreaksAuto > 0 || r.missingLineBreaksPartial > 0 || r.needsNormalize;
 }
 
 function isReview(r: RestoreIssueReasons): boolean {
-  return r.extraTags > 0 || r.changedTagPositions > 0;
+  return false;
 }
 
 /**
