@@ -157,9 +157,33 @@ function insertOriginalTagsAtRelativePositions(original: string, translation: st
   }).join("\n");
 }
 
+/** كلمات قائمة الجرد/الفرز التي يجب أن يلتصق بها كود `0x0E` بدون مسافة. */
+const MENU_GLUE_WORDS = ["جديد", "فرز", "سقاط", "إسقاط", "جوع", "كمّ", "كم", "عدد"];
+
+/**
+ * يضمن التصاق رموز الـ PUA بالكلمة المتوقّعة في إدخالات القوائم.
+ * إذا كان الأصل بنمط «كلمة + رمز» (مثل `جديد\uE0XX`) ووجد الرمز في الترجمة
+ * منفصلاً عن الكلمة بمسافة أو علامة، يُلصَق به مباشرة بدون مسافة.
+ */
+function gluePuaToMenuWords(original: string, translation: string): string {
+  if (!translation || !TAG_REGEX_SINGLE.test(translation)) return translation;
+  let out = translation;
+  for (const word of MENU_GLUE_WORDS) {
+    if (!original.includes(word)) continue;
+    // كلمة + (مسافة/علامات) + رمز  →  كلمة + رمز
+    const re = new RegExp(`(${word})[\\s\\u00A0\\.\\,\\:\\;،؛]*([\\uE000-\\uE0FF\\uFFF9-\\uFFFC]+)`, "g");
+    out = out.replace(re, "$1$2");
+    // رمز + (مسافة/علامات) + كلمة  →  رمز + كلمة (لو الأصل بنمط رمز-قبل)
+    const reBefore = new RegExp(`([\\uE000-\\uE0FF\\uFFF9-\\uFFFC]+)[\\s\\u00A0\\.\\,\\:\\;،؛]*(${word})`, "g");
+    out = out.replace(reBefore, "$1$2");
+  }
+  return out;
+}
+
 export function restoreTechnicalTags(original: string, translation: string): string {
   if (!translation) return translation;
-  return insertOriginalTagsAtRelativePositions(original, translation);
+  const restored = insertOriginalTagsAtRelativePositions(original, translation);
+  return gluePuaToMenuWords(original, restored);
 }
 
 /** يحوّل تمثيلات الـ AI الشائعة للأسطر إلى \n حقيقي قبل أيّ معالجة. */
