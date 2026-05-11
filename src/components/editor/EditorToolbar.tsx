@@ -52,6 +52,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <Button variant="outline" size="sm" onClick={editor.handleCloudLoad} disabled={!editor.user || editor.cloudSyncing} className="font-body text-xs">
           <Cloud className="w-3 h-3" /> تحميل
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={editor.handleScanTagsAndLineBreaks}
+          className="font-body text-xs border-blue-500/40 text-blue-700 hover:text-blue-800"
+          title="فحص ثمّ استعادة الرموز التقنيّة وفواصل الأسطر في كلّ الترجمات"
+        >
+          <Wrench className="w-3 h-3" /> الرموز وفواصل الأسطر 🛠️
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="font-body text-xs"><Download className="w-3 h-3" /> تصدير / استيراد</Button>
@@ -122,9 +131,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={editor.handleDeepTagScan} className="text-amber-600 focus:text-amber-700">
               🔍 فحص عميق للوسوم وإصلاحها
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={editor.handleScanTagsAndLineBreaks} className="text-blue-600 focus:text-blue-700">
-              <Wrench className="w-4 h-4" /> إصلاح الرموز التقنية وفواصل السطور 🛠️
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs">🆕 أدوات متقدمة</DropdownMenuLabel>
