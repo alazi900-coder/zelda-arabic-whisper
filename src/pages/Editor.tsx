@@ -40,6 +40,7 @@ import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import FixTagsLineBreaksDialog from "@/components/editor/FixTagsLineBreaksDialog";
+import TagIssuesReportDialog from "@/components/editor/TagIssuesReportDialog";
 import ImportConflictDialog from "@/components/editor/ImportConflictDialog";
 import GlossaryApplyPreview, { type GlossaryChange } from "@/components/editor/GlossaryApplyPreview";
 import SceneContextPanel from "@/components/editor/SceneContextPanel";
