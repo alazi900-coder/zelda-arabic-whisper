@@ -62,7 +62,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
           })}
         </div>
 
-        <ScrollArea className="flex-1 border rounded-md">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain border rounded-md [-webkit-overflow-scrolling:touch]">
           <ul className="divide-y divide-border">
             {issues.map(issue => (
               <li key={issue.key} className="p-3 hover:bg-muted/30 transition-colors">
@@ -103,7 +103,7 @@ const TagIssuesReportDialog: React.FC<Props> = ({ open, onClose, issues, onJumpT
               <li className="p-6 text-center text-sm text-muted-foreground font-body">لا توجد مشاكل مكتشفة 🎉</li>
             )}
           </ul>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="gap-2 mt-3">
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
