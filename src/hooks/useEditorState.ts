@@ -704,7 +704,7 @@ export function useEditorState() {
     }));
     const report = scanTranslationsForRestore(entriesForScan, state.translations);
     setRestoreReport(report);
-    if (report.fixable === 0) {
+    if (report.autoFixable === 0 && report.needsReview === 0) {
       toast({
         title: "✅ كلّ الترجمات سليمة",
         description: `تمّ فحص ${report.scanned} ترجمة — لا توجد رموز مفقودة ولا فواصل أسطر ناقصة.`,
