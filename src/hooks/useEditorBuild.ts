@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { idbGet } from "@/lib/idb-storage";
 import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabicPresentationForms, reverseBidi, removeArabicPresentationForms } from "@/lib/arabic-processing";
 import { EditorState } from "@/components/editor/types";
 import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations, scanTranslationsForRestore } from "@/lib/tag-restore";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
 import type { BuildDiagnostics } from "@/components/editor/BuildDiagnosticsPanel";
+import { localBuild, LocalBuildError } from "@/lib/local-build";
 
 export interface BuildStats {
   modifiedCount: number;
@@ -191,9 +191,6 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
     if (!langBuf) { setBuildProgress("❌ ملف اللغة غير موجود. يرجى العودة لصفحة المعالجة وإعادة رفع الملفات."); setTimeout(() => setBuildProgress(""), 5000); return; }
     setBuilding(true); setBuildProgress("تجهيز الترجمات...");
     try {
-      const formData = new FormData();
-      formData.append("langFile", new File([new Uint8Array(langBuf)], langFileName));
-      if (dictBuf) formData.append("dictFile", new File([new Uint8Array(dictBuf)], (await idbGet<string>("editorDictFileName")) || "ZsDic.pack.zs"));
       const nonEmptyTranslations: Record<string, string> = {};
       for (const [k, v] of Object.entries(state.translations)) { if (v.trim()) nonEmptyTranslations[k] = v; }
 
@@ -223,85 +220,60 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
         }
       }
       console.log(`[BUILD-TAGS] Fixed tags: ${tagFixCount}, Fixed line breaks: ${lineBreakFixCount}, Already OK: ${tagOkCount}`);
-      
-      // Validate translations size
-      const translationsJson = JSON.stringify(nonEmptyTranslations);
-      const translationsSizeKB = Math.round(translationsJson.length / 1024);
-      console.log(`[BUILD] Total translations being sent: ${Object.keys(nonEmptyTranslations).length}`);
-      console.log(`[BUILD] Translations JSON size: ${translationsSizeKB} KB`);
+      console.log(`[BUILD] Total translations: ${Object.keys(nonEmptyTranslations).length}`);
       console.log('[BUILD] Protected entries:', Array.from(state.protectedEntries || []).length);
       console.log('[BUILD] Sample keys:', Object.keys(nonEmptyTranslations).slice(0, 10));
-      
-      if (translationsSizeKB > 5000) {
-        console.warn(`[BUILD] ⚠️ Translations JSON is very large (${translationsSizeKB} KB). This may cause issues.`);
-      }
-      
-      formData.append("translations", JSON.stringify(nonEmptyTranslations));
-      formData.append("protectedEntries", JSON.stringify(Array.from(state.protectedEntries || [])));
-      if (arabicNumerals) formData.append("arabicNumerals", "true");
-      if (mirrorPunctuation) formData.append("mirrorPunctuation", "true");
-      setBuildProgress("إرسال للمعالجة...");
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const response = await fetchWithTimeout(`${supabaseUrl}/functions/v1/arabize?mode=build`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
-        body: formData,
-      }, 300_000);
-      if (!response.ok) {
-        const ct = response.headers.get('content-type') || '';
-        if (ct.includes('json')) {
-          const err = await response.json();
-          if (err?.diagnostics) {
-            setBuildError({ message: err.error || `خطأ ${response.status}`, diagnostics: err.diagnostics });
-          } else if (response.status === 546 || response.status === 500 || response.status === 504) {
-            setBuildError({
-              message: err?.error || `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف.`,
-              diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
-            });
-          }
-          throw new Error(err?.error || `خطأ ${response.status}`);
-        }
-        if (response.status === 546 || response.status === 500 || response.status === 504) {
-          setBuildError({
-            message: `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف، وليس مشكلة في واجهة التشخيص.`,
-            diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
-          });
-        }
-        throw new Error(`خطأ ${response.status}`);
-      }
-      setBuildProgress("تحميل الملف...");
-      const blob = await response.blob();
+
+      const result = await localBuild({
+        langFile: langBuf,
+        langFileName,
+        dictFile: dictBuf ?? null,
+        translations: nonEmptyTranslations,
+        protectedEntries: state.protectedEntries,
+        arabicNumerals,
+        mirrorPunct: mirrorPunctuation,
+        onProgress: (msg) => setBuildProgress(msg),
+      });
+
+      const { blob, fileName, modifiedCount, expandedCount, fileSize, compressedSize, buildStats: localStats } = result;
       const blobUrl = URL.createObjectURL(blob);
-      const modifiedCount = parseInt(response.headers.get('X-Modified-Count') || '0');
-      const expandedCount = parseInt(response.headers.get('X-Expanded-Count') || '0');
-      const fileSize = parseInt(response.headers.get('X-File-Size') || '0');
-      const compressedSize = response.headers.get('X-Compressed-Size');
-      
-      console.log('[BUILD] Response headers - Modified:', response.headers.get('X-Modified-Count'), 'Expanded:', response.headers.get('X-Expanded-Count'));
-      
-      let buildStatsData: BuildStats | null = null;
-      try { buildStatsData = JSON.parse(decodeURIComponent(response.headers.get('X-Build-Stats') || '{}')); } catch (e) { console.warn('Failed to parse build stats header', e); }
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `arabized_${langFileName}`;
+      a.download = fileName;
       a.click();
+      URL.revokeObjectURL(blobUrl);
+
       const expandedMsg = expandedCount > 0 ? ` (${expandedCount} تم توسيعها 📐)` : '';
       setBuildProgress(`✅ تم بنجاح! تم تعديل ${modifiedCount} نص${expandedMsg}`);
       setBuildStats({
         modifiedCount,
         expandedCount,
         fileSize,
-        compressedSize: compressedSize ? parseInt(compressedSize) : undefined,
-        avgBytePercent: buildStatsData?.avgBytePercent || 0,
-        maxBytePercent: buildStatsData?.maxBytePercent || 0,
-        longest: buildStatsData?.longest || null,
-        shortest: buildStatsData?.shortest || null,
-        categories: buildStatsData?.categories || {},
+        compressedSize: compressedSize ?? undefined,
+        avgBytePercent: localStats.avgBytePercent,
+        maxBytePercent: localStats.maxBytePercent,
+        longest: localStats.longest,
+        shortest: localStats.shortest,
+        categories: localStats.categories,
       });
       setTimeout(() => { setBuilding(false); setBuildProgress(""); }, 3000);
     } catch (err) {
-      setBuildProgress(`❌ ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+      if (err instanceof LocalBuildError) {
+        setBuildError({
+          message: err.message,
+          diagnostics: { ...err.diagnostics },
+        });
+        setBuildProgress(`❌ ${err.message}`);
+      } else {
+        const langBufForDiag = await idbGet<ArrayBuffer>("editorLangFile");
+        if (langBufForDiag) {
+          setBuildError({
+            message: `فشل البناء داخل المتصفّح: ${err instanceof Error ? err.message : 'خطأ غير معروف'}`,
+            diagnostics: createLocalBuildDiagnostics(langBufForDiag, langFileName),
+          });
+        }
+        setBuildProgress(`❌ ${err instanceof Error ? err.message : 'خطأ غير معروف'}`);
+      }
       setTimeout(() => { setBuilding(false); setBuildProgress(""); }, 5000);
     }
   };
