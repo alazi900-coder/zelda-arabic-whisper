@@ -1014,7 +1014,7 @@ Deno.serve(async (req) => {
                 const markersAfter = (translationText.match(/[\uFFF9-\uFFFC]/g) || []).length;
                 const puaAfter = (translationText.match(/[\uE000-\uE0FF]/g) || []).length;
                 
-                if (tagCount > 0 && diagSampleLogged < 10) {
+                if (BUILD_DEBUG && tagCount > 0 && diagSampleLogged < 10) {
                   buildDebug(`[DIAG-TAG] After replace: markers(FFF9-FFFC): ${markersAfter}, PUA(E000+): ${puaAfter}, tagIdx used: ${tagIdx}`);
                   if (markersBefore !== tagCount) {
                     buildDebug(`[DIAG-TAG] ⚠️ MISMATCH: translation had ${markersBefore} markers but entry has ${tagCount} tags`);
@@ -1045,7 +1045,7 @@ Deno.serve(async (req) => {
                 if (encoded.length > entries[i].size) expandedCount++;
                 
                 // DIAGNOSTIC: Roundtrip validation for entries with tags
-                if (tagCount > 0 && diagSampleLogged <= 10) {
+                if (BUILD_DEBUG && tagCount > 0 && diagSampleLogged <= 10) {
                   // Check that tag bytes appear correctly in encoded output
                   const encodedHex = [...encoded.slice(0, Math.min(60, encoded.length))].map(b => b.toString(16).padStart(2, '0')).join(' ');
                   buildDebug(`[DIAG-TAG] Encoded first 60 bytes: ${encodedHex}`);
