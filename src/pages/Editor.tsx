@@ -39,6 +39,7 @@ import FindReplacePanel from "@/components/editor/FindReplacePanel";
 import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
+import BuildDiagnosticsPanel from "@/components/editor/BuildDiagnosticsPanel";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import FixTagsLineBreaksDialog from "@/components/editor/FixTagsLineBreaksDialog";
 import TagIssuesReportDialog from "@/components/editor/TagIssuesReportDialog";
