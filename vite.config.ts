@@ -25,7 +25,9 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/~oauth/],
         // Exclude HTML from precache so the shell is always fetched fresh from network
-        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2,wasm}"],
+        // The zstd wasm bundle is ~250 KB; bump the default 2 MiB limit so it's precached.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: null,
         runtimeCaching: [
           {
