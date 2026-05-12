@@ -161,6 +161,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
   const handleBuild = async () => {
     if (!state) return;
     setShowBuildConfirm(false);
+    setBuildError(null);
     const langBuf = await idbGet<ArrayBuffer>("editorLangFile");
     const dictBuf = await idbGet<ArrayBuffer>("editorDictFile");
     const langFileName = (await idbGet<string>("editorLangFileName")) || "output.zs";
