@@ -5,6 +5,7 @@ import { processArabicText, hasArabicChars as hasArabicCharsProcessing, hasArabi
 import { EditorState } from "@/components/editor/types";
 import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations, scanTranslationsForRestore } from "@/lib/tag-restore";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
+import type { BuildDiagnostics } from "@/components/editor/BuildDiagnosticsPanel";
 
 export interface BuildStats {
   modifiedCount: number;
@@ -50,6 +51,28 @@ function expandLamAlefLigatures(text: string): string {
   return out;
 }
 
+function getHeaderHex(buf: ArrayBuffer, n = 8): string {
+  return Array.from(new Uint8Array(buf).slice(0, n)).map(b => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+function getHeaderAscii(buf: ArrayBuffer, n = 8): string {
+  return Array.from(new Uint8Array(buf).slice(0, n)).map(b => (b >= 0x20 && b < 0x7f) ? String.fromCharCode(b) : ".").join("");
+}
+
+function createLocalBuildDiagnostics(langBuf: ArrayBuffer, langFileName: string): BuildDiagnostics {
+  const b = new Uint8Array(langBuf);
+  return {
+    langFileName,
+    langSize: b.byteLength,
+    langHeaderHex: getHeaderHex(langBuf),
+    langHeaderAscii: getHeaderAscii(langBuf),
+    isSarc: b.length >= 4 && b[0] === 0x53 && b[1] === 0x41 && b[2] === 0x52 && b[3] === 0x43,
+    isZstd: b.length >= 4 && b[0] === 0x28 && b[1] === 0xB5 && b[2] === 0x2F && b[3] === 0xFD,
+    dictFiles: [],
+    attempts: [],
+  };
+}
+
 export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation }: UseEditorBuildProps) {
   const [building, setBuilding] = useState(false);
   const [buildProgress, setBuildProgress] = useState("");
@@ -57,7 +80,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
   const [buildStats, setBuildStats] = useState<BuildStats | null>(null);
   const [buildPreview, setBuildPreview] = useState<BuildPreview | null>(null);
   const [showBuildConfirm, setShowBuildConfirm] = useState(false);
-  const [buildError, setBuildError] = useState<{ message: string; diagnostics?: import("@/components/editor/BuildDiagnosticsPanel").BuildDiagnostics } | null>(null);
+  const [buildError, setBuildError] = useState<{ message: string; diagnostics?: BuildDiagnostics } | null>(null);
 
   const handleApplyArabicProcessing = () => {
     if (!state) return;
@@ -231,8 +254,19 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
           const err = await response.json();
           if (err?.diagnostics) {
             setBuildError({ message: err.error || `خطأ ${response.status}`, diagnostics: err.diagnostics });
+          } else if (response.status === 546 || response.status === 500 || response.status === 504) {
+            setBuildError({
+              message: err?.error || `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف.`,
+              diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
+            });
           }
           throw new Error(err?.error || `خطأ ${response.status}`);
+        }
+        if (response.status === 546 || response.status === 500 || response.status === 504) {
+          setBuildError({
+            message: `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف، وليس مشكلة في واجهة التشخيص.`,
+            diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
+          });
         }
         throw new Error(`خطأ ${response.status}`);
       }

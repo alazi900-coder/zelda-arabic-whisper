@@ -16,6 +16,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const BUILD_DEBUG = false;
+const buildDebug = (...args: unknown[]) => {
+  if (BUILD_DEBUG) console.log(...args);
+};
+
 // Check if a char is Arabic (standard range)
 function isArabicCode(code: number): boolean {
   return (code >= 0x0600 && code <= 0x06FF) || (code >= 0xFB50 && code <= 0xFDFF) || (code >= 0xFE70 && code <= 0xFEFF);
@@ -814,7 +819,7 @@ function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFile
     );
   }
   diag.dictFiles = dictFiles.map(f => f.name);
-  console.log(`Found ${dictFiles.length} dictionaries: ${diag.dictFiles.join(', ')}`);
+  buildDebug(`Found ${dictFiles.length} dictionaries: ${diag.dictFiles.join(', ')}`);
 
   const lowerName = langFileName.toLowerCase();
   const ordered: { name: string; data: Uint8Array }[] = [];
@@ -839,8 +844,8 @@ function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFile
       const ok = isSarcMagic(sarcData);
       diag.attempts.push({ dict: cand.name, ok, outHeaderHex, outHeaderAscii, outSize: sarcData.length });
       if (ok) {
-        console.log(`Using dictionary: ${cand.name} (${cand.data.length} bytes)`);
-        console.log(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
+        buildDebug(`Using dictionary: ${cand.name} (${cand.data.length} bytes)`);
+        buildDebug(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
         return { sarcData, rawDict: cand.data };
       }
     } catch (e) {
@@ -880,7 +885,7 @@ Deno.serve(async (req) => {
     const { sarcData, rawDict } = decompressLangFile(langData, dictData, langFile.name || '');
 
     const files = parseSARC(sarcData);
-    console.log(`Extracted ${files.length} files from SARC`);
+    buildDebug(`Extracted ${files.length} files from SARC`);
 
     // ===== EXTRACT MODE =====
     if (mode === 'extract') {
@@ -907,7 +912,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`Extract mode: found ${allEntries.length} entries across ${files.filter(f => f.name.endsWith('.msbt')).length} MSBT files`);
+      buildDebug(`Extract mode: found ${allEntries.length} entries across ${files.filter(f => f.name.endsWith('.msbt')).length} MSBT files`);
 
       return new Response(JSON.stringify({
         entries: allEntries,
@@ -928,9 +933,9 @@ Deno.serve(async (req) => {
     const protectedEntries = new Set(protectedRaw ? JSON.parse(protectedRaw) : []);
     const hasCustomTranslations = Object.keys(translations).length > 0;
 
-    console.log(`[BUILD] Received ${Object.keys(translations).length} translations, ${protectedEntries.size} protected`);
-    console.log(`[BUILD] Sample translation keys: ${Object.keys(translations).slice(0, 5).join(', ')}`);
-    console.log(`[BUILD] Total MSBT files in SARC: ${files.filter(f => f.name.endsWith('.msbt')).length}`);
+    buildDebug(`[BUILD] Received ${Object.keys(translations).length} translations, ${protectedEntries.size} protected`);
+    buildDebug(`[BUILD] Sample translation keys: ${Object.keys(translations).slice(0, 5).join(', ')}`);
+    buildDebug(`[BUILD] Total MSBT files in SARC: ${files.filter(f => f.name.endsWith('.msbt')).length}`);
 
     // ===== DIAGNOSTIC: Validate tag roundtrip =====
     let diagTagEntries = 0;
@@ -954,7 +959,7 @@ Deno.serve(async (req) => {
           const { entries, raw } = parseMSBT(file.data);
           const entriesToModify = new Set<number>();
 
-          console.log(`[BUILD] MSBT file: ${file.name}, entries: ${entries.length}`);
+          buildDebug(`[BUILD] MSBT file: ${file.name}, entries: ${entries.length}`);
 
           if (hasCustomTranslations) {
             // Count matching keys for this file
@@ -963,7 +968,7 @@ Deno.serve(async (req) => {
               const key = `${file.name}:${i}`;
               if (translations[key] !== undefined && translations[key] !== '') matchCount++;
             }
-            console.log(`[BUILD] File ${file.name}: ${matchCount} matching translations`);
+            buildDebug(`[BUILD] File ${file.name}: ${matchCount} matching translations`);
 
             // BUILD mode with custom translations
             for (let i = 0; i < entries.length; i++) {
@@ -980,14 +985,14 @@ Deno.serve(async (req) => {
                 if (tagCount > 0 || markersBefore > 0 || puaBefore > 0) {
                   diagTagEntries++;
                   if (diagSampleLogged < 10) {
-                    console.log(`[DIAG-TAG] Key: ${key}, tags: ${tagCount}, markers(FFF9-FFFC): ${markersBefore}, PUA(E000+): ${puaBefore}`);
+                    buildDebug(`[DIAG-TAG] Key: ${key}, tags: ${tagCount}, markers(FFF9-FFFC): ${markersBefore}, PUA(E000+): ${puaBefore}`);
                     if (tagCount > 0) {
                       const tagHex = entries[i].tags.map(t => `E${(t.markerCode-0xE000).toString(16).padStart(3,'0')}=[${[...t.bytes].map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`).join(', ');
-                      console.log(`[DIAG-TAG] Tag bytes: ${tagHex}`);
+                      buildDebug(`[DIAG-TAG] Tag bytes: ${tagHex}`);
                     }
                     // Show first 80 chars of translation as hex codes
                     const transHex = [...translationText.substring(0, 40)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join(' ');
-                    console.log(`[DIAG-TAG] Trans hex: ${transHex}`);
+                    buildDebug(`[DIAG-TAG] Trans hex: ${transHex}`);
                   }
                 }
                 
@@ -1009,10 +1014,10 @@ Deno.serve(async (req) => {
                 const markersAfter = (translationText.match(/[\uFFF9-\uFFFC]/g) || []).length;
                 const puaAfter = (translationText.match(/[\uE000-\uE0FF]/g) || []).length;
                 
-                if (tagCount > 0 && diagSampleLogged < 10) {
-                  console.log(`[DIAG-TAG] After replace: markers(FFF9-FFFC): ${markersAfter}, PUA(E000+): ${puaAfter}, tagIdx used: ${tagIdx}`);
+                if (BUILD_DEBUG && tagCount > 0 && diagSampleLogged < 10) {
+                  buildDebug(`[DIAG-TAG] After replace: markers(FFF9-FFFC): ${markersAfter}, PUA(E000+): ${puaAfter}, tagIdx used: ${tagIdx}`);
                   if (markersBefore !== tagCount) {
-                    console.log(`[DIAG-TAG] ⚠️ MISMATCH: translation had ${markersBefore} markers but entry has ${tagCount} tags`);
+                    buildDebug(`[DIAG-TAG] ⚠️ MISMATCH: translation had ${markersBefore} markers but entry has ${tagCount} tags`);
                     diagTagMismatch++;
                   } else {
                     diagTagOk++;
@@ -1040,10 +1045,10 @@ Deno.serve(async (req) => {
                 if (encoded.length > entries[i].size) expandedCount++;
                 
                 // DIAGNOSTIC: Roundtrip validation for entries with tags
-                if (tagCount > 0 && diagSampleLogged <= 10) {
+                if (BUILD_DEBUG && tagCount > 0 && diagSampleLogged <= 10) {
                   // Check that tag bytes appear correctly in encoded output
                   const encodedHex = [...encoded.slice(0, Math.min(60, encoded.length))].map(b => b.toString(16).padStart(2, '0')).join(' ');
-                  console.log(`[DIAG-TAG] Encoded first 60 bytes: ${encodedHex}`);
+                  buildDebug(`[DIAG-TAG] Encoded first 60 bytes: ${encodedHex}`);
                   // Verify each tag's bytes appear in the encoded output
                   for (const tag of entries[i].tags) {
                     const tagSig = tag.bytes.slice(0, 4); // first 4 bytes: 0E 00 GG 00
@@ -1056,7 +1061,7 @@ Deno.serve(async (req) => {
                       }
                     }
                     if (!found) {
-                      console.log(`[DIAG-TAG] ❌ Tag E${(tag.markerCode-0xE000).toString(16)} NOT found in encoded output!`);
+                      buildDebug(`[DIAG-TAG] ❌ Tag E${(tag.markerCode-0xE000).toString(16)} NOT found in encoded output!`);
                     }
                   }
                 }
@@ -1105,9 +1110,9 @@ Deno.serve(async (req) => {
       if (translations[key] !== '') totalMatchedTranslations++;
     }
 
-    console.log(`Modified ${modifiedCount} entries (${expandedCount} expanded), skipped already-arabized: ${skippedAlreadyArabized}`);
-    console.log(`[BUILD-SUMMARY] Translations received: ${Object.keys(translations).length}, matched to MSBT: ${totalMatchedTranslations}, modified: ${modifiedCount}`);
-    console.log(`[DIAG-SUMMARY] Tagged entries: ${diagTagEntries}, OK: ${diagTagOk}, MISMATCH: ${diagTagMismatch}`);
+    buildDebug(`Modified ${modifiedCount} entries (${expandedCount} expanded), skipped already-arabized: ${skippedAlreadyArabized}`);
+    buildDebug(`[BUILD-SUMMARY] Translations received: ${Object.keys(translations).length}, matched to MSBT: ${totalMatchedTranslations}, modified: ${modifiedCount}`);
+    buildDebug(`[DIAG-SUMMARY] Tagged entries: ${diagTagEntries}, OK: ${diagTagOk}, MISMATCH: ${diagTagMismatch}`);
 
     // Build stats JSON
     const avgRatio = modifiedCount > 0 ? Math.round((totalByteRatio / modifiedCount) * 100) : 0;
@@ -1125,16 +1130,16 @@ Deno.serve(async (req) => {
     let outputData: Uint8Array = repackedData;
     let isCompressed = false;
     try {
-      console.log(`Re-compressing SARC (${repackedData.length} bytes)...`);
+      buildDebug(`Re-compressing SARC (${repackedData.length} bytes)...`);
       if (rawDict) {
         const cctx = createCCtx();
         outputData = compressUsingDict(cctx, repackedData, rawDict, 3);
         isCompressed = true;
-        console.log(`Compressed with dict: ${repackedData.length} -> ${outputData.length} bytes`);
+        buildDebug(`Compressed with dict: ${repackedData.length} -> ${outputData.length} bytes`);
       } else {
         outputData = compress(repackedData);
         isCompressed = true;
-        console.log(`Compressed: ${repackedData.length} -> ${outputData.length} bytes`);
+        buildDebug(`Compressed: ${repackedData.length} -> ${outputData.length} bytes`);
       }
     } catch (e) {
       console.error(`Re-compression failed: ${e instanceof Error ? e.message : 'Unknown'}`);
