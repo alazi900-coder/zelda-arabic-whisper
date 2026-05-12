@@ -16,6 +16,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const BUILD_DEBUG = false;
+const buildDebug = (...args: unknown[]) => {
+  if (BUILD_DEBUG) console.log(...args);
+};
+
 // Check if a char is Arabic (standard range)
 function isArabicCode(code: number): boolean {
   return (code >= 0x0600 && code <= 0x06FF) || (code >= 0xFB50 && code <= 0xFDFF) || (code >= 0xFE70 && code <= 0xFEFF);
@@ -839,8 +844,8 @@ function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFile
       const ok = isSarcMagic(sarcData);
       diag.attempts.push({ dict: cand.name, ok, outHeaderHex, outHeaderAscii, outSize: sarcData.length });
       if (ok) {
-        console.log(`Using dictionary: ${cand.name} (${cand.data.length} bytes)`);
-        console.log(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
+        buildDebug(`Using dictionary: ${cand.name} (${cand.data.length} bytes)`);
+        buildDebug(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
         return { sarcData, rawDict: cand.data };
       }
     } catch (e) {
