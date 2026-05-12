@@ -218,7 +218,7 @@ export function useEditorState() {
   const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount, exportQualityReport } = quality;
 
   const build = useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation });
-  const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, handleApplyArabicProcessing, handleUndoArabicProcessing, handlePreBuild, handleBuild } = build;
+  const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, buildError, setBuildError, handleApplyArabicProcessing, handleUndoArabicProcessing, handlePreBuild, handleBuild } = build;
 
   const showTimedMessage = useCallback((setter: (msg: string) => void, msg: string, duration = 3000) => {
     setter(msg);
