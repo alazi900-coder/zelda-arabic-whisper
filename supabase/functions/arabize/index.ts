@@ -819,7 +819,7 @@ function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFile
     );
   }
   diag.dictFiles = dictFiles.map(f => f.name);
-  console.log(`Found ${dictFiles.length} dictionaries: ${diag.dictFiles.join(', ')}`);
+  buildDebug(`Found ${dictFiles.length} dictionaries: ${diag.dictFiles.join(', ')}`);
 
   const lowerName = langFileName.toLowerCase();
   const ordered: { name: string; data: Uint8Array }[] = [];
@@ -912,7 +912,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`Extract mode: found ${allEntries.length} entries across ${files.filter(f => f.name.endsWith('.msbt')).length} MSBT files`);
+      buildDebug(`Extract mode: found ${allEntries.length} entries across ${files.filter(f => f.name.endsWith('.msbt')).length} MSBT files`);
 
       return new Response(JSON.stringify({
         entries: allEntries,
