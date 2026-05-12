@@ -885,7 +885,7 @@ Deno.serve(async (req) => {
     const { sarcData, rawDict } = decompressLangFile(langData, dictData, langFile.name || '');
 
     const files = parseSARC(sarcData);
-    console.log(`Extracted ${files.length} files from SARC`);
+    buildDebug(`Extracted ${files.length} files from SARC`);
 
     // ===== EXTRACT MODE =====
     if (mode === 'extract') {
@@ -933,9 +933,9 @@ Deno.serve(async (req) => {
     const protectedEntries = new Set(protectedRaw ? JSON.parse(protectedRaw) : []);
     const hasCustomTranslations = Object.keys(translations).length > 0;
 
-    console.log(`[BUILD] Received ${Object.keys(translations).length} translations, ${protectedEntries.size} protected`);
-    console.log(`[BUILD] Sample translation keys: ${Object.keys(translations).slice(0, 5).join(', ')}`);
-    console.log(`[BUILD] Total MSBT files in SARC: ${files.filter(f => f.name.endsWith('.msbt')).length}`);
+    buildDebug(`[BUILD] Received ${Object.keys(translations).length} translations, ${protectedEntries.size} protected`);
+    buildDebug(`[BUILD] Sample translation keys: ${Object.keys(translations).slice(0, 5).join(', ')}`);
+    buildDebug(`[BUILD] Total MSBT files in SARC: ${files.filter(f => f.name.endsWith('.msbt')).length}`);
 
     // ===== DIAGNOSTIC: Validate tag roundtrip =====
     let diagTagEntries = 0;
@@ -959,7 +959,7 @@ Deno.serve(async (req) => {
           const { entries, raw } = parseMSBT(file.data);
           const entriesToModify = new Set<number>();
 
-          console.log(`[BUILD] MSBT file: ${file.name}, entries: ${entries.length}`);
+          buildDebug(`[BUILD] MSBT file: ${file.name}, entries: ${entries.length}`);
 
           if (hasCustomTranslations) {
             // Count matching keys for this file
@@ -968,7 +968,7 @@ Deno.serve(async (req) => {
               const key = `${file.name}:${i}`;
               if (translations[key] !== undefined && translations[key] !== '') matchCount++;
             }
-            console.log(`[BUILD] File ${file.name}: ${matchCount} matching translations`);
+            buildDebug(`[BUILD] File ${file.name}: ${matchCount} matching translations`);
 
             // BUILD mode with custom translations
             for (let i = 0; i < entries.length; i++) {
