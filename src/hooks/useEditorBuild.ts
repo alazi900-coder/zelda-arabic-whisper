@@ -227,7 +227,13 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       }, 300_000);
       if (!response.ok) {
         const ct = response.headers.get('content-type') || '';
-        if (ct.includes('json')) { const err = await response.json(); throw new Error(err.error || `خطأ ${response.status}`); }
+        if (ct.includes('json')) {
+          const err = await response.json();
+          if (err?.diagnostics) {
+            setBuildError({ message: err.error || `خطأ ${response.status}`, diagnostics: err.diagnostics });
+          }
+          throw new Error(err?.error || `خطأ ${response.status}`);
+        }
         throw new Error(`خطأ ${response.status}`);
       }
       setBuildProgress("تحميل الملف...");
