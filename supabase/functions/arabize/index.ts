@@ -744,12 +744,18 @@ function rebuildSARC(files: SarcFile[], originalData: Uint8Array): Uint8Array {
   return result;
 }
 
+function isSarcMagic(buf: Uint8Array): boolean {
+  return buf.length >= 4 && buf[0] === 0x53 && buf[1] === 0x41 && buf[2] === 0x52 && buf[3] === 0x43;
+}
+
 function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFileName: string): { sarcData: Uint8Array; rawDict: Uint8Array | null } {
-  const isSARC = String.fromCharCode(...langData.slice(0, 4)) === 'SARC';
-  if (isSARC) return { sarcData: langData, rawDict: null };
+  if (isSarcMagic(langData)) return { sarcData: langData, rawDict: null };
 
   const isZstd = langData[0] === 0x28 && langData[1] === 0xB5 && langData[2] === 0x2F && langData[3] === 0xFD;
-  if (!isZstd) throw new Error('الملف غير معروف: لا يبدو أنه SARC مضغوط أو SARC غير مضغوط');
+  if (!isZstd) {
+    const head = Array.from(langData.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    throw new Error(`الملف غير معروف (الترويسة: ${head}). لا يبدو أنه SARC مضغوط أو SARC غير مضغوط — تأكّد أنّك ترفع ملف اللغة الأصلي (.pack.zs) وليس ملفاً مُخرجاً مسبقاً.`);
+  }
 
   let dictSarcData: Uint8Array;
   try { dictSarcData = decompress(dictData); } catch { dictSarcData = dictData; }
@@ -757,31 +763,43 @@ function decompressLangFile(langData: Uint8Array, dictData: Uint8Array, langFile
   const dictFiles = parseSARC(dictSarcData);
   console.log(`Found ${dictFiles.length} dictionaries: ${dictFiles.map(f => f.name).join(', ')}`);
 
-  let rawDict: Uint8Array | null = null;
-  let selectedDictName = '';
+  // Build an ordered list of candidate dictionaries by best-guess from filename,
+  // then fall through to every other dict so a wrong/empty filename does not
+  // produce the misleading "Not a valid SARC archive" error.
   const lowerName = langFileName.toLowerCase();
+  const ordered: { name: string; data: Uint8Array }[] = [];
+  const push = (f?: { name: string; data: Uint8Array }) => {
+    if (f && !ordered.find(o => o.name === f.name)) ordered.push(f);
+  };
+  if (lowerName.includes('.pack.')) push(dictFiles.find(f => f.name.endsWith('pack.zsdic')));
+  if (lowerName.includes('.bcett.byml.')) push(dictFiles.find(f => f.name.endsWith('bcett.byml.zsdic')));
+  push(dictFiles.find(f => f.name.endsWith('zs.zsdic') && !f.name.includes('pack') && !f.name.includes('bcett')));
+  for (const f of dictFiles) push(f);
 
-  if (lowerName.includes('.pack.')) {
-    const f = dictFiles.find(f => f.name.endsWith('pack.zsdic'));
-    if (f) { rawDict = f.data; selectedDictName = f.name; }
-  }
-  if (!rawDict && lowerName.includes('.bcett.byml.')) {
-    const f = dictFiles.find(f => f.name.endsWith('bcett.byml.zsdic'));
-    if (f) { rawDict = f.data; selectedDictName = f.name; }
-  }
-  if (!rawDict) {
-    const f = dictFiles.find(f => f.name.endsWith('zs.zsdic') && !f.name.includes('pack') && !f.name.includes('bcett'));
-    if (f) { rawDict = f.data; selectedDictName = f.name; }
-  }
-  if (!rawDict && dictFiles.length > 0) { rawDict = dictFiles[0].data; selectedDictName = dictFiles[0].name; }
-  if (!rawDict) throw new Error('لم يتم العثور على قاموس .zsdic في ملف القاموس');
+  if (ordered.length === 0) throw new Error('لم يتم العثور على قاموس .zsdic في ملف القاموس');
 
-  console.log(`Using dictionary: ${selectedDictName} (${rawDict.length} bytes)`);
-  const dctx = createDCtx();
-  const sarcData = decompressUsingDict(dctx, langData, rawDict);
-  console.log(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
+  const attempts: string[] = [];
+  for (const cand of ordered) {
+    try {
+      const dctx = createDCtx();
+      const sarcData = decompressUsingDict(dctx, langData, cand.data);
+      if (isSarcMagic(sarcData)) {
+        console.log(`Using dictionary: ${cand.name} (${cand.data.length} bytes)`);
+        console.log(`Decompressed: ${langData.length} -> ${sarcData.length} bytes`);
+        return { sarcData, rawDict: cand.data };
+      }
+      const head = Array.from(sarcData.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      attempts.push(`${cand.name}: ${head}`);
+    } catch (e) {
+      attempts.push(`${cand.name}: فشل (${e instanceof Error ? e.message : String(e)})`);
+    }
+  }
 
-  return { sarcData, rawDict };
+  throw new Error(
+    `تعذّر فكّ ضغط ملف اللغة "${langFileName}" بأيّ من قواميس .zsdic المتاحة. ` +
+    `ربّما رُفع ملف القاموس الخاطئ، أو أنّ ملف اللغة تالف. ` +
+    `المحاولات: ${attempts.join(' | ')}`
+  );
 }
 
 Deno.serve(async (req) => {
