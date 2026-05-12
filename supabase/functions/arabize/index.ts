@@ -1110,9 +1110,9 @@ Deno.serve(async (req) => {
       if (translations[key] !== '') totalMatchedTranslations++;
     }
 
-    console.log(`Modified ${modifiedCount} entries (${expandedCount} expanded), skipped already-arabized: ${skippedAlreadyArabized}`);
-    console.log(`[BUILD-SUMMARY] Translations received: ${Object.keys(translations).length}, matched to MSBT: ${totalMatchedTranslations}, modified: ${modifiedCount}`);
-    console.log(`[DIAG-SUMMARY] Tagged entries: ${diagTagEntries}, OK: ${diagTagOk}, MISMATCH: ${diagTagMismatch}`);
+    buildDebug(`Modified ${modifiedCount} entries (${expandedCount} expanded), skipped already-arabized: ${skippedAlreadyArabized}`);
+    buildDebug(`[BUILD-SUMMARY] Translations received: ${Object.keys(translations).length}, matched to MSBT: ${totalMatchedTranslations}, modified: ${modifiedCount}`);
+    buildDebug(`[DIAG-SUMMARY] Tagged entries: ${diagTagEntries}, OK: ${diagTagOk}, MISMATCH: ${diagTagMismatch}`);
 
     // Build stats JSON
     const avgRatio = modifiedCount > 0 ? Math.round((totalByteRatio / modifiedCount) * 100) : 0;
@@ -1130,16 +1130,16 @@ Deno.serve(async (req) => {
     let outputData: Uint8Array = repackedData;
     let isCompressed = false;
     try {
-      console.log(`Re-compressing SARC (${repackedData.length} bytes)...`);
+      buildDebug(`Re-compressing SARC (${repackedData.length} bytes)...`);
       if (rawDict) {
         const cctx = createCCtx();
         outputData = compressUsingDict(cctx, repackedData, rawDict, 3);
         isCompressed = true;
-        console.log(`Compressed with dict: ${repackedData.length} -> ${outputData.length} bytes`);
+        buildDebug(`Compressed with dict: ${repackedData.length} -> ${outputData.length} bytes`);
       } else {
         outputData = compress(repackedData);
         isCompressed = true;
-        console.log(`Compressed: ${repackedData.length} -> ${outputData.length} bytes`);
+        buildDebug(`Compressed: ${repackedData.length} -> ${outputData.length} bytes`);
       }
     } catch (e) {
       console.error(`Re-compression failed: ${e instanceof Error ? e.message : 'Unknown'}`);
