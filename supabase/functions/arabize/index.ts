@@ -985,14 +985,14 @@ Deno.serve(async (req) => {
                 if (tagCount > 0 || markersBefore > 0 || puaBefore > 0) {
                   diagTagEntries++;
                   if (diagSampleLogged < 10) {
-                    console.log(`[DIAG-TAG] Key: ${key}, tags: ${tagCount}, markers(FFF9-FFFC): ${markersBefore}, PUA(E000+): ${puaBefore}`);
+                    buildDebug(`[DIAG-TAG] Key: ${key}, tags: ${tagCount}, markers(FFF9-FFFC): ${markersBefore}, PUA(E000+): ${puaBefore}`);
                     if (tagCount > 0) {
                       const tagHex = entries[i].tags.map(t => `E${(t.markerCode-0xE000).toString(16).padStart(3,'0')}=[${[...t.bytes].map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`).join(', ');
-                      console.log(`[DIAG-TAG] Tag bytes: ${tagHex}`);
+                      buildDebug(`[DIAG-TAG] Tag bytes: ${tagHex}`);
                     }
                     // Show first 80 chars of translation as hex codes
                     const transHex = [...translationText.substring(0, 40)].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join(' ');
-                    console.log(`[DIAG-TAG] Trans hex: ${transHex}`);
+                    buildDebug(`[DIAG-TAG] Trans hex: ${transHex}`);
                   }
                 }
                 
@@ -1015,9 +1015,9 @@ Deno.serve(async (req) => {
                 const puaAfter = (translationText.match(/[\uE000-\uE0FF]/g) || []).length;
                 
                 if (tagCount > 0 && diagSampleLogged < 10) {
-                  console.log(`[DIAG-TAG] After replace: markers(FFF9-FFFC): ${markersAfter}, PUA(E000+): ${puaAfter}, tagIdx used: ${tagIdx}`);
+                  buildDebug(`[DIAG-TAG] After replace: markers(FFF9-FFFC): ${markersAfter}, PUA(E000+): ${puaAfter}, tagIdx used: ${tagIdx}`);
                   if (markersBefore !== tagCount) {
-                    console.log(`[DIAG-TAG] ⚠️ MISMATCH: translation had ${markersBefore} markers but entry has ${tagCount} tags`);
+                    buildDebug(`[DIAG-TAG] ⚠️ MISMATCH: translation had ${markersBefore} markers but entry has ${tagCount} tags`);
                     diagTagMismatch++;
                   } else {
                     diagTagOk++;
@@ -1048,7 +1048,7 @@ Deno.serve(async (req) => {
                 if (tagCount > 0 && diagSampleLogged <= 10) {
                   // Check that tag bytes appear correctly in encoded output
                   const encodedHex = [...encoded.slice(0, Math.min(60, encoded.length))].map(b => b.toString(16).padStart(2, '0')).join(' ');
-                  console.log(`[DIAG-TAG] Encoded first 60 bytes: ${encodedHex}`);
+                  buildDebug(`[DIAG-TAG] Encoded first 60 bytes: ${encodedHex}`);
                   // Verify each tag's bytes appear in the encoded output
                   for (const tag of entries[i].tags) {
                     const tagSig = tag.bytes.slice(0, 4); // first 4 bytes: 0E 00 GG 00
@@ -1061,7 +1061,7 @@ Deno.serve(async (req) => {
                       }
                     }
                     if (!found) {
-                      console.log(`[DIAG-TAG] ❌ Tag E${(tag.markerCode-0xE000).toString(16)} NOT found in encoded output!`);
+                      buildDebug(`[DIAG-TAG] ❌ Tag E${(tag.markerCode-0xE000).toString(16)} NOT found in encoded output!`);
                     }
                   }
                 }
