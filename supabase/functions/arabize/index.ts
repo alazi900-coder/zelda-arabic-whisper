@@ -1173,8 +1173,14 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error(`Error: ${error instanceof Error ? error.message : 'Unknown'}`);
+    const payload: Record<string, unknown> = {
+      error: error instanceof Error ? error.message : 'حدث خطأ غير متوقع',
+    };
+    if (error instanceof DecompressError) {
+      payload.diagnostics = error.diagnostics;
+    }
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'حدث خطأ غير متوقع' }),
+      JSON.stringify(payload),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
