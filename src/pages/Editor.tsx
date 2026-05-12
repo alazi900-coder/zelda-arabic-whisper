@@ -768,6 +768,15 @@ const Editor = () => {
               </CardContent>
             </Card>
           )}
+          {editor.buildError?.diagnostics && (
+            <div className="mb-4">
+              <BuildDiagnosticsPanel
+                message={editor.buildError.message}
+                diagnostics={editor.buildError.diagnostics}
+                onClose={() => editor.setBuildError(null)}
+              />
+            </div>
+          )}
           {editor.cloudStatus && <Card className="mb-4 border-primary/30 bg-primary/5"><CardContent className="p-4 text-center font-display">{editor.cloudStatus}</CardContent></Card>}
           {editor.tmStats && (
             <Card className="mb-4 border-secondary/30 bg-secondary/5">
