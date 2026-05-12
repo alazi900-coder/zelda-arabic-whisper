@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { FileArchive, ArrowRight, Loader2, CheckCircle2, Pencil } from "lucide-react";
 import ProcessLogsPanel from "@/components/process/ProcessLogsPanel";
+import { idbGet, idbSet } from "@/lib/idb-storage";
 
 const Process = () => {
   const [langFile, setLangFile] = useState<File | null>(null);
@@ -24,7 +25,6 @@ const Process = () => {
   // Check if there's a previous editing session in IndexedDB
   useEffect(() => {
     (async () => {
-      const { idbGet } = await import("@/lib/idb-storage");
       const existing = await idbGet<{ translations?: Record<string, string> }>("editorState");
       const hasTranslations = existing?.translations && Object.keys(existing.translations).length > 0;
       setHasPreviousSession(!!hasTranslations);
@@ -96,7 +96,6 @@ const Process = () => {
       appendLog(`📜 استُخرج ${data.entries.length} نصاً من ${fileSet.size} ملف MSBT`);
 
       // Store files in IndexedDB to avoid sessionStorage quota
-      const { idbSet, idbGet } = await import("@/lib/idb-storage");
       const langBuf = await langFile.arrayBuffer();
       const dictBuf = await dictFile.arrayBuffer();
       await idbSet("editorLangFile", langBuf);
