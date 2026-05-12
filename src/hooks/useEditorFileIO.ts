@@ -722,7 +722,9 @@ export function useEditorFileIO({ state, setState, setLastSaved, filteredEntries
     handleExportCSV,
     handleImportCSV,
     normalizeArabicPresentationForms,
-    isFilterActive,
+    // `isFilterActive` is intentionally not exposed here. useEditorState
+    // owns the comprehensive definition (which includes the search box);
+    // this hook's narrow `filterLabel !== ""` is for internal use only.
     filterLabel,
     getUntranslatedCount,
     // Import-conflict dialog wiring
