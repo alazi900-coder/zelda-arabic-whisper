@@ -218,7 +218,7 @@ export function useEditorState() {
   const { isTranslationTooShort, isTranslationTooLong, hasStuckChars, isMixedLanguage, needsImprovement, qualityStats, needsImproveCount, categoryProgress, translatedCount, exportQualityReport } = quality;
 
   const build = useEditorBuild({ state, setState, setLastSaved, arabicNumerals, mirrorPunctuation });
-  const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, handleApplyArabicProcessing, handleUndoArabicProcessing, handlePreBuild, handleBuild } = build;
+  const { building, buildProgress, applyingArabic, buildStats, setBuildStats, buildPreview, showBuildConfirm, setShowBuildConfirm, buildError, setBuildError, handleApplyArabicProcessing, handleUndoArabicProcessing, handlePreBuild, handleBuild } = build;
 
   const showTimedMessage = useCallback((setter: (msg: string) => void, msg: string, duration = 3000) => {
     setter(msg);
@@ -1359,7 +1359,7 @@ export function useEditorState() {
     previousTranslations, currentPage,
     showRetranslateConfirm, arabicNumerals, mirrorPunctuation,
     applyingArabic, improvingTranslations, improveResults,
-    fixingMixed, filtersOpen, isPinned, isPageLocked, buildStats, buildPreview, showBuildConfirm, fixPreview,
+    fixingMixed, filtersOpen, isPinned, isPageLocked, buildStats, buildPreview, showBuildConfirm, buildError, setBuildError, fixPreview,
     categoryProgress, qualityStats, needsImproveCount, translatedCount, tagsCount, tagLineIssueKeys, exportQualityReport,
     ...glossary,
     msbtFiles, filteredEntries, displayedEntries, paginatedEntries, totalPages,

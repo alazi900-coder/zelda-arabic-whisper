@@ -57,6 +57,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
   const [buildStats, setBuildStats] = useState<BuildStats | null>(null);
   const [buildPreview, setBuildPreview] = useState<BuildPreview | null>(null);
   const [showBuildConfirm, setShowBuildConfirm] = useState(false);
+  const [buildError, setBuildError] = useState<{ message: string; diagnostics?: import("@/components/editor/BuildDiagnosticsPanel").BuildDiagnostics } | null>(null);
 
   const handleApplyArabicProcessing = () => {
     if (!state) return;
@@ -160,6 +161,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
   const handleBuild = async () => {
     if (!state) return;
     setShowBuildConfirm(false);
+    setBuildError(null);
     const langBuf = await idbGet<ArrayBuffer>("editorLangFile");
     const dictBuf = await idbGet<ArrayBuffer>("editorDictFile");
     const langFileName = (await idbGet<string>("editorLangFileName")) || "output.zs";
@@ -225,7 +227,13 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       }, 300_000);
       if (!response.ok) {
         const ct = response.headers.get('content-type') || '';
-        if (ct.includes('json')) { const err = await response.json(); throw new Error(err.error || `خطأ ${response.status}`); }
+        if (ct.includes('json')) {
+          const err = await response.json();
+          if (err?.diagnostics) {
+            setBuildError({ message: err.error || `خطأ ${response.status}`, diagnostics: err.diagnostics });
+          }
+          throw new Error(err?.error || `خطأ ${response.status}`);
+        }
         throw new Error(`خطأ ${response.status}`);
       }
       setBuildProgress("تحميل الملف...");
@@ -273,6 +281,8 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
     buildPreview,
     showBuildConfirm,
     setShowBuildConfirm,
+    buildError,
+    setBuildError,
     handleApplyArabicProcessing,
     handleUndoArabicProcessing,
     handlePreBuild,

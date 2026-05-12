@@ -39,6 +39,7 @@ import FindReplacePanel from "@/components/editor/FindReplacePanel";
 import DiffView from "@/components/editor/DiffView";
 import BuildStatsDialog from "@/components/editor/BuildStatsDialog";
 import BuildConfirmDialog from "@/components/editor/BuildConfirmDialog";
+import BuildDiagnosticsPanel from "@/components/editor/BuildDiagnosticsPanel";
 import FixPreviewDialog from "@/components/editor/FixPreviewDialog";
 import FixTagsLineBreaksDialog from "@/components/editor/FixTagsLineBreaksDialog";
 import TagIssuesReportDialog from "@/components/editor/TagIssuesReportDialog";
@@ -767,6 +768,15 @@ const Editor = () => {
                 {editor.buildStats && <span className="text-xs text-muted-foreground mr-2"> (اضغط للتفاصيل)</span>}
               </CardContent>
             </Card>
+          )}
+          {editor.buildError?.diagnostics && (
+            <div className="mb-4">
+              <BuildDiagnosticsPanel
+                message={editor.buildError.message}
+                diagnostics={editor.buildError.diagnostics}
+                onClose={() => editor.setBuildError(null)}
+              />
+            </div>
           )}
           {editor.cloudStatus && <Card className="mb-4 border-primary/30 bg-primary/5"><CardContent className="p-4 text-center font-display">{editor.cloudStatus}</CardContent></Card>}
           {editor.tmStats && (
