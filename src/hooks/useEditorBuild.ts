@@ -257,6 +257,12 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
           }
           throw new Error(err?.error || `خطأ ${response.status}`);
         }
+        if (response.status === 546 || response.status === 500 || response.status === 504) {
+          setBuildError({
+            message: `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف، وليس مشكلة في واجهة التشخيص.`,
+            diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
+          });
+        }
         throw new Error(`خطأ ${response.status}`);
       }
       setBuildProgress("تحميل الملف...");
