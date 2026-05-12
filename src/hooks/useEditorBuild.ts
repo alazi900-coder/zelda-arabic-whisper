@@ -57,6 +57,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
   const [buildStats, setBuildStats] = useState<BuildStats | null>(null);
   const [buildPreview, setBuildPreview] = useState<BuildPreview | null>(null);
   const [showBuildConfirm, setShowBuildConfirm] = useState(false);
+  const [buildError, setBuildError] = useState<{ message: string; diagnostics?: import("@/components/editor/BuildDiagnosticsPanel").BuildDiagnostics } | null>(null);
 
   const handleApplyArabicProcessing = () => {
     if (!state) return;
