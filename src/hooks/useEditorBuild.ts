@@ -254,6 +254,11 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
           const err = await response.json();
           if (err?.diagnostics) {
             setBuildError({ message: err.error || `خطأ ${response.status}`, diagnostics: err.diagnostics });
+          } else if (response.status === 546 || response.status === 500 || response.status === 504) {
+            setBuildError({
+              message: err?.error || `توقّف البناء قبل أن يرجع الخادم تشخيصاً كاملاً (خطأ ${response.status}). غالباً السبب أن العملية تجاوزت حدّ CPU أثناء إعادة بناء/ضغط الملف.`,
+              diagnostics: createLocalBuildDiagnostics(langBuf, langFileName),
+            });
           }
           throw new Error(err?.error || `خطأ ${response.status}`);
         }
