@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const voiceName = VOICE_MAP[voice] ?? "Puck";
     const stylePrefix = style ? `${style}: ` : "";
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const resp = await fetch(endpoint, {
       method: "POST",
       headers: {
