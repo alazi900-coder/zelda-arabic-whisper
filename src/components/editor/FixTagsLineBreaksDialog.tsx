@@ -521,7 +521,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
           </div>
         )}
 
-        {totalIssues === 0 ? (
+        {totalIssues === 0 && !splitEntries ? (
           <div className="flex-1 flex items-center justify-center py-12">
             <div className="text-center space-y-2">
               <Sparkles className="h-8 w-8 mx-auto text-emerald-500" />
@@ -533,7 +533,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
           </div>
         ) : (
           <div className="flex-1 min-h-0 flex flex-col gap-2">
-            <div className="grid grid-cols-2 gap-1.5 rounded-md bg-muted p-1 shrink-0">
+            <div className={`grid ${splitEntries ? "grid-cols-3" : "grid-cols-2"} gap-1.5 rounded-md bg-muted p-1 shrink-0 sticky top-0 z-10`}>
               <button
                 type="button"
                 onClick={() => setTab("auto")}
@@ -544,7 +544,8 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                 }`}
               >
                 <FileCheck2 className="h-3.5 w-3.5" />
-                إصلاح آليّ
+                <span className="hidden xs:inline sm:inline">إصلاح آليّ</span>
+                <span className="xs:hidden sm:hidden">آليّ</span>
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
                   {report?.autoFixable ?? 0}
                 </Badge>
@@ -559,11 +560,27 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                 }`}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                للمراجعة
+                <span className="hidden sm:inline">للمراجعة</span>
+                <span className="sm:hidden">مراجعة</span>
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
                   {report?.needsReview ?? 0}
                 </Badge>
               </button>
+              {splitEntries && (
+                <button
+                  type="button"
+                  onClick={() => setTab("split")}
+                  className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 text-xs sm:text-sm font-medium transition-colors ${
+                    tab === "split"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <AlignLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">تقسيم الأسطر</span>
+                  <span className="sm:hidden">تقسيم</span>
+                </button>
+              )}
             </div>
 
             {tab === "auto" ? (
