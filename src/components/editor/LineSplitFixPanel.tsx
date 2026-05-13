@@ -94,6 +94,8 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
   const [googleKey, setGoogleKey] = useState<string>(() => localStorage.getItem("google_translate_api_key") || "");
   const [busy, setBusy] = useState<string | null>(null); // key قيد المعالجة بـ AI، أو "all"
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const editRef = useRef<HTMLTextAreaElement | null>(null);
 
   const runScan = () => {
@@ -102,6 +104,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     setScanned(res.scanned);
     setResolvedKeys(new Set());
     setEditingKey(null);
+    setPage(0);
   };
 
   useEffect(() => { runScan(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
@@ -109,6 +112,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const visibleIssues = useMemo(
     () => issues.filter(i => !resolvedKeys.has(i.key)),
     [issues, resolvedKeys],
+  );
+
+  const totalPages = Math.ceil(visibleIssues.length / PAGE_SIZE);
+  const pageIssues = useMemo(
+    () => visibleIssues.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [visibleIssues, page, PAGE_SIZE],
   );
 
   const apply = (key: string, value: string) => {
@@ -292,7 +301,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] touch-pan-y">
           <div className="space-y-2.5 pb-2">
-            {visibleIssues.map(it => (
+            {pageIssues.map(it => (
               <div key={it.key} className="rounded-lg border border-border bg-card p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -336,13 +345,13 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="rounded border border-rose-500/50 bg-rose-50 dark:bg-rose-950/40 p-2">
                     <div className="text-[10px] font-semibold text-rose-700 dark:text-rose-200 mb-1">قبل (الحالي)</div>
-                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-rose-900 dark:text-rose-100">
                       {renderInvisible(it.current)}
                     </div>
                   </div>
                   <div className="rounded border border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 p-2">
                     <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-200 mb-1">بعد (مقترح محلّي)</div>
-                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-emerald-900 dark:text-emerald-100">
                       {renderInvisible(it.proposed)}
                     </div>
                   </div>
@@ -397,6 +406,21 @@ export const LineSplitFixPanel: React.FC<Props> = ({
               </div>
             ))}
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 py-3 border-t border-border">
+              <Button size="sm" variant="outline" className="h-8 px-3 text-xs"
+                onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+                السابق
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {page + 1} / {totalPages}
+              </span>
+              <Button size="sm" variant="outline" className="h-8 px-3 text-xs"
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
+                التالي
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
