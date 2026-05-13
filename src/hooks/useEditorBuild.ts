@@ -5,7 +5,8 @@ import { EditorState } from "@/components/editor/types";
 import { restoreTagsAndLineBreaks, normalizeLineBreakRepresentations, scanTranslationsForRestore } from "@/lib/tag-restore";
 import { BuildPreview } from "@/components/editor/BuildConfirmDialog";
 import type { BuildDiagnostics } from "@/components/editor/BuildDiagnosticsPanel";
-import { localBuild, LocalBuildError } from "@/lib/local-build";
+import { LocalBuildError } from "@/lib/local-build";
+import { runLocalBuildInWorker } from "@/lib/build-worker-client";
 
 export interface BuildStats {
   modifiedCount: number;
@@ -224,7 +225,7 @@ export function useEditorBuild({ state, setState, setLastSaved, arabicNumerals, 
       console.log('[BUILD] Protected entries:', Array.from(state.protectedEntries || []).length);
       console.log('[BUILD] Sample keys:', Object.keys(nonEmptyTranslations).slice(0, 10));
 
-      const result = await localBuild({
+      const result = await runLocalBuildInWorker({
         langFile: langBuf,
         langFileName,
         dictFile: dictBuf ?? null,
