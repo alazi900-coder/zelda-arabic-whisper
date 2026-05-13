@@ -71,6 +71,7 @@ async function callLovable(entries: ReqEntry[], model: string): Promise<Record<s
   };
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
@@ -98,6 +99,7 @@ async function callGeminiDirect(entries: ReqEntry[], apiKey: string): Promise<Re
   const prompt = buildPrompt(entries) + `\n\nأعد JSON فقط بهذا الشكل: {"results":[{"key":"...","text":"..."}]}`;
   const resp = await fetch(url, {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -127,6 +129,7 @@ async function callGoogleTranslate(entries: ReqEntry[], apiKey: string): Promise
     const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
     const resp = await fetch(url, {
       method: "POST",
+      signal: AbortSignal.timeout(60_000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ q: oLines, source: "en", target: "ar", format: "text" }),
     });
