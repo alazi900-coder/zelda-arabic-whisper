@@ -435,8 +435,11 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
   onUpdateTranslation,
   onRescan,
   onApplySmartReorder,
+  splitEntries,
+  splitTranslations,
+  onJumpToEntry,
 }) => {
-  const [tab, setTab] = useState<"auto" | "review">("auto");
+  const [tab, setTab] = useState<"auto" | "review" | "split">("auto");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [resolvedKeys, setResolvedKeys] = useState<Set<string>>(new Set());
 
