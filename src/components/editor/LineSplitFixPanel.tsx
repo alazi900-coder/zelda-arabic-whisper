@@ -219,18 +219,28 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     } finally { setBusy(null); }
   };
 
-  const applyAllLocal = () => {
+  const applyAllLocal = async () => {
     if (visibleIssues.length === 0) return;
     if (!window.confirm(`تطبيق التقسيم المحلّي على ${visibleIssues.length} عنصر؟ لا يمكن التراجع.`)) return;
-    let n = 0; let skipped = 0;
-    for (const it of visibleIssues) {
-      if (it.proposed && it.proposed !== it.current) { apply(it.key, it.proposed); n++; }
-      else skipped++;
-    }
-    toast({
-      title: `✅ تمّ تطبيق ${n} تقسيم محلّي`,
-      description: skipped > 0 ? `تُرك ${skipped} عنصر بدون تحسين متاح` : undefined,
-    });
+    setBusy("local");
+    const toApply = visibleIssues.filter(it => it.proposed && it.proposed !== it.current);
+    const skipped = visibleIssues.length - toApply.length;
+    const CHUNK = 200;
+    let n = 0;
+    const newResolved = new Set(resolvedKeys);
+    try {
+      for (let i = 0; i < toApply.length; i += CHUNK) {
+        const chunk = toApply.slice(i, i + CHUNK);
+        for (const it of chunk) { onUpdateTranslation(it.key, it.proposed); newResolved.add(it.key); n++; }
+        setResolvedKeys(new Set(newResolved));
+        toast({ title: `⚡ ${n}/${toApply.length}` });
+        await new Promise(r => setTimeout(r, 0));
+      }
+      toast({
+        title: `✅ تمّ تطبيق ${n} تقسيم محلّي`,
+        description: skipped > 0 ? `تُرك ${skipped} عنصر بدون تحسين متاح` : undefined,
+      });
+    } finally { setBusy(null); }
   };
 
   const startEdit = (it: LineSplitIssue) => {
@@ -287,10 +297,11 @@ export const LineSplitFixPanel: React.FC<Props> = ({
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm" onClick={applyAllLocal}
-            disabled={visibleIssues.length === 0}
+            disabled={visibleIssues.length === 0 || busy !== null}
             className="h-10 gap-1 text-xs"
           >
-            <Zap className="h-3 w-3" /> تطبيق المقترح المحلّي للكل ({visibleIssues.length})
+            {busy === "local" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+            {busy === "local" ? "جارٍ التطبيق..." : `تطبيق المقترح المحلّي للكل (${visibleIssues.length})`}
           </Button>
           {isAiEngine && busy !== "all" && (
             <Button
