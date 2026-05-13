@@ -17,11 +17,14 @@ function loadResolved(): Set<string> {
   try {
     const raw = localStorage.getItem(LS_RESOLVED);
     if (raw) return new Set(JSON.parse(raw) as string[]);
+  // eslint-disable-next-line no-empty
   } catch {}
   return new Set();
 }
 function saveResolved(keys: Set<string>) {
-  try { localStorage.setItem(LS_RESOLVED, JSON.stringify([...keys])); } catch {}
+  try { localStorage.setItem(LS_RESOLVED, JSON.stringify([...keys])); }
+  // eslint-disable-next-line no-empty
+  catch {}
 }
 import { toast } from "@/hooks/use-toast";
 import {
@@ -120,7 +123,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     setPage(0);
   };
 
-  useEffect(() => { runScan(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    runScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { saveResolved(resolvedKeys); }, [resolvedKeys]);
 
   const visibleIssues = useMemo(
     () => issues.filter(i => !resolvedKeys.has(i.key)),
@@ -133,16 +141,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     [visibleIssues, page, PAGE_SIZE],
   );
 
-  const apply = (key: string, value: string) => {
-    if (!value || value === translations[key]) return;
+  const apply = (key: string, value: string): boolean => {
+    if (!value || value === translations[key]) return false;
     onUpdateTranslation(key, value);
-    setResolvedKeys(prev => {
-      const n = new Set(prev);
-      n.add(key);
-      saveResolved(n);
-      return n;
-    });
+    setResolvedKeys(prev => { const n = new Set(prev); n.add(key); return n; });
     setEditingKey(null);
+    return true;
   };
 
   const callAi = async (items: LineSplitIssue[]): Promise<Record<string, string>> => {
@@ -187,8 +191,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
 
   const stopAllAi = () => {
     cancelRef.current = true;
-    setBusy(null);
-    toast({ title: "⏹ تم إيقاف التحسين" });
+    toast({ title: "⏹ جارٍ إيقاف التحسين بعد الدفعة الحالية..." });
   };
 
   const improveAllAi = async () => {
@@ -198,31 +201,46 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     setBusy("all");
     try {
       const BATCH = 15;
-      let done = 0;
+      let done = 0; let applied = 0;
       for (let i = 0; i < visibleIssues.length; i += BATCH) {
         if (cancelRef.current) break;
         const slice = visibleIssues.slice(i, i + BATCH);
         const out = await callAi(slice);
         for (const item of slice) {
           const next = out[item.key];
-          if (next) apply(item.key, next);
+          if (next && apply(item.key, next)) applied++;
         }
         done += slice.length;
-        toast({ title: `🌐 ${done}/${visibleIssues.length}` });
+        toast({ title: `🌐 ${done}/${visibleIssues.length} — طُبِّق ${applied}` });
       }
+      if (cancelRef.current) toast({ title: `⏹ توقّف عند ${done}/${visibleIssues.length} — طُبِّق ${applied}` });
     } catch (e) {
       toast({ title: "❌ خطأ AI", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally { setBusy(null); }
   };
 
-  const applyAllLocal = () => {
+  const applyAllLocal = async () => {
     if (visibleIssues.length === 0) return;
     if (!window.confirm(`تطبيق التقسيم المحلّي على ${visibleIssues.length} عنصر؟ لا يمكن التراجع.`)) return;
+    setBusy("local");
+    const toApply = visibleIssues.filter(it => it.proposed && it.proposed !== it.current);
+    const skipped = visibleIssues.length - toApply.length;
+    const CHUNK = 200;
     let n = 0;
-    for (const it of visibleIssues) {
-      if (it.proposed && it.proposed !== it.current) { apply(it.key, it.proposed); n++; }
-    }
-    toast({ title: `✅ تمّ تطبيق ${n} تقسيم محلّي` });
+    const newResolved = new Set(resolvedKeys);
+    try {
+      for (let i = 0; i < toApply.length; i += CHUNK) {
+        const chunk = toApply.slice(i, i + CHUNK);
+        for (const it of chunk) { onUpdateTranslation(it.key, it.proposed); newResolved.add(it.key); n++; }
+        setResolvedKeys(new Set(newResolved));
+        toast({ title: `⚡ ${n}/${toApply.length}` });
+        await new Promise(r => setTimeout(r, 0));
+      }
+      toast({
+        title: `✅ تمّ تطبيق ${n} تقسيم محلّي`,
+        description: skipped > 0 ? `تُرك ${skipped} عنصر بدون تحسين متاح` : undefined,
+      });
+    } finally { setBusy(null); }
   };
 
   const startEdit = (it: LineSplitIssue) => {
@@ -279,10 +297,11 @@ export const LineSplitFixPanel: React.FC<Props> = ({
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm" onClick={applyAllLocal}
-            disabled={visibleIssues.length === 0}
+            disabled={visibleIssues.length === 0 || busy !== null}
             className="h-10 gap-1 text-xs"
           >
-            <Zap className="h-3 w-3" /> تطبيق المقترح المحلّي للكل ({visibleIssues.length})
+            {busy === "local" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+            {busy === "local" ? "جارٍ التطبيق..." : `تطبيق المقترح المحلّي للكل (${visibleIssues.length})`}
           </Button>
           {isAiEngine && busy !== "all" && (
             <Button
@@ -442,7 +461,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                 <div className="flex flex-wrap gap-2 justify-end">
                   <Button
                     size="sm" variant="outline" className="h-9 gap-1 text-xs"
-                    onClick={() => apply(it.key, proposeBetterSplit(it.original, it.current))}
+                    onClick={() => apply(it.key, it.proposed)}
                     disabled={editingKey === it.key}
                   >
                     <Zap className="h-3 w-3" /> تطبيق المحلّي

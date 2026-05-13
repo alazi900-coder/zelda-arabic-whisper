@@ -132,7 +132,7 @@ async function callGoogleTranslate(entries: ReqEntry[], apiKey: string): Promise
     });
     if (!resp.ok) throw new Error(`Google Translate ${resp.status}`);
     const data = await resp.json();
-    const arPerLine: string[] = (data?.data?.translations || []).map((t: any) => t.translatedText);
+    const arPerLine: string[] = (data?.data?.translations || []).map((t: { translatedText: string }) => t.translatedText);
     const weights = arPerLine.map(s => Math.max(1, s.length));
     const totalW = weights.reduce((a, b) => a + b, 0);
     const joined = e.currentAr.replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -164,8 +164,8 @@ function safeguard(orig: string, candidate: string): string {
   if (!candidate) return orig;
   const PUA = /[-￹-￼]/g;
   // 1. نفس النص بدون Tags وبدون مسافات
-  const normO = orig.replace(PUA, "").replace(/\s+/g, "");
-  const normC = candidate.replace(PUA, "").replace(/\s+/g, "");
+  const normO = orig.replace(PUA, "").replace(/\s+/g, " ").trim();
+  const normC = candidate.replace(PUA, "").replace(/\s+/g, " ").trim();
   if (normO !== normC) return orig;
   // 2. نفس الـ Tags بنفس الترتيب
   const tagsO = (orig.match(PUA) ?? []).join("");
