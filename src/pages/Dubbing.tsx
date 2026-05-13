@@ -34,18 +34,39 @@ interface ScriptLine { id: string; charId: string; text: string; url?: string; b
 const MODEL = "gemini-3.1-flash-tts-preview";
 
 const CHARACTERS: Character[] = [
-  { id: "zelda",    nameAr: "زيلدا",       voice: "Kore",           gradient: "from-blue-500 to-purple-600",   emoji: "🔮", promptAr: "أنتِ الأميرة زيلدا، صاحبة الحكمة والقوة. صوتك ملكي دافئ وحازم، تتكلمين بوضوح وإحساس بالمسؤولية." },
-  { id: "rauru",    nameAr: "راورو",        voice: "Orus",           gradient: "from-amber-500 to-yellow-600",  emoji: "👑", promptAr: "أنت راورو، الملك الأول لهايرول. صوتك قديم حكيم هادئ. تتكلم بثقة مطلقة وبساطة عميقة." },
-  { id: "ganon",    nameAr: "غانوندورف",   voice: "Charon",         gradient: "from-red-700 to-orange-800",    emoji: "💀", promptAr: "أنت غانوندورف ملك الظلام. صوتك عميق مهيب مخيف. تتكلم بطمأنينة مريبة وتهديد ضمني لا يُقاوَم." },
-  { id: "impa",     nameAr: "إمبا",        voice: "Sulafat",        gradient: "from-red-400 to-pink-600",      emoji: "⚔️", promptAr: "أنتِ إمبا الحكيمة الحارسة. صوتك قوي رزين حازم. تتكلمين بجدية ووضوح وقوة." },
-  { id: "purah",    nameAr: "بورا",        voice: "Leda",           gradient: "from-teal-400 to-cyan-600",     emoji: "🔬", promptAr: "أنتِ بورا العالِمة المرحة. صوتك حيوي ومتحمس. تتكلمين بسرعة وفضول دائم." },
-  { id: "sidon",    nameAr: "سيدون",       voice: "Fenrir",         gradient: "from-blue-400 to-teal-500",     emoji: "🐟", promptAr: "أنت الأمير سيدون الريتو. صوتك بطولي ودود وقوي. تتكلم بحماس وتشجيع وثقة بالنفس." },
-  { id: "link",     nameAr: "لينك",        voice: "Puck",           gradient: "from-green-500 to-emerald-600", emoji: "🗡️", promptAr: "أنت لينك البطل. صوتك شاب حازم هادئ. تتكلم بإيجاز وتركيز شديد." },
-  { id: "sonia",    nameAr: "سونيا",       voice: "Aoede",          gradient: "from-rose-400 to-pink-500",     emoji: "🌸", promptAr: "أنتِ الملكة سونيا. صوتك دافئ لطيف ملكي. تتكلمين بعناية وحكمة." },
-  { id: "tulin",    nameAr: "تولين",       voice: "Achird",         gradient: "from-sky-400 to-blue-500",      emoji: "🦅", promptAr: "أنت تولين الشاب الريكو. صوتك طفولي حيوي متحمس. تتكلم بطاقة وشجاعة ونقاء." },
-  { id: "narrator", nameAr: "الراوي",      voice: "Iapetus",        gradient: "from-slate-500 to-gray-600",    emoji: "📖", promptAr: "أنت الراوي الملحمي. صوتك رزين واضح مهيب. تحكي القصة بوقار وعمق وغموض." },
-  { id: "npc_m",    nameAr: "مواطن ذكر",  voice: "Algenib",        gradient: "from-orange-400 to-yellow-500", emoji: "👨", promptAr: "أنت مواطن عادي من هايرول. صوتك طبيعي ودافئ وبسيط." },
-  { id: "npc_f",    nameAr: "مواطنة",     voice: "Zubenelgenubi",  gradient: "from-violet-400 to-purple-500", emoji: "👩", promptAr: "أنتِ مواطنة عادية من هايرول. صوتك طبيعي لطيف وودود." },
+  // ── الأبطال الرئيسيون ─────────────────────────────────────
+  { id: "link",        nameAr: "لينك",             voice: "Puck",           gradient: "from-green-500 to-emerald-600",  emoji: "🗡️", promptAr: "أنت لينك بطل هايرول الصامت. صوتك شاب حازم هادئ. تتكلم بإيجاز شديد وتركيز كامل، كلماتك قليلة لكنها تحمل عزماً لا يُكسر." },
+  { id: "zelda",       nameAr: "زيلدا",            voice: "Kore",           gradient: "from-blue-500 to-purple-600",    emoji: "🔮", promptAr: "أنتِ الأميرة زيلدا صاحبة الحكمة وراعية هايرول. صوتك ملكي دافئ وحازم. تتكلمين بوضوح تام وإحساس عميق بالمسؤولية، يظهر في صوتك قوة هادئة لا تتزعزع." },
+
+  // ── الحكماء والأسلاف ──────────────────────────────────────
+  { id: "rauru",       nameAr: "راورو",             voice: "Orus",           gradient: "from-amber-500 to-yellow-600",   emoji: "👑", promptAr: "أنت راورو الملك الأول لهايرول والحكيم الأبدي. صوتك قديم عميق هادئ جداً. تتكلم بثقة مطلقة وبساطة عميقة، كأن كل كلمة تحمل ثقل آلاف السنين." },
+  { id: "sonia",       nameAr: "سونيا",             voice: "Aoede",          gradient: "from-rose-400 to-pink-500",      emoji: "🌸", promptAr: "أنتِ الملكة سونيا زوجة راورو وحاملة قوة الزمن. صوتك دافئ لطيف ملكي. تتكلمين بعناية وحكمة، وفي صوتك دفء أمومي يبعث على الطمأنينة." },
+  { id: "mineru",      nameAr: "مينيرو",            voice: "Vindemiatrix",   gradient: "from-violet-500 to-purple-700",  emoji: "👻", promptAr: "أنتِ مينيرو حكيمة الروح وسليلة المعرفة الأبدية. صوتك قديم جداً هادئ وعميق. تتكلمين ببطء وعناية شديدة، كل كلمة مدروسة كأنها تُنحت في الحجارة، تحملين أسرار آلاف السنين." },
+
+  // ── الأشرار ───────────────────────────────────────────────
+  { id: "ganon",       nameAr: "غانوندورف",        voice: "Charon",         gradient: "from-red-700 to-orange-900",     emoji: "💀", promptAr: "أنت غانوندورف ملك الظلام والشر المطلق. صوتك عميق مهيب مخيف. تتكلم بطمأنينة مريبة وتهديد ضمني لا يُقاوَم، كأن كل كلمة تحمل لعنة أبدية." },
+  { id: "kohga",       nameAr: "كوهغا",            voice: "Elspeth",        gradient: "from-gray-600 to-slate-800",     emoji: "🎭", promptAr: "أنت سيد كوهغا زعيم عصابة ياغا الغادر. صوتك درامي مسرحي مبالغ فيه يمزج بين التهديد والكوميديا السوداء. تتكلم بغطرسة وتفاخر وأنت تظن نفسك أكثر ذكاءً من الجميع." },
+
+  // ── الحكماء الأربعة ───────────────────────────────────────
+  { id: "sidon",       nameAr: "سيدون",            voice: "Fenrir",         gradient: "from-blue-400 to-teal-500",      emoji: "🐟", promptAr: "أنت الأمير سيدون حكيم الماء وأمير الزورا. صوتك بطولي ودود وقوي ومشرق. تتكلم بحماس وتشجيع دائم وثقة بالنفس لا تتزعزع، دائماً تنشر الأمل." },
+  { id: "yunobo",      nameAr: "يونوبو",           voice: "Gacrux",         gradient: "from-orange-500 to-red-600",     emoji: "🔥", promptAr: "أنت يونوبو حكيم النار وبطل الغورون. صوتك كبير حيوي دافئ مع شيء من الطيبة الساذجة. تتكلم بحماس وقوة شاب يريد إثبات نفسه، قلبك طيب كالذهب." },
+  { id: "tulin",       nameAr: "تولين",            voice: "Achird",         gradient: "from-sky-400 to-blue-500",       emoji: "🦅", promptAr: "أنت تولين حكيم الريح وشاب الريكو الشجاع. صوتك طفولي حيوي ومتحمس. تتكلم بطاقة مفرطة وشجاعة بريئة، تثبت دائماً أنك لست صغيراً كما يعتقدون." },
+  { id: "riju",        nameAr: "ريجو",             voice: "Zephyr",         gradient: "from-yellow-400 to-amber-600",   emoji: "⚡", promptAr: "أنتِ ريجو زعيمة الغيرودو وحكيمة الرعد. صوتك قوي حازم مليء بالشجاعة والإصرار. تتكلمين بثقة قائدة شابة تحمل ثقل قومها، لا مجال للضعف في لهجتك." },
+
+  // ── الشخصيات الداعمة الرئيسية ────────────────────────────
+  { id: "impa",        nameAr: "إمبا",             voice: "Sulafat",        gradient: "from-red-400 to-pink-600",       emoji: "⚔️", promptAr: "أنتِ إمبا الحكيمة حارسة الأسرار. صوتك قوي رزين حازم دون تردد. تتكلمين بجدية ووضوح وثقة من رأت الكثير وعاشت الكثير." },
+  { id: "purah",       nameAr: "بورا",             voice: "Leda",           gradient: "from-teal-400 to-cyan-600",      emoji: "🔬", promptAr: "أنتِ بورا العالِمة العبقرية مديرة مركز الأبحاث. صوتك حيوي ومتحمس لا يهدأ. تتكلمين بسرعة وفضول دائم، كل اكتشاف يثير حماسك." },
+  { id: "teba",        nameAr: "تيبا",             voice: "Alnilam",        gradient: "from-indigo-400 to-blue-600",    emoji: "🏹", promptAr: "أنت تيبا المحارب الريكو الأسطوري ووالد تولين. صوتك جاد حازم صارم لا مزاح فيه. تتكلم بإيجاز وكلماتك كالسهام — مباشرة ودقيقة وتصيب الهدف." },
+  { id: "king_dorephan", nameAr: "الملك دوريفان", voice: "Schedar",        gradient: "from-cyan-500 to-blue-700",      emoji: "🧊", promptAr: "أنت الملك دوريفان ملك الزورا العجوز الحكيم ووالد سيدون. صوتك عميق ثقيل من كبر السن مليء بالحكمة والتعب. تتكلم ببطء ووقار ملكي، كل كلمة توزنها بميزان التجربة الطويلة." },
+
+  // ── شخصيات العالم ─────────────────────────────────────────
+  { id: "deku_tree",   nameAr: "شجرة ديكو",        voice: "Rasalgheti",     gradient: "from-green-600 to-emerald-800",  emoji: "🌳", promptAr: "أنت شجرة ديكو العظيمة روح الغابة الأبدية وحارس أسرار العالم. صوتك عميق ثقيل جداً قديم جداً. تتكلم ببطء شديد جداً وحكمة مطلقة، كأنك تخاطب عبر آلاف السنين." },
+  { id: "hestu",       nameAr: "هيستو",            voice: "Sadachbia",      gradient: "from-lime-400 to-green-500",     emoji: "🎵", promptAr: "أنت هيستو كوروك راقص المَرَّاسين الأسطوري. صوتك فرحان مرح طفولي ساذج بشكل لا يصدق. تتكلم بحماس وفرح غير طبيعيين وتعشق موسيقاك عشقاً لا حدود له، شاكابكاكا!" },
+
+  // ── الراوي والعموم ─────────────────────────────────────────
+  { id: "narrator",    nameAr: "الراوي",           voice: "Iapetus",        gradient: "from-slate-500 to-gray-600",     emoji: "📖", promptAr: "أنت الراوي الملحمي لعالم هايرول. صوتك رزين واضح مهيب. تحكي القصة بوقار وعمق وغموض، تفتح كل مشهد كأنك تكشف سراً من أسرار الأبدية." },
+  { id: "npc_m",       nameAr: "مواطن",            voice: "Algenib",        gradient: "from-orange-400 to-yellow-500",  emoji: "👨", promptAr: "أنت مواطن عادي من هايرول. صوتك طبيعي ودافئ وبسيط. تتكلم بعفوية الناس العاديين." },
+  { id: "npc_f",       nameAr: "مواطنة",           voice: "Zubenelgenubi",  gradient: "from-violet-400 to-purple-500",  emoji: "👩", promptAr: "أنتِ مواطنة عادية من هايرول. صوتك طبيعي لطيف وودود. تتكلمين بعفوية وبساطة." },
 ];
 
 const STYLES: StylePreset[] = [
@@ -256,7 +277,7 @@ export default function Dubbing() {
             {/* Character grid */}
             <div>
               <p className="text-[11px] text-amber-600 mb-2 font-medium">الشخصية</p>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
                 {CHARACTERS.map(c => (
                   <motion.button key={c.id} onClick={() => setCharId(c.id)} whileTap={{ scale: 0.93 }}
                     className={`relative rounded-xl p-2 text-center transition-all border ${
