@@ -70,7 +70,7 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
   if (oLines.length > 1 && tLines.length !== oLines.length) {
     causes.push("line-count-mismatch");
     const diff = Math.abs(tLines.length - oLines.length);
-    score += Math.min(40, diff * 18);
+    score += Math.min(50, 22 + diff * 14);
     reasons.push(`عدد الأسطر مختلف عن الأصل (${tLines.length} مقابل ${oLines.length})`);
   }
 
