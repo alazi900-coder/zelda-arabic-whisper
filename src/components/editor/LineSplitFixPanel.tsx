@@ -109,6 +109,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
   const [googleKey, setGoogleKey] = useState<string>(() => localStorage.getItem("google_translate_api_key") || "");
   const [busy, setBusy] = useState<string | null>(null); // key قيد المعالجة بـ AI، أو "all"
+  const [diffFilter, setDiffFilter] = useState<"all" | "easy" | "hard">("all");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
   const editRef = useRef<HTMLTextAreaElement | null>(null);
@@ -130,9 +131,15 @@ export const LineSplitFixPanel: React.FC<Props> = ({
 
   useEffect(() => { saveResolved(resolvedKeys); }, [resolvedKeys]);
 
-  const visibleIssues = useMemo(
+  const allVisible = useMemo(
     () => issues.filter(i => !resolvedKeys.has(i.key)),
     [issues, resolvedKeys],
+  );
+  const easyCount = useMemo(() => allVisible.filter(i => i.difficulty === "easy").length, [allVisible]);
+  const hardCount = useMemo(() => allVisible.filter(i => i.difficulty === "hard").length, [allVisible]);
+  const visibleIssues = useMemo(
+    () => diffFilter === "all" ? allVisible : allVisible.filter(i => i.difficulty === diffFilter),
+    [allVisible, diffFilter],
   );
 
   const totalPages = Math.ceil(visibleIssues.length / PAGE_SIZE);
@@ -338,6 +345,25 @@ export const LineSplitFixPanel: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* تصفية السهلة / الصعبة */}
+      {allVisible.length > 0 && (
+        <div className="flex gap-1.5 shrink-0">
+          {([
+            { v: "all",  label: `الكل (${allVisible.length})` },
+            { v: "easy", label: `✅ سهلة (${easyCount})`,  cls: "data-[active=true]:bg-emerald-500 data-[active=true]:text-white" },
+            { v: "hard", label: `🤖 صعبة (${hardCount})`,  cls: "data-[active=true]:bg-rose-500 data-[active=true]:text-white" },
+          ] as const).map(({ v, label, cls = "" }) => (
+            <button key={v} data-active={diffFilter === v}
+              onClick={() => { setDiffFilter(v); setPage(0); }}
+              className={`px-3 py-1 rounded-full text-[11px] border transition-all ${
+                diffFilter === v ? "border-transparent font-bold" : "border-border text-muted-foreground hover:border-foreground/30"
+              } ${cls}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* إحصاءات */}
       <div className="grid grid-cols-3 gap-2 text-center shrink-0">
         <div className="rounded-md border bg-muted/40 p-2">
@@ -386,6 +412,13 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                       {it.label && (
                         <span className="text-xs text-foreground/80 truncate" title={it.label}>{it.label}</span>
                       )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
+                        it.difficulty === "easy"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
+                      }`}>
+                        {it.difficulty === "easy" ? "✅ محلي كافٍ" : "🤖 يحتاج AI"}
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {it.diagnosis.causes.map(c => (
