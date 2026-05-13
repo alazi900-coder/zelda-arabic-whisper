@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlignLeft, Sparkles, Wand2, Check, X, Pencil, Loader2, RefreshCw, FileText,
+  Sparkles, Wand2, Check, X, Pencil, Loader2, RefreshCw, FileText,
   ArrowLeftCircle, Zap, AlertTriangle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -382,10 +382,10 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                       className="text-sm leading-relaxed bg-background"
                     />
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-8 gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-9 gap-1">
                         <X className="h-3 w-3" /> إلغاء
                       </Button>
-                      <Button size="sm" onClick={() => apply(it.key, editValue)} className="h-8 gap-1">
+                      <Button size="sm" onClick={() => apply(it.key, editValue)} className="h-9 gap-1">
                         <Check className="h-3 w-3" /> حفظ
                       </Button>
                     </div>

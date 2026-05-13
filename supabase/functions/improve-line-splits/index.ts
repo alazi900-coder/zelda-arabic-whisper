@@ -18,8 +18,6 @@ interface ReqBody {
   entries: ReqEntry[];
 }
 
-const PUA_RANGE = /[\uE000-\uE0FF\uFFF9-\uFFFC]/g;
-
 /** يبني توجيه AI صارم لإعادة التقسيم فقط بدون تغيير المحتوى. */
 function buildPrompt(entries: ReqEntry[]): string {
   const items = entries.map((e, i) => {
