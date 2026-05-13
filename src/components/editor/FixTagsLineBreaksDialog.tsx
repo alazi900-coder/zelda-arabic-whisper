@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Wrench, FileText, FileCheck2, AlertTriangle, Sparkles,
-  Pencil, Check, X, CornerDownLeft, RefreshCw,
+  Pencil, Check, X, CornerDownLeft, RefreshCw, AlignLeft,
 } from "lucide-react";
 import type { RestoreReport, RestoreIssue, RestoreIssueReasons } from "@/lib/tag-restore";
+import LineSplitFixPanel from "./LineSplitFixPanel";
+import type { LineSplitEntryRef } from "@/lib/line-split-quality";
 
 interface FixTagsLineBreaksDialogProps {
   open: boolean;
@@ -25,6 +27,10 @@ interface FixTagsLineBreaksDialogProps {
   onRescan?: () => void;
   /** إعادة ترتيب الرموز تلقائياً لكلّ ما هو ممكن (نفس العدد، ترتيب/قيم مختلفة). */
   onApplySmartReorder?: () => void;
+  /** بيانات لازمة لتبويب «تحسين تقسيم الأسطر». */
+  splitEntries?: LineSplitEntryRef[];
+  splitTranslations?: Record<string, string>;
+  onJumpToEntry?: (key: string) => void;
 }
 
 const TAG_REGEX = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
