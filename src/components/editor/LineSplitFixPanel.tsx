@@ -109,11 +109,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
   const [googleKey, setGoogleKey] = useState<string>(() => localStorage.getItem("google_translate_api_key") || "");
   const [busy, setBusy] = useState<string | null>(null); // key قيد المعالجة بـ AI، أو "all"
-  const [diffFilter, setDiffFilter] = useState<"all" | "easy" | "hard">("all");
+  const [diffFilter, setDiffFilter] = useState<"all" | "easy" | "hard" | "resolved">("all");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
   const editRef = useRef<HTMLTextAreaElement | null>(null);
   const cancelRef = useRef(false);
+  const cancelLocalRef = useRef(false);
 
   const runScan = () => {
     const res = scanLineSplitQuality(entries, translations);
@@ -137,10 +138,15 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   );
   const easyCount = useMemo(() => allVisible.filter(i => i.difficulty === "easy").length, [allVisible]);
   const hardCount = useMemo(() => allVisible.filter(i => i.difficulty === "hard").length, [allVisible]);
-  const visibleIssues = useMemo(
-    () => diffFilter === "all" ? allVisible : allVisible.filter(i => i.difficulty === diffFilter),
-    [allVisible, diffFilter],
+  const resolvedIssues = useMemo(
+    () => issues.filter(i => resolvedKeys.has(i.key)),
+    [issues, resolvedKeys],
   );
+  const visibleIssues = useMemo(() => {
+    if (diffFilter === "resolved") return resolvedIssues;
+    if (diffFilter === "all") return allVisible;
+    return allVisible.filter(i => i.difficulty === diffFilter);
+  }, [allVisible, resolvedIssues, diffFilter]);
 
   const totalPages = Math.ceil(visibleIssues.length / PAGE_SIZE);
   const pageIssues = useMemo(
@@ -226,9 +232,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     } finally { setBusy(null); }
   };
 
+  const stopLocal = () => { cancelLocalRef.current = true; };
+
   const applyAllLocal = async () => {
     if (visibleIssues.length === 0) return;
     if (!window.confirm(`تطبيق التقسيم المحلّي على ${visibleIssues.length} عنصر؟ لا يمكن التراجع.`)) return;
+    cancelLocalRef.current = false;
     setBusy("local");
     const toApply = visibleIssues.filter(it => it.proposed && it.proposed !== it.current);
     const skipped = visibleIssues.length - toApply.length;
@@ -237,6 +246,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     const newResolved = new Set(resolvedKeys);
     try {
       for (let i = 0; i < toApply.length; i += CHUNK) {
+        if (cancelLocalRef.current) break;
         const chunk = toApply.slice(i, i + CHUNK);
         for (const it of chunk) { onUpdateTranslation(it.key, it.proposed); newResolved.add(it.key); n++; }
         setResolvedKeys(new Set(newResolved));
@@ -244,8 +254,8 @@ export const LineSplitFixPanel: React.FC<Props> = ({
         await new Promise(r => setTimeout(r, 0));
       }
       toast({
-        title: `✅ تمّ تطبيق ${n} تقسيم محلّي`,
-        description: skipped > 0 ? `تُرك ${skipped} عنصر بدون تحسين متاح` : undefined,
+        title: cancelLocalRef.current ? `⏹ توقّف عند ${n}/${toApply.length}` : `✅ تمّ تطبيق ${n} تقسيم محلّي`,
+        description: !cancelLocalRef.current && skipped > 0 ? `تُرك ${skipped} عنصر بدون تحسين متاح` : undefined,
       });
     } finally { setBusy(null); }
   };
@@ -310,6 +320,11 @@ export const LineSplitFixPanel: React.FC<Props> = ({
             {busy === "local" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
             {busy === "local" ? "جارٍ التطبيق..." : `تطبيق المقترح المحلّي للكل (${visibleIssues.length})`}
           </Button>
+          {busy === "local" && (
+            <Button size="sm" variant="destructive" onClick={stopLocal} className="h-10 gap-1 text-xs">
+              <StopCircle className="h-3 w-3" /> إيقاف
+            </Button>
+          )}
           {isAiEngine && busy !== "all" && (
             <Button
               size="sm" variant="secondary" onClick={improveAllAi}
@@ -345,17 +360,18 @@ export const LineSplitFixPanel: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* تصفية السهلة / الصعبة */}
-      {allVisible.length > 0 && (
-        <div className="flex gap-1.5 shrink-0">
+      {/* تصفية السهلة / الصعبة / المُصلَحة */}
+      {(allVisible.length > 0 || resolvedIssues.length > 0) && (
+        <div className="flex flex-wrap gap-1 shrink-0">
           {([
-            { v: "all",  label: `الكل (${allVisible.length})` },
-            { v: "easy", label: `✅ سهلة (${easyCount})`,  cls: "data-[active=true]:bg-emerald-500 data-[active=true]:text-white" },
-            { v: "hard", label: `🤖 صعبة (${hardCount})`,  cls: "data-[active=true]:bg-rose-500 data-[active=true]:text-white" },
-          ] as const).map(({ v, label, cls = "" }) => (
+            { v: "all",      label: `الكل (${allVisible.length})`,             cls: "" },
+            { v: "easy",     label: `✅ سهلة (${easyCount})`,                   cls: "data-[active=true]:bg-emerald-500 data-[active=true]:text-white" },
+            { v: "hard",     label: `🤖 صعبة (${hardCount})`,                   cls: "data-[active=true]:bg-rose-500 data-[active=true]:text-white" },
+            { v: "resolved", label: `✔ مُصلَحة (${resolvedIssues.length})`,     cls: "data-[active=true]:bg-sky-500 data-[active=true]:text-white" },
+          ] as const).map(({ v, label, cls }) => (
             <button key={v} data-active={diffFilter === v}
               onClick={() => { setDiffFilter(v); setPage(0); }}
-              className={`px-3 py-1 rounded-full text-[11px] border transition-all ${
+              className={`px-2 py-0.5 rounded-full text-[10px] border transition-all ${
                 diffFilter === v ? "border-transparent font-bold" : "border-border text-muted-foreground hover:border-foreground/30"
               } ${cls}`}>
               {label}
@@ -365,18 +381,18 @@ export const LineSplitFixPanel: React.FC<Props> = ({
       )}
 
       {/* إحصاءات */}
-      <div className="grid grid-cols-3 gap-2 text-center shrink-0">
-        <div className="rounded-md border bg-muted/40 p-2">
+      <div className="grid grid-cols-3 gap-1.5 text-center shrink-0">
+        <div className="rounded-md border bg-muted/40 p-1.5">
           <div className="text-[10px] text-muted-foreground">تمّ فحصها</div>
-          <div className="text-lg font-bold tabular-nums">{scanned}</div>
+          <div className="text-base font-bold tabular-nums">{scanned}</div>
         </div>
-        <div className="rounded-md border bg-amber-100 dark:bg-amber-900/40 p-2">
+        <div className="rounded-md border bg-amber-100 dark:bg-amber-900/40 p-1.5">
           <div className="text-[10px] text-amber-800 dark:text-amber-200">تقسيم سيّئ</div>
-          <div className="text-lg font-bold tabular-nums text-amber-800 dark:text-amber-100">{visibleIssues.length}</div>
+          <div className="text-base font-bold tabular-nums text-amber-800 dark:text-amber-100">{allVisible.length}</div>
         </div>
-        <div className="rounded-md border bg-emerald-100 dark:bg-emerald-900/40 p-2">
+        <div className="rounded-md border bg-emerald-100 dark:bg-emerald-900/40 p-1.5">
           <div className="text-[10px] text-emerald-800 dark:text-emerald-200">تمّ إصلاحها</div>
-          <div className="text-lg font-bold tabular-nums text-emerald-800 dark:text-emerald-100">{resolvedKeys.size}</div>
+          <div className="text-base font-bold tabular-nums text-emerald-800 dark:text-emerald-100">{resolvedKeys.size}</div>
         </div>
       </div>
 
@@ -386,7 +402,9 @@ export const LineSplitFixPanel: React.FC<Props> = ({
           <div className="space-y-2">
             <Sparkles className="h-8 w-8 mx-auto text-emerald-500" />
             <div className="text-base font-semibold">
-              {scanned === 0 ? "لا توجد ترجمات للفحص" : "تقسيم الأسطر سليم"}
+              {diffFilter === "resolved"
+                ? "لا توجد عناصر مُصلَحة"
+                : scanned === 0 ? "لا توجد ترجمات للفحص" : "تقسيم الأسطر سليم"}
             </div>
             <div className="text-sm text-muted-foreground">
               {resolvedKeys.size > 0 && `أصلحت ${resolvedKeys.size} ترجمة في هذه الجلسة.`}
@@ -455,67 +473,98 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="rounded border border-rose-500/50 bg-rose-50 dark:bg-rose-950/40 p-2">
-                    <div className="text-[10px] font-semibold text-rose-700 dark:text-rose-200 mb-1">قبل (الحالي)</div>
-                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-rose-900 dark:text-rose-100">
-                      {renderInvisible(it.current)}
+                {diffFilter === "resolved" ? (
+                  <>
+                    <div className="rounded border border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 p-2">
+                      <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-200 mb-1">الترجمة المُطبَّقة</div>
+                      <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-emerald-900 dark:text-emerald-100">
+                        {renderInvisible(translations[it.key] || it.proposed)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded border border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 p-2">
-                    <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-200 mb-1">بعد (مقترح محلّي)</div>
-                    <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-emerald-900 dark:text-emerald-100">
-                      {renderInvisible(it.proposed)}
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <Button
+                        size="sm" variant="outline" className="h-9 gap-1 text-xs"
+                        onClick={() => setResolvedKeys(prev => { const n = new Set(prev); n.delete(it.key); return n; })}
+                      >
+                        <RefreshCw className="h-3 w-3" /> إلغاء إصلاح
+                      </Button>
+                      {isAiEngine && (
+                        <Button
+                          size="sm" className="h-9 gap-1 text-xs"
+                          onClick={() => improveOneAi({ ...it, current: translations[it.key] || it.proposed })}
+                          disabled={busy !== null}
+                        >
+                          {busy === it.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                          تحسين بـ AI
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="rounded border border-rose-500/50 bg-rose-50 dark:bg-rose-950/40 p-2">
+                        <div className="text-[10px] font-semibold text-rose-700 dark:text-rose-200 mb-1">قبل (الحالي)</div>
+                        <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-rose-900 dark:text-rose-100">
+                          {renderInvisible(it.current)}
+                        </div>
+                      </div>
+                      <div className="rounded border border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 p-2">
+                        <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-200 mb-1">بعد (مقترح محلّي)</div>
+                        <div className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-emerald-900 dark:text-emerald-100">
+                          {renderInvisible(it.proposed)}
+                        </div>
+                      </div>
+                    </div>
 
-                {editingKey === it.key && (
-                  <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-2">
-                    <Textarea
-                      ref={editRef}
-                      value={editValue}
-                      onChange={e => setEditValue(e.target.value)}
-                      rows={Math.max(3, Math.min(10, editValue.split("\n").length + 1))}
-                      dir="rtl"
-                      className="text-sm leading-relaxed bg-background"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-9 gap-1">
-                        <X className="h-3 w-3" /> إلغاء
+                    {editingKey === it.key && (
+                      <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-2">
+                        <Textarea
+                          ref={editRef}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          rows={Math.max(3, Math.min(10, editValue.split("\n").length + 1))}
+                          dir="rtl"
+                          className="text-sm leading-relaxed bg-background"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)} className="h-9 gap-1">
+                            <X className="h-3 w-3" /> إلغاء
+                          </Button>
+                          <Button size="sm" onClick={() => apply(it.key, editValue)} className="h-9 gap-1">
+                            <Check className="h-3 w-3" /> حفظ
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <Button
+                        size="sm" variant="outline" className="h-9 gap-1 text-xs"
+                        onClick={() => apply(it.key, it.proposed)}
+                        disabled={editingKey === it.key}
+                      >
+                        <Zap className="h-3 w-3" /> تطبيق المحلّي
                       </Button>
-                      <Button size="sm" onClick={() => apply(it.key, editValue)} className="h-9 gap-1">
-                        <Check className="h-3 w-3" /> حفظ
+                      <Button
+                        size="sm" variant="outline" className="h-9 gap-1 text-xs"
+                        onClick={() => startEdit(it)} disabled={editingKey === it.key}
+                      >
+                        <Pencil className="h-3 w-3" /> تعديل يدويّ
                       </Button>
+                      {isAiEngine && (
+                        <Button
+                          size="sm" className="h-9 gap-1 text-xs"
+                          onClick={() => improveOneAi(it)}
+                          disabled={busy !== null}
+                        >
+                          {busy === it.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                          تحسين بـ AI
+                        </Button>
+                      )}
                     </div>
-                  </div>
+                  </>
                 )}
-
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <Button
-                    size="sm" variant="outline" className="h-9 gap-1 text-xs"
-                    onClick={() => apply(it.key, it.proposed)}
-                    disabled={editingKey === it.key}
-                  >
-                    <Zap className="h-3 w-3" /> تطبيق المحلّي
-                  </Button>
-                  <Button
-                    size="sm" variant="outline" className="h-9 gap-1 text-xs"
-                    onClick={() => startEdit(it)} disabled={editingKey === it.key}
-                  >
-                    <Pencil className="h-3 w-3" /> تعديل يدويّ
-                  </Button>
-                  {isAiEngine && (
-                    <Button
-                      size="sm" className="h-9 gap-1 text-xs"
-                      onClick={() => improveOneAi(it)}
-                      disabled={busy !== null}
-                    >
-                      {busy === it.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
-                      تحسين بـ AI
-                    </Button>
-                  )}
-                </div>
               </div>
             ))}
           </div>
