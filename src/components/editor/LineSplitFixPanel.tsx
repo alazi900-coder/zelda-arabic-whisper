@@ -17,14 +17,14 @@ function loadResolved(): Set<string> {
   try {
     const raw = localStorage.getItem(LS_RESOLVED);
     if (raw) return new Set(JSON.parse(raw) as string[]);
-  // eslint-disable-next-line no-empty
-  } catch {}
+  } catch (e) {
+    console.warn("[LineSplit] localStorage read failed:", e);
+  }
   return new Set();
 }
 function saveResolved(keys: Set<string>) {
   try { localStorage.setItem(LS_RESOLVED, JSON.stringify([...keys])); }
-  // eslint-disable-next-line no-empty
-  catch {}
+  catch (e) { console.warn("[LineSplit] localStorage write failed:", e); }
 }
 import { toast } from "@/hooks/use-toast";
 import {
@@ -195,8 +195,8 @@ export const LineSplitFixPanel: React.FC<Props> = ({
       const out = await callAi([issue]);
       const next = out[issue.key];
       if (!next) throw new Error("لم يُرجع المحرّك أيّ تقسيم.");
-      apply(issue.key, next);
-      toast({ title: "✅ تمّ التحسين بـ AI" });
+      const improved = apply(issue.key, next);
+      toast({ title: improved ? "✅ تمّ التحسين بـ AI" : "⚠️ المحرّك لم يُحسّن التقسيم" });
     } catch (e) {
       toast({ title: "❌ خطأ AI", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally { setBusy(null); }
