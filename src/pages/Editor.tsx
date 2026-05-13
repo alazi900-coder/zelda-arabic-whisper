@@ -1306,6 +1306,11 @@ const Editor = () => {
           onUpdateTranslation={editor.updateTranslation}
           onRescan={editor.handleScanTagsAndLineBreaks}
           onApplySmartReorder={editor.handleApplySmartTagReorder}
+          splitEntries={editor.state?.entries.map(e => ({
+            msbtFile: e.msbtFile, index: e.index, label: e.label, original: e.original,
+          }))}
+          splitTranslations={editor.state?.translations}
+          onJumpToEntry={handleJumpToKey}
         />
 
         <TagIssuesReportDialog

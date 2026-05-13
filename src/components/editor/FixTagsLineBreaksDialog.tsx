@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Wrench, FileText, FileCheck2, AlertTriangle, Sparkles,
-  Pencil, Check, X, CornerDownLeft, RefreshCw,
+  Pencil, Check, X, CornerDownLeft, RefreshCw, AlignLeft,
 } from "lucide-react";
 import type { RestoreReport, RestoreIssue, RestoreIssueReasons } from "@/lib/tag-restore";
+import LineSplitFixPanel from "./LineSplitFixPanel";
+import type { LineSplitEntryRef } from "@/lib/line-split-quality";
 
 interface FixTagsLineBreaksDialogProps {
   open: boolean;
@@ -25,6 +27,10 @@ interface FixTagsLineBreaksDialogProps {
   onRescan?: () => void;
   /** إعادة ترتيب الرموز تلقائياً لكلّ ما هو ممكن (نفس العدد، ترتيب/قيم مختلفة). */
   onApplySmartReorder?: () => void;
+  /** بيانات لازمة لتبويب «تحسين تقسيم الأسطر». */
+  splitEntries?: LineSplitEntryRef[];
+  splitTranslations?: Record<string, string>;
+  onJumpToEntry?: (key: string) => void;
 }
 
 const TAG_REGEX = /[\uFFF9-\uFFFC\uE000-\uE0FF]/g;
@@ -429,8 +435,11 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
   onUpdateTranslation,
   onRescan,
   onApplySmartReorder,
+  splitEntries,
+  splitTranslations,
+  onJumpToEntry,
 }) => {
-  const [tab, setTab] = useState<"auto" | "review">("auto");
+  const [tab, setTab] = useState<"auto" | "review" | "split">("auto");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [resolvedKeys, setResolvedKeys] = useState<Set<string>>(new Set());
 
@@ -512,7 +521,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
           </div>
         )}
 
-        {totalIssues === 0 ? (
+        {totalIssues === 0 && !splitEntries ? (
           <div className="flex-1 flex items-center justify-center py-12">
             <div className="text-center space-y-2">
               <Sparkles className="h-8 w-8 mx-auto text-emerald-500" />
@@ -524,7 +533,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
           </div>
         ) : (
           <div className="flex-1 min-h-0 flex flex-col gap-2">
-            <div className="grid grid-cols-2 gap-1.5 rounded-md bg-muted p-1 shrink-0">
+            <div className={`grid ${splitEntries ? "grid-cols-3" : "grid-cols-2"} gap-1.5 rounded-md bg-muted p-1 shrink-0 sticky top-0 z-10`}>
               <button
                 type="button"
                 onClick={() => setTab("auto")}
@@ -535,7 +544,8 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                 }`}
               >
                 <FileCheck2 className="h-3.5 w-3.5" />
-                إصلاح آليّ
+                <span className="hidden xs:inline sm:inline">إصلاح آليّ</span>
+                <span className="xs:hidden sm:hidden">آليّ</span>
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
                   {report?.autoFixable ?? 0}
                 </Badge>
@@ -550,11 +560,27 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                 }`}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                للمراجعة
+                <span className="hidden sm:inline">للمراجعة</span>
+                <span className="sm:hidden">مراجعة</span>
                 <Badge variant="secondary" className="ml-0.5 h-4 px-1.5 text-[10px]">
                   {report?.needsReview ?? 0}
                 </Badge>
               </button>
+              {splitEntries && (
+                <button
+                  type="button"
+                  onClick={() => setTab("split")}
+                  className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 text-xs sm:text-sm font-medium transition-colors ${
+                    tab === "split"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <AlignLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">تقسيم الأسطر</span>
+                  <span className="sm:hidden">تقسيم</span>
+                </button>
+              )}
             </div>
 
             {tab === "auto" ? (
@@ -593,7 +619,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                   </>
                 )}
               </div>
-            ) : (
+            ) : tab === "review" ? (
               <div className="flex-1 min-h-0 flex flex-col">
                 {!report || report.reviewExamples.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">
@@ -661,6 +687,19 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                   </>
                 )}
               </div>
+            ) : (
+              splitEntries && onUpdateTranslation ? (
+                <LineSplitFixPanel
+                  entries={splitEntries}
+                  translations={splitTranslations || {}}
+                  onUpdateTranslation={onUpdateTranslation}
+                  onJumpToEntry={onJumpToEntry}
+                />
+              ) : (
+                <div className="text-center text-sm text-muted-foreground py-8">
+                  لوحة تحسين تقسيم الأسطر غير متاحة في هذا السياق.
+                </div>
+              )
             )}
           </div>
         )}
