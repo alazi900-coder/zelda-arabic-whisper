@@ -235,7 +235,7 @@ export function proposeBetterSplit(originalEn: string, translation: string): str
       used.add(idx);
     }
   }
-  if (picked.length === 0) return joined;
+  if (picked.length === 0) return translation;
   picked.sort((a, b) => a - b);
 
   // ابن النصّ مع \n بدل المسافة في المواضع المختارة.

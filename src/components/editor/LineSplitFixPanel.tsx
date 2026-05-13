@@ -326,6 +326,16 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                         </Badge>
                       ))}
                     </div>
+                    {it.diagnosis.reasons.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {it.diagnosis.reasons.map((r, i) => (
+                          <li key={i} className="text-[11px] text-muted-foreground flex items-start gap-1">
+                            <span className="mt-0.5 shrink-0">•</span>
+                            <span>{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   {onJumpToEntry && (
                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0"

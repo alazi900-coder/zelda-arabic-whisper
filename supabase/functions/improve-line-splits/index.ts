@@ -164,12 +164,31 @@ async function callGoogleTranslate(entries: ReqEntry[], apiKey: string): Promise
 /** ضمان عدم تغيير الرموز التقنية والكلمات. لو فشل الفحص، أعد الترجمة الأصلية. */
 function safeguard(orig: string, candidate: string): string {
   if (!candidate) return orig;
-  const normO = orig.replace(PUA_RANGE, "").replace(/\s+/g, "");
-  const normC = candidate.replace(PUA_RANGE, "").replace(/\s+/g, "");
-  if (normO !== normC) return orig; // تغيّر النصّ → ارفض
-  const tagsO = orig.match(PUA_RANGE)?.join("") || "";
-  const tagsC = candidate.match(PUA_RANGE)?.join("") || "";
+  const PUA = /[-￹-￼]/g;
+  // 1. نفس النص بدون Tags وبدون مسافات
+  const normO = orig.replace(PUA, "").replace(/\s+/g, "");
+  const normC = candidate.replace(PUA, "").replace(/\s+/g, "");
+  if (normO !== normC) return orig;
+  // 2. نفس الـ Tags بنفس الترتيب
+  const tagsO = (orig.match(PUA) ?? []).join("");
+  const tagsC = (candidate.match(PUA) ?? []).join("");
   if (tagsO !== tagsC) return orig;
+  // 3. كل Tag في نفس موضعها (الحرف السابق والتالي غير المسافة)
+  const tagCtx = (s: string): string => {
+    const out: string[] = [];
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i);
+      if ((code >= 0xe000 && code <= 0xe0ff) || (code >= 0xfff9 && code <= 0xfffc)) {
+        let prev = "";
+        for (let j = i - 1; j >= 0; j--) { if (!/\s/.test(s[j])) { prev = s[j]; break; } }
+        let next = "";
+        for (let j = i + 1; j < s.length; j++) { if (!/\s/.test(s[j])) { next = s[j]; break; } }
+        out.push(`${prev}${s[i]}${next}`);
+      }
+    }
+    return out.join("|");
+  };
+  if (tagCtx(orig) !== tagCtx(candidate)) return orig;
   return candidate;
 }
 
