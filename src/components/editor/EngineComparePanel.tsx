@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Check, Sparkles, Columns, Copy, Pencil, X, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { utf16leByteLength } from "@/lib/byte-utils";
+import { restoreTagsAndLineBreaks } from "@/lib/tag-restore";
 import type { ExtractedEntry } from "./types";
 import { categorizeFile } from "./types";
 
@@ -125,7 +126,12 @@ export default function EngineComparePanel({
         }
 
         const data = await response.json();
-        const translation = data.translations?.[targetKey] || "";
+        const rawTranslation = data.translations?.[targetKey] || "";
+        // تنظيف الأقواس الوهميّة (مثل [Color:Red][Icon:Heart]) وإعادة وسوم
+        // PUA وفواصل الأسطر إلى مواقعها قبل العرض للمستخدم.
+        const translation = rawTranslation
+          ? restoreTagsAndLineBreaks(entry.original, rawTranslation)
+          : "";
 
         setResults(prev => prev.map(r =>
           r.engine === eng.id ? { ...r, translation, loading: false } : r

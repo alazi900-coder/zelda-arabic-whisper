@@ -7,6 +7,7 @@ import {
   buildRestoreUpdates,
   smartReorderTags,
   buildSmartReorderUpdates,
+  stripHallucinatedTagBrackets,
 } from "@/lib/tag-restore";
 
 describe("normalizeLineBreakRepresentations", () => {
@@ -117,6 +118,82 @@ describe("restoreTagsAndLineBreaks (composite)", () => {
     const e001Count = (out.match(/\uE001/g) || []).length;
     expect(e000Count).toBe(1);
     expect(e001Count).toBe(1);
+  });
+});
+
+describe("stripHallucinatedTagBrackets", () => {
+  it("removes [Color:Red] hallucinated by AI next to a PUA marker", () => {
+    // مطابق تماماً لسيناريو الصورة الأولى: AI أضاف [Color:Red][Icon:Heart] قبل PUA.
+    const input = "[Color:Red][Icon:Heart]\uE000\uE001*تنهيدة* أظن أن الانتظار لا طائل منه.";
+    const out = stripHallucinatedTagBrackets(input);
+    expect(out).toBe("\uE000\uE001*تنهيدة* أظن أن الانتظار لا طائل منه.");
+  });
+
+  it("removes multiple consecutive hallucinated brackets", () => {
+    const input = "[Color:Red][Icon:Heart][Sound:bell]النص العربي";
+    expect(stripHallucinatedTagBrackets(input)).toBe("النص العربي");
+  });
+
+  it("removes single-word ASCII tags like [NPC_Name] or [Heart]", () => {
+    expect(stripHallucinatedTagBrackets("[NPC_Name] قال مرحبا")).toBe(" قال مرحبا");
+    expect(stripHallucinatedTagBrackets("احذر من [Heart] هنا")).toBe("احذر من  هنا");
+  });
+
+  it("removes [Wait:1.0] and similar timing tags", () => {
+    expect(stripHallucinatedTagBrackets("نص [Wait:1.0] آخر")).toBe("نص  آخر");
+  });
+
+  it("preserves TAG_N placeholders verbatim", () => {
+    const input = "TAG_0 مرحبا TAG_1 وداعا";
+    expect(stripHallucinatedTagBrackets(input)).toBe(input);
+  });
+
+  it("preserves bracketed Arabic content like [ملاحظة]", () => {
+    const input = "[ملاحظة] هذا نصّ مهمّ";
+    expect(stripHallucinatedTagBrackets(input)).toBe(input);
+  });
+
+  it("preserves mixed Arabic+English bracketed content (Arabic dominant)", () => {
+    const input = "[ملاحظة 1]";
+    expect(stripHallucinatedTagBrackets(input)).toBe(input);
+  });
+
+  it("does not touch PUA markers outside brackets", () => {
+    const input = "\uE000\uE001 نصّ عاديّ \uE002";
+    expect(stripHallucinatedTagBrackets(input)).toBe(input);
+  });
+
+  it("returns empty/undefined safely", () => {
+    expect(stripHallucinatedTagBrackets("")).toBe("");
+  });
+
+  it("doesn't strip brackets containing digits-only (e.g. [0], [12])", () => {
+    // الأرقام البحتة غير مطابقة لنمط الوسم لأنّ النمط يبدأ بحرف.
+    expect(stripHallucinatedTagBrackets("[0] الأول")).toBe("[0] الأول");
+    expect(stripHallucinatedTagBrackets("[42] العنصر")).toBe("[42] العنصر");
+  });
+
+  it("works inside restoreTagsAndLineBreaks pipeline (end-to-end)", () => {
+    // مطابق تماماً للصورة الأولى: الأصل فيه وسوم PUA، AI أعاد ترجمة مع [Color:Red][Icon:Heart]
+    // إضافيّة، يجب أن تختفي الأقواس قبل وضع وسوم PUA في مواقعها النسبيّة.
+    const original = "\uE000\uE001*sigh* I guess waiting for anything is useless.";
+    const aiOutput = "[Color:Red][Icon:Heart]*تنهيدة* أظن أن الانتظار لا طائل منه.";
+    const out = restoreTagsAndLineBreaks(original, aiOutput);
+    expect(out).not.toMatch(/\[Color:Red\]/);
+    expect(out).not.toMatch(/\[Icon:Heart\]/);
+    expect(out).toContain("\uE000");
+    expect(out).toContain("\uE001");
+    expect(out).toContain("*تنهيدة*");
+  });
+
+  it("works for screenshot-2 pattern: PUA at start with mangled brackets", () => {
+    const original = "\uE000You put the baby leviathan fossil...";
+    const aiOutput = "اللقد أعدت تجميع... [Color:Red][Icon:Heart] رائع جدا!";
+    const out = restoreTagsAndLineBreaks(original, aiOutput);
+    expect(out).not.toMatch(/\[Color:Red\]/);
+    expect(out).not.toMatch(/\[Icon:Heart\]/);
+    expect(out).toContain("\uE000");
+    expect(out).toContain("رائع جدا!");
   });
 });
 
