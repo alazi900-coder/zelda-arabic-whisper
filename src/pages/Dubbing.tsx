@@ -58,6 +58,7 @@ const Dubbing = () => {
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
   const [takes, setTakes] = useState<Take[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const charObj = CHARACTERS.find(c => c.id === character)!;
@@ -67,6 +68,11 @@ const Dubbing = () => {
       toast({ title: "أدخل نصاً", variant: "destructive" });
       return;
     }
+    if (!geminiKey.trim()) {
+      toast({ title: "أدخل مفتاح Gemini API أوّلاً", variant: "destructive" });
+      return;
+    }
+    localStorage.setItem("gemini_api_key", geminiKey);
     setLoading(true);
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-dubbing`;
@@ -76,13 +82,14 @@ const Dubbing = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ text, voice: character, style: style === "none" ? "" : style }),
+        body: JSON.stringify({ text, voice: character, style: style === "none" ? "" : style, apiKey: geminiKey }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "خطأ" }));
         throw new Error(err.error || `HTTP ${resp.status}`);
       }
       const blob = await resp.blob();
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
       const audioUrl = URL.createObjectURL(blob);
       setCurrentUrl(audioUrl);
 
@@ -96,7 +103,6 @@ const Dubbing = () => {
       };
       setTakes(prev => [take, ...prev].slice(0, 30));
 
-      // Auto-play
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.volume = volume[0] / 100;
@@ -121,12 +127,16 @@ const Dubbing = () => {
   };
 
   const playTake = (take: Take) => {
-    if (audioRef.current) {
-      audioRef.current.src = take.url;
-      audioRef.current.volume = volume[0] / 100;
-      audioRef.current.play();
-      setPlayingId(take.id);
+    if (!audioRef.current) return;
+    if (playingId === take.id) {
+      audioRef.current.pause();
+      setPlayingId(null);
+      return;
     }
+    audioRef.current.src = take.url;
+    audioRef.current.volume = volume[0] / 100;
+    audioRef.current.play();
+    setPlayingId(take.id);
   };
 
   const removeTake = (id: string) => {
@@ -154,7 +164,7 @@ const Dubbing = () => {
               استوديو الدبلجة العربية
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              توليد أصوات شخصيات Zelda بالعربية — مجاني عبر Lovable AI
+              توليد أصوات شخصيات Zelda بالعربية عبر Gemini TTS
             </p>
           </div>
           <div className="w-20" />
@@ -162,6 +172,23 @@ const Dubbing = () => {
 
         {/* Studio */}
         <Card className="p-5 space-y-4">
+          <div className="space-y-2">
+            <Label>مفتاح Google Gemini API <span className="text-destructive">*</span></Label>
+            <input
+              type="password"
+              value={geminiKey}
+              onChange={e => setGeminiKey(e.target.value)}
+              placeholder="AIza..."
+              className="w-full text-sm bg-background border rounded px-3 py-2"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              احصل على مفتاحك المجاني من{" "}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
+                className="underline text-primary">aistudio.google.com</a>
+              {" "}— يُحفظ محلياً في متصفّحك.
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>الشخصية</Label>
@@ -268,7 +295,7 @@ const Dubbing = () => {
         )}
 
         <p className="text-xs text-center text-muted-foreground">
-          الأصوات مولّدة بـ Gemini TTS. النتائج WAV بجودة 24kHz. يمكن استخدامها في الدبلجة الشخصية.
+          الأصوات مولّدة بـ Google Gemini TTS. النتائج WAV بجودة 24kHz.
         </p>
       </div>
     </div>
