@@ -29,7 +29,7 @@ const CHARACTERS: Character[] = [
 ];
 
 const STYLE_PRESETS = [
-  { id: "", label: "بدون أسلوب محدد" },
+  { id: "none", label: "بدون أسلوب محدد" },
   { id: "قل بصوت هادئ ومتأمّل", label: "هادئ ومتأمل" },
   { id: "قل بحماس وانفعال", label: "حماسي" },
   { id: "قل بصوت غاضب", label: "غاضب" },
@@ -52,7 +52,7 @@ interface Take {
 const Dubbing = () => {
   const [text, setText] = useState("مرحباً يا Link، تحتاج إلى استعادة قوّتك قبل مواجهة Ganon.");
   const [character, setCharacter] = useState("zelda");
-  const [style, setStyle] = useState("");
+  const [style, setStyle] = useState("none");
   const [volume, setVolume] = useState([85]);
   const [loading, setLoading] = useState(false);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
@@ -76,7 +76,7 @@ const Dubbing = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ text, voice: character, style }),
+        body: JSON.stringify({ text, voice: character, style: style === "none" ? "" : style }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "خطأ" }));
