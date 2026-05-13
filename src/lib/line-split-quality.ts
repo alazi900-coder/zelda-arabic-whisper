@@ -13,11 +13,10 @@ const NO_START_TOKENS = new Set([
   "هذا", "هذه", "هؤلاء", "ذلك", "تلك",
 ]);
 
-/** علامات ترقيم تنتهي بها الجمل عادةً (نهاية فكرة منطقية). */
+/** علامات ترقيم تنتهي بها الجمل عادةً. */
 const SENTENCE_END = /[.!?؟،,;:؛…]/;
 
 const stripTags = (s: string): string => (s || "").replace(TAG_REGEX, "");
-
 const splitLines = (s: string): string[] => (s || "").split(/\r?\n/);
 
 const wordCount = (s: string): number => {
@@ -46,14 +45,21 @@ export type LineSplitCause =
   | "drift-from-original-positions";
 
 export interface LineSplitDiagnosis {
-  score: number; // 0..100 — كلّما زادت زادت السوء
+  score: number;
   causes: LineSplitCause[];
   reasons: string[];
   origLineCount: number;
   trLineCount: number;
 }
 
-/** يحلّل تقسيم سطر واحد. */
+export const CAUSE_LABEL_AR: Record<LineSplitCause, string> = {
+  "line-count-mismatch": "عدد الأسطر مختلف",
+  "very-short-line": "أسطر قصيرة جداً",
+  "very-unbalanced": "أطوال غير متوازنة",
+  "broken-phrase": "قطع في منتصف عبارة",
+  "drift-from-original-positions": "مواقع بعيدة عن الأصل",
+};
+
 export function diagnoseLineSplit(originalEn: string, translation: string): LineSplitDiagnosis {
   const oLines = splitLines(originalEn).filter(l => l.trim().length > 0);
   const tLines = splitLines(translation).filter(l => l.trim().length > 0);
@@ -61,7 +67,6 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
   const reasons: string[] = [];
   let score = 0;
 
-  // (1) اختلاف عدد الأسطر — يطبَّق فقط حين يكون الأصل متعدّد الأسطر.
   if (oLines.length > 1 && tLines.length !== oLines.length) {
     causes.push("line-count-mismatch");
     const diff = Math.abs(tLines.length - oLines.length);
@@ -69,7 +74,6 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
     reasons.push(`عدد الأسطر مختلف عن الأصل (${tLines.length} مقابل ${oLines.length})`);
   }
 
-  // (2) أسطر قصيرة جداً مقارنةً بنظيرها في الأصل.
   if (tLines.length > 1) {
     let veryShort = 0;
     for (let i = 0; i < tLines.length; i++) {
@@ -85,10 +89,9 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
     }
   }
 
-  // (3) عدم توازن طول الأسطر مقارنةً بمتوسّط الأصل.
   if (tLines.length > 1 && oLines.length > 0) {
     const oLens = oLines.map(l => stripTags(l).trim().length);
-    const oAvg = oLens.reduce((a, b) => a + b, 0) / oLens.length || 1;
+    const oAvg = (oLens.reduce((a, b) => a + b, 0) / oLens.length) || 1;
     let imbalanced = 0;
     for (const tl of tLines) {
       const tlen = stripTags(tl).trim().length;
@@ -102,8 +105,6 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
     }
   }
 
-  // (4) قطع في منتصف عبارة مترابطة: السطر التالي يبدأ بحرف عطف/جر/ضمير،
-  //     أو السطر السابق لا ينتهي بعلامة ترقيم.
   if (tLines.length > 1) {
     let broken = 0;
     for (let i = 1; i < tLines.length; i++) {
@@ -124,7 +125,6 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
     }
   }
 
-  // (5) انحراف نسبيّ عن مواقع فواصل الأصل (حين يتطابق العدد).
   if (oLines.length > 1 && tLines.length === oLines.length) {
     const oRatios = lineBreakRatios(originalEn);
     const tRatios = lineBreakRatios(translation);
@@ -154,26 +154,162 @@ export function diagnoseLineSplit(originalEn: string, translation: string): Line
 // اقتراح تقسيم محلّي
 // -----------------------------------------------------------------------------
 
-/** هل يصحّ كسر السطر بعد المسافة في الموضع `pos` داخل النصّ؟ */
-function canBreakAt(stripped: string, pos: number): boolean {
-  if (pos <= 0 || pos >= stripped.length) return false;
-  const before = stripped.slice(0, pos).trim();
-  const after = stripped.slice(pos).trim();
-  if (!before || !after) return false;
-  const nextWord = after.split(/\s+/)[0]?.replace(/^[«»"'(]+/, "") || "";
-  if (NO_START_TOKENS.has(nextWord)) return false;
-  return true;
+interface BreakCandidate {
+  index: number;     // موقع الفاصل في النصّ الموحَّد (قبل الحرف)
+  score: number;     // جودة الموضع: أعلى = أفضل
 }
 
-/** يقترح تقسيمًا أفضل بناءً على نسب فواصل الأصل ومنع كسر العبارات. */
+/** يجمع كل المسافات/علامات الترقيم الصالحة كمواضع كسر مرشَّحة. */
+function findBreakCandidates(joined: string): BreakCandidate[] {
+  const out: BreakCandidate[] = [];
+  for (let i = 1; i < joined.length - 1; i++) {
+    const ch = joined[i];
+    const prev = joined[i - 1];
+    const next = joined[i + 1];
+    if (ch !== " ") continue;
+    // لا نكسر إذا كانت الكلمة التالية ضمن «ممنوع البدء بها».
+    const after = joined.slice(i + 1).trimStart();
+    const nextWord = after.split(/\s+/)[0]?.replace(/^[«»"'(]+/, "") || "";
+    if (NO_START_TOKENS.has(nextWord)) continue;
+
+    let score = 1;
+    if (SENTENCE_END.test(prev)) score += 10;            // بعد علامة ترقيم نهائية
+    if (prev === "،" || prev === ",") score += 4;        // بعد فاصلة
+    if (prev === "؛" || prev === ";") score += 6;        // بعد فاصلة منقوطة
+    if (next === "«" || next === '"' || next === "(") score += 2;
+
+    out.push({ index: i, score });
+  }
+  return out;
+}
+
+/** يختار أفضل مرشّح قريب من الموقع المستهدَف (نسبة من الطول). */
+function pickBest(cands: BreakCandidate[], targetIdx: number, used: Set<number>, len: number): number | null {
+  let best: BreakCandidate | null = null;
+  let bestCost = Infinity;
+  const window = Math.max(20, Math.round(len * 0.25));
+  for (const c of cands) {
+    if (used.has(c.index)) continue;
+    const dist = Math.abs(c.index - targetIdx);
+    if (dist > window) continue;
+    // التكلفة = مسافة − علاوة الجودة. أصغر = أفضل.
+    const cost = dist - c.score * 4;
+    if (cost < bestCost) { bestCost = cost; best = c; }
+  }
+  return best ? best.index : null;
+}
+
 export function proposeBetterSplit(originalEn: string, translation: string): string {
   if (!translation?.trim()) return translation;
-  const oLines = splitLines(originalEn);
-  const oContentLines = oLines.filter(l => l.trim().length > 0);
-  if (oContentLines.length <= 1) {
-    // الأصل سطر واحد — لا نُدخل فواصل.
-    return translation.replace(/\s*\n\s*/g, " ").trim();
+  const oLines = splitLines(originalEn).filter(l => l.trim().length > 0);
+
+  // حافظ على الرموز كما هي. ابدأ بنصّ موحَّد بسطر واحد.
+  const joined = translation.replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!joined) return translation;
+
+  if (oLines.length <= 1) {
+    // الأصل سطر واحد → بدون فواصل.
+    return joined;
   }
 
-  // ابدأ من نصّ الترجمة الموحَّد بسطر واحد (مع الحفاظ على الرموز).
-  // لا نُسقط الرموز لأنّها جزء من النصّ — نتعامل معها كحروف ع
+  const targetCount = oLines.length - 1; // عدد الفواصل المطلوبة
+  const oLens = oLines.map(l => stripTags(l).trim().length);
+  const oTotal = oLens.reduce((a, b) => a + b, 0) || 1;
+  // مواقع الفواصل المستهدَفة كنسب تراكمية من طول الأصل.
+  const ratios: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < targetCount; i++) {
+    acc += oLens[i];
+    ratios.push(acc / oTotal);
+  }
+
+  const len = joined.length;
+  const cands = findBreakCandidates(joined);
+  const picked: number[] = [];
+  const used = new Set<number>();
+  for (const r of ratios) {
+    const target = Math.round(r * len);
+    const idx = pickBest(cands, target, used, len);
+    if (idx != null) {
+      picked.push(idx);
+      used.add(idx);
+    }
+  }
+  if (picked.length === 0) return joined;
+  picked.sort((a, b) => a - b);
+
+  // ابن النصّ مع \n بدل المسافة في المواضع المختارة.
+  let out = "";
+  let prev = 0;
+  for (const i of picked) {
+    out += joined.slice(prev, i) + "\n";
+    prev = i + 1; // تجاوز المسافة
+  }
+  out += joined.slice(prev);
+  return out.trim();
+}
+
+// -----------------------------------------------------------------------------
+// مسح دفعيّ
+// -----------------------------------------------------------------------------
+
+export interface LineSplitEntryRef {
+  msbtFile: string;
+  index: number;
+  label?: string;
+  original: string;
+}
+
+export interface LineSplitIssue {
+  key: string;
+  msbtFile: string;
+  index: number;
+  label: string;
+  original: string;
+  current: string;
+  proposed: string;
+  diagnosis: LineSplitDiagnosis;
+}
+
+export interface LineSplitScanResult {
+  scanned: number;
+  flagged: number;
+  issues: LineSplitIssue[];
+}
+
+/** الحدّ الأدنى لاعتبار التقسيم سيّئاً يستحق العرض في القائمة. */
+export const SCORE_THRESHOLD = 25;
+
+export function scanLineSplitQuality(
+  entries: LineSplitEntryRef[],
+  translations: Record<string, string>,
+): LineSplitScanResult {
+  const issues: LineSplitIssue[] = [];
+  let scanned = 0;
+  for (const e of entries) {
+    const key = `${e.msbtFile}:${e.index}`;
+    const tr = translations[key];
+    if (!tr || !tr.trim()) continue;
+    scanned++;
+    const diag = diagnoseLineSplit(e.original, tr);
+    if (diag.score < SCORE_THRESHOLD) continue;
+    const proposed = proposeBetterSplit(e.original, tr);
+    if (proposed === tr) {
+      // لا نملك اقتراحاً مختلفاً → لا نعرضه إلا إذا الدرجة عالية جداً.
+      if (diag.score < 50) continue;
+    }
+    issues.push({
+      key,
+      msbtFile: e.msbtFile,
+      index: e.index,
+      label: e.label || "",
+      original: e.original,
+      current: tr,
+      proposed,
+      diagnosis: diag,
+    });
+  }
+  // الأسوأ أوّلاً
+  issues.sort((a, b) => b.diagnosis.score - a.diagnosis.score);
+  return { scanned, flagged: issues.length, issues };
+}
