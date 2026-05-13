@@ -50,7 +50,7 @@ function readAscii(data: Uint8Array, pos: number, len: number): string {
   return s;
 }
 
-function parseMSBT(data: Uint8Array): { entries: MsbtEntry[]; raw: Uint8Array } {
+export function parseMSBT(data: Uint8Array): { entries: MsbtEntry[]; raw: Uint8Array } {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   if (!readAscii(data, 0, 8).startsWith("MsgStdBn")) {
     throw new Error("Not a valid MSBT file");
@@ -144,7 +144,7 @@ function parseMSBT(data: Uint8Array): { entries: MsbtEntry[]; raw: Uint8Array } 
   return { entries, raw: data };
 }
 
-function encodeEntryToBytes(entry: MsbtEntry): Uint8Array {
+export function encodeEntryToBytes(entry: MsbtEntry): Uint8Array {
   const tagMap = new Map<number, Uint8Array>();
   for (const tag of entry.tags) tagMap.set(tag.markerCode, tag.bytes);
 
@@ -198,7 +198,7 @@ function parseMSBTSections(data: Uint8Array): MsbtSection[] {
   return sections;
 }
 
-function rebuildMSBT(data: Uint8Array, entries: MsbtEntry[], entriesToModify?: Set<number>): Uint8Array {
+export function rebuildMSBT(data: Uint8Array, entries: MsbtEntry[], entriesToModify?: Set<number>): Uint8Array {
   const sections = parseMSBTSections(data);
 
   const txt2Section = sections.find(s => s.magic === "TXT2");
@@ -286,7 +286,7 @@ function rebuildMSBT(data: Uint8Array, entries: MsbtEntry[], entriesToModify?: S
 
 export interface SarcFile { name: string; data: Uint8Array; }
 
-function parseSARC(data: Uint8Array): SarcFile[] {
+export function parseSARC(data: Uint8Array): SarcFile[] {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   if (readAscii(data, 0, 4) !== "SARC") throw new Error("Not a valid SARC archive");
 
@@ -325,7 +325,7 @@ function sarcHash(name: string, multiplier: number): number {
   return hash >>> 0;
 }
 
-function rebuildSARC(files: SarcFile[], originalData: Uint8Array): Uint8Array {
+export function rebuildSARC(files: SarcFile[], originalData: Uint8Array): Uint8Array {
   const origView = new DataView(originalData.buffer, originalData.byteOffset, originalData.byteLength);
   const headerSize = origView.getUint16(4, true);
   const bom = origView.getUint16(6, true);
@@ -457,7 +457,7 @@ export class LocalBuildError extends Error {
   }
 }
 
-function decompressLangFile(
+export function decompressLangFile(
   langData: Uint8Array,
   dictData: Uint8Array | null,
   langFileName: string,
