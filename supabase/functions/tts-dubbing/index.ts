@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { text, voice = "link", style = "" } = await req.json();
+    const { text, voice = "link", style = "", apiKey } = await req.json();
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "النص مطلوب" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -66,18 +66,19 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!KEY) throw new Error("LOVABLE_API_KEY missing");
+    if (!apiKey || typeof apiKey !== "string") {
+      return new Response(JSON.stringify({ error: "مفتاح Gemini API مطلوب" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const voiceName = VOICE_MAP[voice] ?? "Puck";
     const stylePrefix = style ? `${style}: ` : "";
 
-    // Lovable AI Gateway proxies Gemini's generateContent for TTS models
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1beta/models/gemini-2.5-flash-preview-tts:generateContent", {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+    const resp = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
