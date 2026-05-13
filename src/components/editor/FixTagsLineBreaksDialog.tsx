@@ -690,6 +690,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
             ) : (
               splitEntries && onUpdateTranslation ? (
                 <LineSplitFixPanel
+                  key={splitEntries.length}
                   entries={splitEntries}
                   translations={splitTranslations || {}}
                   onUpdateTranslation={onUpdateTranslation}

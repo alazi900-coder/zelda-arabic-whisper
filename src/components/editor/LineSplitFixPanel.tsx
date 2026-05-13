@@ -169,6 +169,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
 
   const improveAllAi = async () => {
     if (visibleIssues.length === 0) return;
+    if (!window.confirm(`تحسين ${visibleIssues.length} عنصر بـ AI؟ قد يستغرق وقتاً.`)) return;
     setBusy("all");
     try {
       // دفعات من 15
@@ -190,6 +191,8 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   };
 
   const applyAllLocal = () => {
+    if (visibleIssues.length === 0) return;
+    if (!window.confirm(`تطبيق التقسيم المحلّي على ${visibleIssues.length} عنصر؟ لا يمكن التراجع.`)) return;
     let n = 0;
     for (const it of visibleIssues) {
       if (it.proposed && it.proposed !== it.current) { apply(it.key, it.proposed); n++; }
@@ -252,7 +255,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
           <Button
             size="sm" onClick={applyAllLocal}
             disabled={visibleIssues.length === 0}
-            className="h-8 gap-1 text-xs"
+            className="h-10 gap-1 text-xs"
           >
             <Zap className="h-3 w-3" /> تطبيق المقترح المحلّي للكل ({visibleIssues.length})
           </Button>
@@ -260,7 +263,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
             <Button
               size="sm" variant="secondary" onClick={improveAllAi}
               disabled={visibleIssues.length === 0 || busy !== null}
-              className="h-8 gap-1 text-xs"
+              className="h-10 gap-1 text-xs"
             >
               {busy === "all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
               تحسين الكل بـ AI
@@ -299,7 +302,8 @@ export const LineSplitFixPanel: React.FC<Props> = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] touch-pan-y">
+        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-0.5 [-webkit-overflow-scrolling:touch] touch-pan-y">
           <div className="space-y-2.5 pb-2">
             {pageIssues.map(it => (
               <div key={it.key} className="rounded-lg border border-border bg-card p-3 space-y-2">
@@ -338,7 +342,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
                     )}
                   </div>
                   {onJumpToEntry && (
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 shrink-0"
+                    <Button size="sm" variant="ghost" className="h-10 w-10 p-0 shrink-0"
                       onClick={() => onJumpToEntry(it.key)} title="انتقال">
                       <ArrowLeftCircle className="h-4 w-4" />
                     </Button>
@@ -390,21 +394,21 @@ export const LineSplitFixPanel: React.FC<Props> = ({
 
                 <div className="flex flex-wrap gap-2 justify-end">
                   <Button
-                    size="sm" variant="outline" className="h-8 gap-1 text-xs"
+                    size="sm" variant="outline" className="h-9 gap-1 text-xs"
                     onClick={() => apply(it.key, proposeBetterSplit(it.original, it.current))}
                     disabled={editingKey === it.key}
                   >
                     <Zap className="h-3 w-3" /> تطبيق المحلّي
                   </Button>
                   <Button
-                    size="sm" variant="outline" className="h-8 gap-1 text-xs"
+                    size="sm" variant="outline" className="h-9 gap-1 text-xs"
                     onClick={() => startEdit(it)} disabled={editingKey === it.key}
                   >
                     <Pencil className="h-3 w-3" /> تعديل يدويّ
                   </Button>
                   {isAiEngine && (
                     <Button
-                      size="sm" className="h-8 gap-1 text-xs"
+                      size="sm" className="h-9 gap-1 text-xs"
                       onClick={() => improveOneAi(it)}
                       disabled={busy !== null}
                     >
@@ -416,21 +420,22 @@ export const LineSplitFixPanel: React.FC<Props> = ({
               </div>
             ))}
           </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 py-3 border-t border-border">
-              <Button size="sm" variant="outline" className="h-8 px-3 text-xs"
-                onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-                السابق
-              </Button>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {page + 1} / {totalPages}
-              </span>
-              <Button size="sm" variant="outline" className="h-8 px-3 text-xs"
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
-                التالي
-              </Button>
-            </div>
-          )}
+        </div>
+        {totalPages > 1 && (
+          <div className="shrink-0 flex items-center justify-center gap-3 py-3 border-t border-border">
+            <Button size="sm" variant="outline" className="h-9 px-4 text-xs"
+              onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+              السابق
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {page + 1} / {totalPages}
+            </span>
+            <Button size="sm" variant="outline" className="h-9 px-4 text-xs"
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}>
+              التالي
+            </Button>
+          </div>
+        )}
         </div>
       )}
     </div>
