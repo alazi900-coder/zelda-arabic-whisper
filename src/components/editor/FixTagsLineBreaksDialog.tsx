@@ -619,7 +619,7 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                   </>
                 )}
               </div>
-            ) : (
+            ) : tab === "review" ? (
               <div className="flex-1 min-h-0 flex flex-col">
                 {!report || report.reviewExamples.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">
@@ -687,6 +687,19 @@ export const FixTagsLineBreaksDialog: React.FC<FixTagsLineBreaksDialogProps> = (
                   </>
                 )}
               </div>
+            ) : (
+              splitEntries && onUpdateTranslation ? (
+                <LineSplitFixPanel
+                  entries={splitEntries}
+                  translations={splitTranslations || {}}
+                  onUpdateTranslation={onUpdateTranslation}
+                  onJumpToEntry={onJumpToEntry}
+                />
+              ) : (
+                <div className="text-center text-sm text-muted-foreground py-8">
+                  لوحة تحسين تقسيم الأسطر غير متاحة في هذا السياق.
+                </div>
+              )
             )}
           </div>
         )}
