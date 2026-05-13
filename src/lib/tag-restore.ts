@@ -224,13 +224,37 @@ export function restoreLineBreaks(original: string, translation: string): string
 }
 
 /**
+ * يحذف الأقواس المربّعة التي يُضيفها الـ AI من تلقاء نفسه لوصف وسوم اللعبة.
+ * مثلاً عند رؤية PUA marker يقوم النموذج أحياناً بإضافة `[Color:Red][Icon:Heart]`
+ * كنصّ مرئيّ بجوار (أو بدلاً من) العلامة الأصليّة — وهذا يُفسِد البناء لأنّه
+ * يبقى كنصّ عاديّ داخل MSBT بدلاً من كونه bytes تقنيّة.
+ *
+ * الاستراتيجية: أيّ شيء داخل أقواس مربّعة محتواه ASCII بنمط وسم لعبة
+ *  (`[Word]` أو `[Word:Value]` أو `[Word.Value]` ...) ولا يحتوي حروفاً عربيّة
+ * يُحذَف. هذا يحافظ على المحتوى العربي بين الأقواس (مثل `[ملاحظة]`)
+ * ولا يلمس وسوم الـ PUA الحقيقيّة لأنّها ليست داخل أقواس.
+ */
+export function stripHallucinatedTagBrackets(text: string): string {
+  if (!text) return text;
+  // \[ ... \] حيث المحتوى ASCII فقط بنمط وسم لعبة وبدون حروف عربية.
+  // نمط مرن: حرف-أو-_ في البداية، ثمّ حروف ASCII/أرقام/`:` / `.` / `_` / `-` / `/` / مسافات.
+  return text.replace(/\[([A-Za-z_][A-Za-z0-9_:./\-\s]*)\]/g, (match, inside: string) => {
+    if (/[\u0600-\u06FF]/.test(inside)) return match;
+    if (/^TAG_\d+$/.test(inside.trim())) return match;
+    return "";
+  });
+}
+
+/**
  * إصلاح موحَّد: يطبّق إعادة فواصل الأسطر ثم إعادة الرموز بهذا الترتيب.
- * - فواصل الأسطر أوّلاً لأنّ الرموز قد تتحرّك بعد التقسيم.
+ * - حذف الأقواس الوهميّة أوّلاً قبل أيّ عدّ للسطور أو مواقع الرموز.
+ * - فواصل الأسطر بعدها لأنّ الرموز قد تتحرّك بعد التقسيم.
  * - يضمن أنّ كلّ ما يخرج من أيّ مترجِم يمرّ عبر هذا قبل الحفظ والبناء.
  */
 export function restoreTagsAndLineBreaks(original: string, translation: string): string {
   if (!translation) return translation;
-  const afterLineBreaks = restoreLineBreaks(original, translation);
+  const stripped = stripHallucinatedTagBrackets(translation);
+  const afterLineBreaks = restoreLineBreaks(original, stripped);
   return restoreTechnicalTags(original, afterLineBreaks);
 }
 

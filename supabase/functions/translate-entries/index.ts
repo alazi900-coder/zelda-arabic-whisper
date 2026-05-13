@@ -5,6 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// --- Hallucinated bracket cleanup ------------------------------------------
+// أحياناً يُضيف الـ AI وصفاً لوسم PUA على شكل [Color:Red] أو [Icon:Heart] أو [NPC_Name]
+// بجوار (أو بدلاً من) العلامة الأصليّة. هذا النصّ يبقى كنصّ عاديّ داخل MSBT
+// بدلاً من أن يصير bytes تقنيّة، فيُفسِد المخرِج. نحذفه قبل restoreTags.
+// نحفظ أيّ أقواس فيها حروف عربيّة (مثل [ملاحظة]) وعلامات TAG_N البديلة التي
+// تعود بعد ذلك إلى بايتات PUA الأصليّة.
+function stripHallucinatedTagBrackets(text: string): string {
+  if (!text) return text;
+  return text.replace(/\[([A-Za-z_][A-Za-z0-9_:./\-\s]*)\]/g, (match, inside: string) => {
+    if (/[\u0600-\u06FF]/.test(inside)) return match;
+    if (/^TAG_\d+$/.test(inside.trim())) return match;
+    return "";
+  });
+}
+
 // --- Tag Protection: replace [content] and control chars with TAG_N placeholders ---
 function protectTags(text: string): { cleaned: string; tags: Map<string, string> } {
   const tags = new Map<string, string>();
@@ -208,6 +223,8 @@ function buildSystemPrompt(category: string): string {
 • حافظ على طول الترجمة قريباً من الأصل (مهم جداً لصناديق النص في اللعبة)
 • لا تضف كلمات زائدة أو شرح غير موجود في الأصل
 • حافظ على العلامات TAG_0, TAG_1 إلخ في أماكنها بالضبط
+• ممنوع منعاً باتّاً وصف أو إضافة أيّ وسوم بصيغة أقواس مربّعة إنجليزيّة مثل [Color:Red] أو [Icon:Heart] أو [NPC_Name] أو [Sound:...] أو [Wait:1.0]
+• الصيغة الوحيدة المسموحة للوسوم هي TAG_0, TAG_1, ... فقط — لا تخترع بدائل ولا تصفها
 • حافظ على رمز العنصر النائب \uFFFC كما هو
 • الأسماء العلم الشهيرة: Link=لينك، Zelda=زيلدا، Ganon=غانون، Hyrule=هايرول، Triforce=تريفورس، Master Sword=سيف الماستر
 • أعد فقط مصفوفة JSON من النصوص المترجمة بنفس الترتيب`;
@@ -551,7 +568,8 @@ ${textsBlock}`;
             translated = await fixEnglishWords(translated, remainingEnglish);
           }
 
-          const restored = restoreTags(translated, entry.tags);
+          const cleaned = stripHallucinatedTagBrackets(translated);
+          const restored = restoreTags(cleaned, entry.tags);
           result[entry.key] = postProcess(restored, entry.original);
         }));
         if (i + CONCURRENT < protectedEntries.length) {
@@ -605,7 +623,8 @@ ${textsBlock}`;
               for (const { placeholder, arabic } of termPlaceholders) {
                 translated = translated.replace(new RegExp(placeholder, 'gi'), arabic);
               }
-              const restored = restoreTags(translated, entry.tags);
+              const cleaned = stripHallucinatedTagBrackets(translated);
+              const restored = restoreTags(cleaned, entry.tags);
               result[entry.key] = postProcess(restored, entry.original);
               totalChars += entry.cleaned.length;
             }
@@ -695,7 +714,8 @@ ${textsBlock}`;
       const safeTranslations = translations ?? [];
       for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
         if (safeTranslations[i] && safeTranslations[i].trim()) {
-          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
+          const cleaned = stripHallucinatedTagBrackets(safeTranslations[i]);
+          const restored = restoreTags(cleaned, protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
@@ -758,7 +778,8 @@ ${textsBlock}`;
       const safeTranslations = translations ?? [];
       for (let i = 0; i < Math.min(protectedEntries.length, safeTranslations.length); i++) {
         if (safeTranslations[i] && safeTranslations[i].trim()) {
-          const restored = restoreTags(safeTranslations[i], protectedEntries[i].tags);
+          const cleaned = stripHallucinatedTagBrackets(safeTranslations[i]);
+          const restored = restoreTags(cleaned, protectedEntries[i].tags);
           result[protectedEntries[i].key] = postProcess(restored, protectedEntries[i].original);
         }
       }
