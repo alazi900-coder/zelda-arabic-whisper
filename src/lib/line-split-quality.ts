@@ -178,6 +178,12 @@ function findBreakCandidates(joined: string): BreakCandidate[] {
     if (prev === "،" || prev === ",") score += 4;        // بعد فاصلة
     if (prev === "؛" || prev === ";") score += 6;        // بعد فاصلة منقوطة
     if (next === "«" || next === '"' || next === "(") score += 2;
+    // كلمة محتوى قبل الكسر (4+ حروف غير مسافة) → كسر طبيعي بعد كلمة كاملة
+    const wordBefore = joined.slice(0, i).split(" ").pop() || "";
+    if (wordBefore.length >= 4) score += 2;
+    // كلمة محتوى بعد الكسر → السطر التالي يبدأ بمضمون
+    const wordAfterRaw = joined.slice(i + 1).split(" ")[0] || "";
+    if (wordAfterRaw.length >= 4) score += 1;
 
     out.push({ index: i, score });
   }
@@ -270,6 +276,7 @@ export interface LineSplitIssue {
   current: string;
   proposed: string;
   diagnosis: LineSplitDiagnosis;
+  difficulty: "easy" | "hard";
 }
 
 export interface LineSplitScanResult {
@@ -299,6 +306,9 @@ export function scanLineSplitQuality(
       // لا نملك اقتراحاً مختلفاً → لا نعرضه إلا إذا الدرجة عالية جداً.
       if (diag.score < 50) continue;
     }
+    // هل الاقتراح المحلي جيد بما يكفي؟
+    const proposedDiag = proposed !== tr ? diagnoseLineSplit(e.original, proposed) : diag;
+    const difficulty: "easy" | "hard" = (proposed !== tr && proposedDiag.score <= 22) ? "easy" : "hard";
     issues.push({
       key,
       msbtFile: e.msbtFile,
@@ -308,6 +318,7 @@ export function scanLineSplitQuality(
       current: tr,
       proposed,
       diagnosis: diag,
+      difficulty,
     });
   }
   // الأسوأ أوّلاً
