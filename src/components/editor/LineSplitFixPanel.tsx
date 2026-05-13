@@ -9,8 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sparkles, Wand2, Check, X, Pencil, Loader2, RefreshCw, FileText,
-  ArrowLeftCircle, Zap, AlertTriangle,
+  ArrowLeftCircle, Zap, AlertTriangle, StopCircle,
 } from "lucide-react";
+
+const LS_RESOLVED = "lineSplit_resolvedKeys_v1";
+function loadResolved(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LS_RESOLVED);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch {}
+  return new Set();
+}
+function saveResolved(keys: Set<string>) {
+  try { localStorage.setItem(LS_RESOLVED, JSON.stringify([...keys])); } catch {}
+}
 import { toast } from "@/hooks/use-toast";
 import {
   scanLineSplitQuality,
@@ -87,7 +99,7 @@ export const LineSplitFixPanel: React.FC<Props> = ({
 }) => {
   const [issues, setIssues] = useState<LineSplitIssue[]>([]);
   const [scanned, setScanned] = useState(0);
-  const [resolvedKeys, setResolvedKeys] = useState<Set<string>>(new Set());
+  const [resolvedKeys, setResolvedKeys] = useState<Set<string>>(loadResolved);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [engine, setEngine] = useState<Engine>("local");
@@ -97,12 +109,13 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
   const editRef = useRef<HTMLTextAreaElement | null>(null);
+  const cancelRef = useRef(false);
 
   const runScan = () => {
     const res = scanLineSplitQuality(entries, translations);
     setIssues(res.issues);
     setScanned(res.scanned);
-    setResolvedKeys(new Set());
+    // لا نمسح resolvedKeys — تبقى الإصلاحات السابقة مخفية
     setEditingKey(null);
     setPage(0);
   };
@@ -123,7 +136,12 @@ export const LineSplitFixPanel: React.FC<Props> = ({
   const apply = (key: string, value: string) => {
     if (!value || value === translations[key]) return;
     onUpdateTranslation(key, value);
-    setResolvedKeys(prev => { const n = new Set(prev); n.add(key); return n; });
+    setResolvedKeys(prev => {
+      const n = new Set(prev);
+      n.add(key);
+      saveResolved(n);
+      return n;
+    });
     setEditingKey(null);
   };
 
@@ -167,15 +185,22 @@ export const LineSplitFixPanel: React.FC<Props> = ({
     } finally { setBusy(null); }
   };
 
+  const stopAllAi = () => {
+    cancelRef.current = true;
+    setBusy(null);
+    toast({ title: "⏹ تم إيقاف التحسين" });
+  };
+
   const improveAllAi = async () => {
     if (visibleIssues.length === 0) return;
     if (!window.confirm(`تحسين ${visibleIssues.length} عنصر بـ AI؟ قد يستغرق وقتاً.`)) return;
+    cancelRef.current = false;
     setBusy("all");
     try {
-      // دفعات من 15
       const BATCH = 15;
       let done = 0;
       for (let i = 0; i < visibleIssues.length; i += BATCH) {
+        if (cancelRef.current) break;
         const slice = visibleIssues.slice(i, i + BATCH);
         const out = await callAi(slice);
         for (const item of slice) {
@@ -259,14 +284,36 @@ export const LineSplitFixPanel: React.FC<Props> = ({
           >
             <Zap className="h-3 w-3" /> تطبيق المقترح المحلّي للكل ({visibleIssues.length})
           </Button>
-          {isAiEngine && (
+          {isAiEngine && busy !== "all" && (
             <Button
               size="sm" variant="secondary" onClick={improveAllAi}
-              disabled={visibleIssues.length === 0 || busy !== null}
+              disabled={visibleIssues.length === 0}
               className="h-10 gap-1 text-xs"
             >
-              {busy === "all" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              <Sparkles className="h-3 w-3" />
               تحسين الكل بـ AI
+            </Button>
+          )}
+          {busy === "all" && (
+            <Button
+              size="sm" variant="destructive" onClick={stopAllAi}
+              className="h-10 gap-1 text-xs"
+            >
+              <StopCircle className="h-3 w-3" /> إيقاف
+            </Button>
+          )}
+          {resolvedKeys.size > 0 && (
+            <Button
+              size="sm" variant="ghost" onClick={() => {
+                if (!window.confirm(`مسح ${resolvedKeys.size} إصلاح محفوظ وإعادة فحصها؟`)) return;
+                const empty = new Set<string>();
+                setResolvedKeys(empty);
+                saveResolved(empty);
+                runScan();
+              }}
+              className="h-10 gap-1 text-xs text-muted-foreground"
+            >
+              <RefreshCw className="h-3 w-3" /> مسح {resolvedKeys.size} إصلاح
             </Button>
           )}
         </div>
