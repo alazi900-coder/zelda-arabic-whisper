@@ -33,7 +33,7 @@ export type WorkerOutbound =
       diagnostics?: BuildDecompressDiagnostics;
     };
 
-const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
+const ctx: Worker = self as unknown as Worker;
 
 ctx.onmessage = async (e: MessageEvent<WorkerInbound>) => {
   if (e.data?.type !== "start") return;
