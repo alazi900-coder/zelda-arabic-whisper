@@ -728,7 +728,7 @@ export async function localBuild(opts: LocalBuildOptions): Promise<LocalBuildRes
     categories: categoryStats,
   };
 
-  const blob = new Blob([outputData], { type: "application/octet-stream" });
+  const blob = new Blob([new Uint8Array(outputData)], { type: "application/octet-stream" });
 
   return {
     blob,
