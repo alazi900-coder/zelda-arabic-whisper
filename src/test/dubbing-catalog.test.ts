@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CHARACTERS, getTonesForCharacter, findCharacter, BASE_TONES } from "@/lib/dubbing/character-catalog";
+import { CHARACTERS, getTonesForCharacter, findCharacter, BASE_TONES, isValidGeminiVoice } from "@/lib/dubbing/character-catalog";
 import { buildSrt, msToSrtTime } from "@/lib/dubbing/scene-mixer";
 
 describe("dubbing character catalog", () => {
@@ -14,6 +14,7 @@ describe("dubbing character catalog", () => {
   it("every character has a Gemini voice and Arabic name", () => {
     for (const c of CHARACTERS) {
       expect(c.voice).toBeTruthy();
+      expect(isValidGeminiVoice(c.voice)).toBe(true);
       expect(c.nameAr.length).toBeGreaterThan(0);
       expect(c.promptAr.length).toBeGreaterThan(20);
     }
