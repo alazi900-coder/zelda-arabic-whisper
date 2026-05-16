@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CHARACTERS, getTonesForCharacter, findCharacter, BASE_TONES } from "@/lib/dubbing/character-catalog";
+import { CHARACTERS, getTonesForCharacter, findCharacter, BASE_TONES, isValidGeminiVoice } from "@/lib/dubbing/character-catalog";
 import { buildSrt, msToSrtTime } from "@/lib/dubbing/scene-mixer";
 
 describe("dubbing character catalog", () => {
