@@ -170,7 +170,8 @@ async function decodeOpus(buf: Uint8Array, info: BwavInfo): Promise<{ samples: I
     const { packets, sampleRate, preSkip: ps } = extractNxOpusPackets(buf, subOffset);
     outRate = sampleRate;
     preSkip = ps;
-    const decoder = new OpusDecoder({ channels: 1, sampleRate });
+    // opus-decoder only supports a fixed sample-rate enum; NXOpus is typically 48000.
+    const decoder = new OpusDecoder({ channels: 1, sampleRate: 48000 });
     await decoder.ready;
     const pieces: Float32Array[] = [];
     let total = 0;
