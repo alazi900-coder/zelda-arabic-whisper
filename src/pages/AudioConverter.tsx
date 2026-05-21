@@ -62,7 +62,7 @@ const AudioConverter = () => {
         }
         const { samples, sampleRate, channels, info } = await decodeBwavToPcm(buf);
         const wav = encodeWav(samples, channels, sampleRate);
-        const blob = new Blob([wav], { type: "audio/wav" });
+        const blob = new Blob([new Uint8Array(wav)], { type: "audio/wav" });
         out.push({
           name: f.name.replace(/\.bwav$/i, "") + ".wav",
           originalSize: f.size,
