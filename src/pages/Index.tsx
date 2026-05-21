@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Shield, FileText, Download, Sparkles, ChevronDown, Beaker, ArrowLeft, Mic } from "lucide-react";
+import { Shield, FileText, Download, Sparkles, ChevronDown, Beaker, ArrowLeft, Mic, FileAudio } from "lucide-react";
 import linkHero from "@/assets/link-hero.png";
 import hyruleWorld from "@/assets/hyrule-world.jpg";
 
@@ -178,6 +178,31 @@ const Index = () => {
                 </p>
               </div>
               <ArrowLeft className="w-5 h-5 text-secondary shrink-0 group-hover:translate-x-[-4px] transition-transform" />
+            </div>
+          </Link>
+
+          {/* BWAV Audio Converter CTA */}
+          <Link
+            to="/audio-converter"
+            className="group relative block mt-4 rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-secondary/5 hover:from-primary/15 hover:to-secondary/10 transition-all overflow-hidden shadow-xl shadow-primary/10"
+          >
+            <div className="relative p-5 sm:p-7 flex items-center gap-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-secondary/15 border border-primary/40 flex items-center justify-center shrink-0">
+                <FileAudio className="w-7 h-7 sm:w-8 sm:h-8 text-primary drop-shadow-[0_0_12px_hsl(var(--primary))]" />
+              </div>
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] sm:text-xs text-primary font-display font-semibold">جديد · يعمل بالمتصفّح</span>
+                </div>
+                <h2 className="text-lg sm:text-2xl font-display font-black mb-1">
+                  محوّل أصوات BWAV → WAV
+                </h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  حوّل ملفات صوت Zelda TotK/BotW (PCM16، DSP، NXOpus) إلى WAV قياسي
+                </p>
+              </div>
+              <ArrowLeft className="w-5 h-5 text-primary shrink-0 group-hover:translate-x-[-4px] transition-transform" />
             </div>
           </Link>
         </div>

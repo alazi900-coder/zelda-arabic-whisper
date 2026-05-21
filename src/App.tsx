@@ -21,6 +21,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Install = lazy(() => import("./pages/Install"));
 const QualityLab = lazy(() => import("./pages/QualityLab"));
 const Dubbing = lazy(() => import("./pages/Dubbing"));
+const AudioConverter = lazy(() => import("./pages/AudioConverter"));
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const AnimatedRoutes = () => {
           <Route path="/install" element={<PageTransition><Install /></PageTransition>} />
           <Route path="/quality-lab" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في مختبر الجودة"><QualityLab /></ErrorBoundary></PageTransition>} />
           <Route path="/dubbing" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في استوديو الدبلجة"><Dubbing /></ErrorBoundary></PageTransition>} />
+          <Route path="/audio-converter" element={<PageTransition><ErrorBoundary fallbackTitle="خطأ في محوّل الأصوات"><AudioConverter /></ErrorBoundary></PageTransition>} />
           <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
         </Routes>
       </Suspense>
