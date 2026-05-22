@@ -134,22 +134,23 @@ function decodeDsp(buf: Uint8Array, info: BwavInfo): Int16Array {
  *  Each packet: 4-byte BE size + 4-byte BE final_range + raw opus packet bytes. */
 function extractNxOpusPackets(buf: Uint8Array, offset: number): { packets: Uint8Array[]; sampleRate: number; channels: number; preSkip: number } {
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  // info header
-  const infoMagic = dv.getUint32(offset + 0x00, false);
-  if (infoMagic !== 0x80000001) throw new Error("NXOpus: توقيع info غير صحيح");
+  // info header — magic stored little-endian in BWAV (TotK/BotW)
+  const infoMagic = readU32LE(dv, offset + 0x00);
+  if (infoMagic !== 0x80000001) throw new Error(`NXOpus: توقيع info غير صحيح (0x${infoMagic.toString(16)})`);
   const channels = buf[offset + 0x09];
   const sampleRate = readU32LE(dv, offset + 0x0c);
   const dataOffset = readU32LE(dv, offset + 0x10);
   const preSkip = readU16LE(dv, offset + 0x14);
   // data header at offset + dataOffset
   const dataStart = offset + dataOffset;
-  const dataMagic = dv.getUint32(dataStart + 0x00, false);
-  if (dataMagic !== 0x80000004) throw new Error("NXOpus: توقيع data غير صحيح");
-  const dataSize = dv.getUint32(dataStart + 0x04, false);
+  const dataMagic = readU32LE(dv, dataStart + 0x00);
+  if (dataMagic !== 0x80000004) throw new Error(`NXOpus: توقيع data غير صحيح (0x${dataMagic.toString(16)})`);
+  const dataSize = readU32LE(dv, dataStart + 0x04);
   const packets: Uint8Array[] = [];
   let p = dataStart + 0x08;
-  const end = p + dataSize;
-  while (p < end) {
+  const end = Math.min(p + dataSize, buf.length);
+  while (p + 8 <= end) {
+    // packet length + final_range are big-endian per Nintendo Opus spec
     const pktSize = dv.getUint32(p, false);
     p += 8; // skip size + final_range
     if (pktSize === 0 || p + pktSize > end) break;
