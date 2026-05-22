@@ -205,6 +205,31 @@ const Index = () => {
               <ArrowLeft className="w-5 h-5 text-primary shrink-0 group-hover:translate-x-[-4px] transition-transform" />
             </div>
           </Link>
+
+          {/* AI Audio Dubbing CTA */}
+          <Link
+            to="/audio-dub"
+            className="group relative block mt-4 rounded-2xl border border-secondary/40 bg-gradient-to-br from-secondary/15 via-card to-primary/10 hover:from-secondary/25 hover:to-primary/15 transition-all overflow-hidden shadow-xl shadow-secondary/15"
+          >
+            <div className="relative p-5 sm:p-7 flex items-center gap-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-secondary/40 to-primary/25 border border-secondary/50 flex items-center justify-center shrink-0">
+                <Mic className="w-7 h-7 sm:w-8 sm:h-8 text-secondary drop-shadow-[0_0_12px_hsl(var(--secondary))]" />
+              </div>
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full bg-secondary/20 border border-secondary/40">
+                  <Sparkles className="w-3 h-3 text-secondary" />
+                  <span className="text-[10px] sm:text-xs text-secondary font-display font-semibold">جديد · ذكاء اصطناعي</span>
+                </div>
+                <h2 className="text-lg sm:text-2xl font-display font-black mb-1">
+                  دبلجة صوت تلقائية للعربية
+                </h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  ارفع مقطع لعبة، نحلّل النبرة والعاطفة ونولّد دبلجة عربية بصوت مقارب — مع تحميل WAV/SRT أو ZIP
+                </p>
+              </div>
+              <ArrowLeft className="w-5 h-5 text-secondary shrink-0 group-hover:translate-x-[-4px] transition-transform" />
+            </div>
+          </Link>
         </div>
       </section>
 

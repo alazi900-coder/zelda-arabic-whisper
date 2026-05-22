@@ -129,7 +129,7 @@ export default function AudioDub() {
         // فك BWAV إلى WAV قياسي
         const buf = new Uint8Array(await f.arrayBuffer());
         const { samples, sampleRate, channels } = await decodeBwavToPcm(buf);
-        const wav = encodeWav(samples, sampleRate, channels);
+        const wav = encodeWav(samples, channels, sampleRate);
         bytes = wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength) as ArrayBuffer;
         mime = "audio/wav";
       } else {
