@@ -238,7 +238,26 @@ export default function AudioDub() {
     }
   }, [editedText, analysis, finalVoice, apiKey, dubUrl, toast]);
 
+  const onGenerateDemo = useCallback(() => {
+    const text = manualText.trim();
+    if (!text) { toast({ title: "اكتب النص العربي أولاً", variant: "destructive" }); return; }
+    setStage("dubbing"); setProgress(60); setError(null);
+    if (dubUrl) URL.revokeObjectURL(dubUrl);
+    // تقدير المدة: ~12 حرف/ثانية للعربية المنطوقة
+    const durSec = Math.max(1.5, Math.min(120, text.length / 12));
+    const blob = makeSilentWav(durSec);
+    setDubBlob(blob);
+    setDubUrl(URL.createObjectURL(blob));
+    setEditedText(text);
+    setStage("done"); setProgress(100);
+    toast({
+      title: "تم توليد ملف تجريبي ✓",
+      description: "WAV صامت بطول مقدّر + SRT. استخدم زر المعاينة لسماع TTS المتصفح.",
+    });
+  }, [manualText, dubUrl, toast]);
+
   const downloadDubAndSrt = useCallback(async () => {
+
     if (!dubBlob) return;
     const baseName = file?.name.replace(/\.[^.]+$/, "") || "dub";
     // download wav
