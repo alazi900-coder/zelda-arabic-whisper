@@ -141,12 +141,14 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── ملوك وأميرات ────────────────────────────────────────
-  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", role: "royalty",
+  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", role: "royalty", gender: "female",
     gradient: "from-blue-500 to-purple-600", emoji: "🔮",
-    promptAr: "أنتِ الأميرة زيلدا صاحبة الحكمة وراعية هايرول. صوتك ملكي دافئ حازم يظهر فيه قوة هادئة لا تتزعزع.",
+    promptAr: "أنتِ الأميرة زيلدا، أنثى شابة صاحبة الحكمة وراعية هايرول. صوتك أنثوي ملكي دافئ حازم يظهر فيه قوة هادئة لا تتزعزع.",
     extraTones: [
       { id: "lament_link", labelAr: "رثاء لينك", category: "negative",
         prefix: "بصوت زيلدا حزين متهدج كأنك تودعين لينك للمرة الأخيرة، نَفَسُك مكسور والكلمات تخرج ببطء شديد ووجع عميق، قولي: " },
+      { id: "zelda_bloodmoon", labelAr: "تحذير القمر الأحمر", category: "intense",
+        prefix: "بصوت زيلدا الأنثوي وهي تحذّر بقلق صادق ورهبة من ظهور القمر الأحمر، نبرة متوترة منخفضة مهيبة فيها رعشة خوف خفية وإحساس بقدوم شر قديم، تنفّس متباطئ بين الجمل، قولي ببطء بوقار: " },
       { id: "zelda_resolve", labelAr: "عزم الأميرة", category: "intense",
         prefix: "بنبرة زيلدا الحازمة في لحظة قرار مصيري، هدوء داخلي صلب كالحديد، قولي: " },
       { id: "zelda_dragon", labelAr: "تنّين الزمن", category: "subtle",
