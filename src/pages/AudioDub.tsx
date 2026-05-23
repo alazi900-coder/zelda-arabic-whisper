@@ -87,7 +87,7 @@ async function getAudioDurationMs(blob: Blob): Promise<number> {
 function makeSilentWav(durationSec: number, sampleRate = 22050): Blob {
   const samples = new Int16Array(Math.max(1, Math.floor(durationSec * sampleRate)));
   const wav = encodeWav(samples, 1, sampleRate);
-  return new Blob([wav], { type: "audio/wav" });
+  return new Blob([wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength)], { type: "audio/wav" });
 }
 
 // معاينة صوتية عبر Web Speech API
