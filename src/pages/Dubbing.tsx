@@ -124,10 +124,13 @@ export default function Dubbing() {
     const tone  = tones.find(x => x.id === tId) ?? tones[0];
     const inten = controls?.intensityPct ?? 70;
     const sp    = controls?.speedPct ?? 100;
-    const lvl  = inten > 80 ? "بأداء درامي مبالغ فيه. " : inten > 50 ? "بأداء معبّر طبيعي. " : "بأداء هادئ متحفظ. ";
+    const lvl  = inten > 80 ? "بأداء درامي مبالغ فيه مع تضخيم المشاعر. " : inten > 50 ? "بأداء معبّر طبيعي مع مشاعر واضحة. " : "بأداء هادئ متحفظ. ";
     const speedHint = sp >= 115 ? "تحدّث بسرعة أعلى قليلاً. "
-                    : sp <= 85  ? "تحدّث ببطء أكبر مع توقّفات أطول. " : "";
-    const prompt = `${char.promptAr}\n${lvl}${speedHint}${tone.prefix}${t}`;
+                    : sp <= 85  ? "تحدّث ببطء أكبر مع توقّفات أطول بين الجمل. " : "";
+    // Gemini TTS يستجيب أفضل لتوجيهات إنجليزية في البداية ثم النص العربي
+    const genderEn = char.gender === "female" ? "female" : char.gender === "male" ? "male" : "";
+    const englishCue = `Read the following Arabic dialogue aloud as a single ${genderEn} character voice with strong emotion and clear acting. Stay fully in character. Do NOT switch gender or accent mid-sentence. Style: ${tone.labelAr}.\n\n`;
+    const prompt = `${englishCue}${char.promptAr}\n${lvl}${speedHint}${tone.prefix}${t}`;
     const voice = tone.voiceOverride ?? char.voice;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await (ai.models as any).generateContent({
