@@ -83,8 +83,30 @@ async function getAudioDurationMs(blob: Blob): Promise<number> {
   }
 }
 
+// توليد WAV صامت بطول معيّن (للوضع التجريبي)
+function makeSilentWav(durationSec: number, sampleRate = 22050): Blob {
+  const samples = new Int16Array(Math.max(1, Math.floor(durationSec * sampleRate)));
+  const wav = encodeWav(samples, 1, sampleRate);
+  return new Blob([new Uint8Array(wav).buffer as ArrayBuffer], { type: "audio/wav" });
+}
+
+// معاينة صوتية عبر Web Speech API
+function previewTTS(text: string) {
+  if (!("speechSynthesis" in window)) return false;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ar-SA";
+  u.rate = 0.95;
+  const voices = window.speechSynthesis.getVoices();
+  const ar = voices.find((v) => v.lang?.toLowerCase().startsWith("ar"));
+  if (ar) u.voice = ar;
+  window.speechSynthesis.speak(u);
+  return true;
+}
+
 export default function AudioDub() {
   const { toast } = useToast();
+  const [demoMode, setDemoMode] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [file, setFile] = useState<File | null>(null);
   const [origUrl, setOrigUrl] = useState<string | null>(null);
@@ -94,6 +116,7 @@ export default function AudioDub() {
   const [progress, setProgress] = useState(0);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [editedText, setEditedText] = useState("");
+  const [manualText, setManualText] = useState("");
   const [voiceOverride, setVoiceOverride] = useState<string>("");
   const [dubUrl, setDubUrl] = useState<string | null>(null);
   const [dubBlob, setDubBlob] = useState<Blob | null>(null);
@@ -215,7 +238,26 @@ export default function AudioDub() {
     }
   }, [editedText, analysis, finalVoice, apiKey, dubUrl, toast]);
 
+  const onGenerateDemo = useCallback(() => {
+    const text = manualText.trim();
+    if (!text) { toast({ title: "اكتب النص العربي أولاً", variant: "destructive" }); return; }
+    setStage("dubbing"); setProgress(60); setError(null);
+    if (dubUrl) URL.revokeObjectURL(dubUrl);
+    // تقدير المدة: ~12 حرف/ثانية للعربية المنطوقة
+    const durSec = Math.max(1.5, Math.min(120, text.length / 12));
+    const blob = makeSilentWav(durSec);
+    setDubBlob(blob);
+    setDubUrl(URL.createObjectURL(blob));
+    setEditedText(text);
+    setStage("done"); setProgress(100);
+    toast({
+      title: "تم توليد ملف تجريبي ✓",
+      description: "WAV صامت بطول مقدّر + SRT. استخدم زر المعاينة لسماع TTS المتصفح.",
+    });
+  }, [manualText, dubUrl, toast]);
+
   const downloadDubAndSrt = useCallback(async () => {
+
     if (!dubBlob) return;
     const baseName = file?.name.replace(/\.[^.]+$/, "") || "dub";
     // download wav
@@ -318,6 +360,60 @@ export default function AudioDub() {
         </Card>
 
         {/* Upload */}
+        {/* Mode toggle */}
+        <Card className="p-3 mb-4 border-border/60 bg-card/80 backdrop-blur flex items-center gap-2">
+          <Button size="sm" variant={!demoMode ? "default" : "outline"} onClick={() => setDemoMode(false)} className="flex-1">
+            <Sparkles className="w-3.5 h-3.5 ml-1" /> وضع AI (Gemini)
+          </Button>
+          <Button size="sm" variant={demoMode ? "default" : "outline"} onClick={() => setDemoMode(true)} className="flex-1">
+            <Mic className="w-3.5 h-3.5 ml-1" /> وضع تجريبي (بدون مفتاح)
+          </Button>
+        </Card>
+
+        {/* API Key (AI mode only) */}
+        {!demoMode && (
+          <Card className="p-4 mb-4 border-border/60 bg-card/80 backdrop-blur">
+            <Label htmlFor="key" className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-secondary" />
+              مفتاح Google Gemini API (يُحفظ محلياً في متصفّحك فقط)
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input id="key" type="password" placeholder="AIza..."
+                value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                className="flex-1 font-mono text-xs" />
+              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
+            </div>
+          </Card>
+        )}
+
+        {/* Demo mode panel */}
+        {demoMode && (
+          <Card className="p-5 mb-4 border-amber-500/40 bg-amber-500/5">
+            <h2 className="text-base font-display font-bold mb-2 flex items-center gap-2 text-amber-400">
+              <Mic className="w-4 h-4" /> وضع تجريبي — كتابة يدوية
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              اكتب النص العربي بنفسك. سيتم توليد ملف WAV بطول مقدَّر + ملف SRT متزامن. يمكن سماع معاينة عبر TTS المتصفح.
+            </p>
+            <Label htmlFor="manual" className="text-xs text-muted-foreground mb-1.5 block">النص العربي</Label>
+            <Textarea id="manual" value={manualText} onChange={(e) => setManualText(e.target.value)}
+              placeholder="اكتب جملة الدبلجة العربية هنا..." rows={4} className="text-sm mb-3" dir="rtl" />
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => {
+                if (!previewTTS(manualText)) toast({ title: "TTS المتصفح غير متوفر", variant: "destructive" });
+              }} variant="outline" disabled={!manualText.trim()}>
+                <Play className="w-4 h-4 ml-2" /> معاينة صوتية
+              </Button>
+              <Button onClick={onGenerateDemo} disabled={!manualText.trim()}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 text-background font-bold">
+                <Wand2 className="w-4 h-4 ml-2" /> توليد WAV + SRT
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Upload (AI mode only) */}
+        {!demoMode && (
         <Card className="p-5 mb-4 border-secondary/30 bg-gradient-to-br from-secondary/5 to-card">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <label className="flex-1 cursor-pointer">
@@ -336,6 +432,7 @@ export default function AudioDub() {
                 </div>
               </div>
             </label>
+
             {file && (
               <Button variant="outline" size="sm" onClick={reset} disabled={busy}>
                 إعادة تعيين
@@ -354,6 +451,7 @@ export default function AudioDub() {
             </div>
           )}
         </Card>
+        )}
 
         {/* Stage progress */}
         {busy && (
