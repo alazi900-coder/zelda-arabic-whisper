@@ -451,6 +451,7 @@ export default function AudioDub() {
             </div>
           )}
         </Card>
+        )}
 
         {/* Stage progress */}
         {busy && (
