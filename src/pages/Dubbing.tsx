@@ -406,6 +406,44 @@ export default function Dubbing() {
               </div>
             </div>
 
+            {/* Demo presets — أمثلة جاهزة بصوت مميز */}
+            <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3 space-y-2">
+              <p className="text-[11px] text-amber-500 font-bold flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> أمثلة سريعة — اضغط لتوليد فوري
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { c: "zelda",    tn: "zelda_bloodmoon",  txt: "عندما يسطع ضوء القمر الأحمر على الأرض، يستيقظ الشر مرة أخرى… كن حذراً يا لينك، الكائنات الشريرة تعود إلى الحياة.", label: "👸 زيلدا · القمر الأحمر", grad: "from-purple-600/30 to-blue-600/30 border-purple-500/40" },
+                  { c: "ganon",    tn: "ganon_demon_king", txt: "هذا العالم… سيخضع لإرادتي. لا أحد، ولا حتى أنت أيها البطل الصغير، يستطيع إيقافي.",                                              label: "💀 غانون · شرير",       grad: "from-red-700/30 to-orange-900/30 border-red-500/40" },
+                  { c: "narrator", tn: "narrator_epic",    txt: "في أرض هايرول القديمة، حيث تتلاقى السماء بالأرض، بدأت أسطورة جديدة تُكتب بحبر النور والظلام.",                                  label: "🎭 الراوي · ملحمي",   grad: "from-amber-600/30 to-yellow-800/30 border-amber-500/40" },
+                ].map(p => (
+                  <button key={p.c + p.tn}
+                    disabled={loading}
+                    onClick={async () => {
+                      onCharChange(p.c); setToneId(p.tn); setText(p.txt);
+                      setLoading(true);
+                      try {
+                        const url = await tts(p.c, p.txt, p.tn, { intensityPct: 85, speedPct: 95 });
+                        const ch = findCharacter(p.c)!;
+                        const tones = getTonesForCharacter(ch);
+                        const tn = tones.find(x => x.id === p.tn) ?? tones[0];
+                        const take: Take = { id: crypto.randomUUID(), charId: p.c, charName: ch.nameAr, text: p.txt, url, toneId: tn.id, toneLabel: tn.labelAr };
+                        setTakes(prev => [take, ...prev].slice(0, 30));
+                        setPlayId(take.id);
+                        if (audioRef.current) { audioRef.current.src = url; audioRef.current.play().catch(() => {}); }
+                        toast({ title: `🎬 ${ch.nameAr} · ${tn.labelAr}` });
+                      } catch (e) {
+                        toast({ title: "❌ خطأ", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+                      } finally { setLoading(false); }
+                    }}
+                    className={`rounded-lg p-2.5 text-[10px] text-amber-100 border bg-gradient-to-br hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-right leading-tight ${p.grad}`}>
+                    <div className="font-bold mb-1">{p.label}</div>
+                    <div className="text-[9px] text-amber-200/70 line-clamp-2">{p.txt}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Generate */}
             <motion.div whileTap={{ scale: 0.98 }}>
               <Button onClick={onGenerate} disabled={loading} size="lg"
