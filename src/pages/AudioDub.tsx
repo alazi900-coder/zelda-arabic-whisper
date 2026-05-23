@@ -83,8 +83,30 @@ async function getAudioDurationMs(blob: Blob): Promise<number> {
   }
 }
 
+// توليد WAV صامت بطول معيّن (للوضع التجريبي)
+function makeSilentWav(durationSec: number, sampleRate = 22050): Blob {
+  const samples = new Int16Array(Math.max(1, Math.floor(durationSec * sampleRate)));
+  const wav = encodeWav(samples, 1, sampleRate);
+  return new Blob([wav], { type: "audio/wav" });
+}
+
+// معاينة صوتية عبر Web Speech API
+function previewTTS(text: string) {
+  if (!("speechSynthesis" in window)) return false;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ar-SA";
+  u.rate = 0.95;
+  const voices = window.speechSynthesis.getVoices();
+  const ar = voices.find((v) => v.lang?.toLowerCase().startsWith("ar"));
+  if (ar) u.voice = ar;
+  window.speechSynthesis.speak(u);
+  return true;
+}
+
 export default function AudioDub() {
   const { toast } = useToast();
+  const [demoMode, setDemoMode] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [file, setFile] = useState<File | null>(null);
   const [origUrl, setOrigUrl] = useState<string | null>(null);
@@ -94,6 +116,7 @@ export default function AudioDub() {
   const [progress, setProgress] = useState(0);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [editedText, setEditedText] = useState("");
+  const [manualText, setManualText] = useState("");
   const [voiceOverride, setVoiceOverride] = useState<string>("");
   const [dubUrl, setDubUrl] = useState<string | null>(null);
   const [dubBlob, setDubBlob] = useState<Blob | null>(null);
