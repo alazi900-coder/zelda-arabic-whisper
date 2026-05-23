@@ -360,6 +360,60 @@ export default function AudioDub() {
         </Card>
 
         {/* Upload */}
+        {/* Mode toggle */}
+        <Card className="p-3 mb-4 border-border/60 bg-card/80 backdrop-blur flex items-center gap-2">
+          <Button size="sm" variant={!demoMode ? "default" : "outline"} onClick={() => setDemoMode(false)} className="flex-1">
+            <Sparkles className="w-3.5 h-3.5 ml-1" /> وضع AI (Gemini)
+          </Button>
+          <Button size="sm" variant={demoMode ? "default" : "outline"} onClick={() => setDemoMode(true)} className="flex-1">
+            <Mic className="w-3.5 h-3.5 ml-1" /> وضع تجريبي (بدون مفتاح)
+          </Button>
+        </Card>
+
+        {/* API Key (AI mode only) */}
+        {!demoMode && (
+          <Card className="p-4 mb-4 border-border/60 bg-card/80 backdrop-blur">
+            <Label htmlFor="key" className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-secondary" />
+              مفتاح Google Gemini API (يُحفظ محلياً في متصفّحك فقط)
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input id="key" type="password" placeholder="AIza..."
+                value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                className="flex-1 font-mono text-xs" />
+              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
+            </div>
+          </Card>
+        )}
+
+        {/* Demo mode panel */}
+        {demoMode && (
+          <Card className="p-5 mb-4 border-amber-500/40 bg-amber-500/5">
+            <h2 className="text-base font-display font-bold mb-2 flex items-center gap-2 text-amber-400">
+              <Mic className="w-4 h-4" /> وضع تجريبي — كتابة يدوية
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              اكتب النص العربي بنفسك. سيتم توليد ملف WAV بطول مقدَّر + ملف SRT متزامن. يمكن سماع معاينة عبر TTS المتصفح.
+            </p>
+            <Label htmlFor="manual" className="text-xs text-muted-foreground mb-1.5 block">النص العربي</Label>
+            <Textarea id="manual" value={manualText} onChange={(e) => setManualText(e.target.value)}
+              placeholder="اكتب جملة الدبلجة العربية هنا..." rows={4} className="text-sm mb-3" dir="rtl" />
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => {
+                if (!previewTTS(manualText)) toast({ title: "TTS المتصفح غير متوفر", variant: "destructive" });
+              }} variant="outline" disabled={!manualText.trim()}>
+                <Play className="w-4 h-4 ml-2" /> معاينة صوتية
+              </Button>
+              <Button onClick={onGenerateDemo} disabled={!manualText.trim()}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 text-background font-bold">
+                <Wand2 className="w-4 h-4 ml-2" /> توليد WAV + SRT
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Upload (AI mode only) */}
+        {!demoMode && (
         <Card className="p-5 mb-4 border-secondary/30 bg-gradient-to-br from-secondary/5 to-card">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <label className="flex-1 cursor-pointer">
@@ -378,6 +432,7 @@ export default function AudioDub() {
                 </div>
               </div>
             </label>
+
             {file && (
               <Button variant="outline" size="sm" onClick={reset} disabled={busy}>
                 إعادة تعيين
