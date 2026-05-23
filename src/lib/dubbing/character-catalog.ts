@@ -25,6 +25,8 @@ export interface Character {
   nameEn: string;
   /** اسم صوت Gemini TTS الرسمي (من قائمة الـ30) */
   voice: string;
+  /** ذكر أم أنثى — يُحقن في prompt لتفادي خطأ النوع */
+  gender?: "male" | "female";
   gradient: string;
   emoji: string;
   role: CharacterRole;
@@ -127,7 +129,7 @@ export function getTonesForCharacter(c: Character): Tone[] {
 // ============================================================
 export const CHARACTERS: Character[] = [
   // ── أبطال ───────────────────────────────────────────────
-  { id: "link", nameAr: "لينك", nameEn: "Link", voice: "Puck", role: "hero",
+  { id: "link", nameAr: "لينك", nameEn: "Link", voice: "Puck", gender: "male", role: "hero",
     gradient: "from-green-500 to-emerald-600", emoji: "🗡️",
     promptAr: "أنت لينك بطل هايرول الصامت. صوتك شاب حازم هادئ تتكلم بإيجاز شديد وتركيز كامل، كلماتك قليلة لكنها تحمل عزماً لا يُكسر.",
     excludeTones: ["mocking", "evil_laugh"],
@@ -139,18 +141,20 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── ملوك وأميرات ────────────────────────────────────────
-  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", role: "royalty",
+  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", gender: "female", role: "royalty",
     gradient: "from-blue-500 to-purple-600", emoji: "🔮",
-    promptAr: "أنتِ الأميرة زيلدا صاحبة الحكمة وراعية هايرول. صوتك ملكي دافئ حازم يظهر فيه قوة هادئة لا تتزعزع.",
+    promptAr: "أنتِ الأميرة زيلدا، أنثى شابة صاحبة الحكمة وراعية هايرول. صوتك أنثوي ملكي دافئ حازم يظهر فيه قوة هادئة لا تتزعزع.",
     extraTones: [
       { id: "lament_link", labelAr: "رثاء لينك", category: "negative",
         prefix: "بصوت زيلدا حزين متهدج كأنك تودعين لينك للمرة الأخيرة، نَفَسُك مكسور والكلمات تخرج ببطء شديد ووجع عميق، قولي: " },
+      { id: "zelda_bloodmoon", labelAr: "تحذير القمر الأحمر", category: "intense",
+        prefix: "بصوت زيلدا الأنثوي وهي تحذّر بقلق صادق ورهبة من ظهور القمر الأحمر، نبرة متوترة منخفضة مهيبة فيها رعشة خوف خفية وإحساس بقدوم شر قديم، تنفّس متباطئ بين الجمل، قولي ببطء بوقار: " },
       { id: "zelda_resolve", labelAr: "عزم الأميرة", category: "intense",
         prefix: "بنبرة زيلدا الحازمة في لحظة قرار مصيري، هدوء داخلي صلب كالحديد، قولي: " },
       { id: "zelda_dragon", labelAr: "تنّين الزمن", category: "subtle",
         prefix: "بصوت أثيري بعيد كأنه يأتي من عبر آلاف السنين بعد أن تحوّلت إلى تنّين النور، حزن أبدي هادئ، قولي ببطء: " },
     ]},
-  { id: "rauru", nameAr: "راورو", nameEn: "Rauru", voice: "Orus", role: "royalty",
+  { id: "rauru", nameAr: "راورو", nameEn: "Rauru", voice: "Orus", gender: "male", role: "royalty",
     gradient: "from-amber-500 to-yellow-600", emoji: "👑",
     promptAr: "أنت راورو الملك الأول لهايرول والحكيم الأبدي. صوتك قديم عميق تتكلم بثقة مطلقة وبساطة عميقة كأن كل كلمة تحمل ثقل آلاف السنين.",
     extraTones: [
@@ -159,14 +163,14 @@ export const CHARACTERS: Character[] = [
       { id: "rauru_blessing", labelAr: "بركة", category: "positive",
         prefix: "بصوت ملك أزلي يبارك بطلاً جديراً، دفء ووقار يفيضان بالأمل، قل: " },
     ]},
-  { id: "sonia", nameAr: "سونيا", nameEn: "Sonia", voice: "Aoede", role: "royalty",
+  { id: "sonia", nameAr: "سونيا", nameEn: "Sonia", voice: "Aoede", gender: "female", role: "royalty",
     gradient: "from-rose-400 to-pink-500", emoji: "🌸",
     promptAr: "أنتِ الملكة سونيا زوجة راورو وحاملة قوة الزمن. صوتك دافئ ملكي فيه دفء أمومي يبعث على الطمأنينة.",
     extraTones: [
       { id: "sonia_motherly", labelAr: "حنان أمومي", category: "positive",
         prefix: "بصوت أمومي دافئ يطمئن قلب من يخاف، قولي بحنان: " },
     ]},
-  { id: "king_dorephan", nameAr: "الملك دوريفان", nameEn: "Dorephan", voice: "Schedar", role: "royalty",
+  { id: "king_dorephan", nameAr: "الملك دوريفان", nameEn: "Dorephan", voice: "Schedar", gender: "male", role: "royalty",
     gradient: "from-cyan-500 to-blue-700", emoji: "🧊",
     promptAr: "أنت الملك دوريفان ملك الزورا العجوز الحكيم. صوتك عميق ثقيل من كبر السن مليء بالحكمة، تتكلم ببطء ووقار ملكي.",
     extraTones: [
@@ -175,21 +179,21 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── أرواح وحكماء ────────────────────────────────────────
-  { id: "mineru", nameAr: "مينيرو", nameEn: "Mineru", voice: "Vindemiatrix", role: "spirit",
+  { id: "mineru", nameAr: "مينيرو", nameEn: "Mineru", voice: "Vindemiatrix", gender: "female", role: "spirit",
     gradient: "from-violet-500 to-purple-700", emoji: "👻",
     promptAr: "أنتِ مينيرو حكيمة الروح وسليلة المعرفة الأبدية. صوتك قديم جداً هادئ، تتكلمين ببطء كأن كل كلمة تُنحت في الحجارة.",
     extraTones: [
       { id: "mineru_construct", labelAr: "روح في تمثال", category: "subtle",
         prefix: "بصوت روح حبيسة في تمثال قتالي قديم، نبرة معدنية بعيدة لكنها واعية، قولي ببطء: " },
     ]},
-  { id: "deku_tree", nameAr: "شجرة ديكو", nameEn: "Deku Tree", voice: "Rasalgethi", role: "spirit",
+  { id: "deku_tree", nameAr: "شجرة ديكو", nameEn: "Deku Tree", voice: "Rasalgethi", gender: "male", role: "spirit",
     gradient: "from-green-600 to-emerald-800", emoji: "🌳",
     promptAr: "أنت شجرة ديكو العظيمة روح الغابة الأبدية. صوتك عميق ثقيل قديم جداً، تتكلم ببطء شديد وحكمة مطلقة.",
     extraTones: [
       { id: "deku_ancient", labelAr: "ذاكرة الغابة", category: "subtle",
         prefix: "بصوت شجرة ضاربة في القدم تستعيد ذكريات أحقاب بعيدة، نبرة بطيئة جداً ثقيلة بالحنين، قل: " },
     ]},
-  { id: "hylia", nameAr: "هايليا", nameEn: "Hylia", voice: "Achernar", role: "spirit",
+  { id: "hylia", nameAr: "هايليا", nameEn: "Hylia", voice: "Achernar", gender: "female", role: "spirit",
     gradient: "from-sky-300 to-indigo-500", emoji: "✨",
     promptAr: "أنتِ الإلهة هايلا حامية هايرول. صوتك أثيري دافئ بعيد كأنه يأتي من السماء، فيه قدسية وحنان.",
     extraTones: [
@@ -198,7 +202,7 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── أشرار ───────────────────────────────────────────────
-  { id: "ganon", nameAr: "غانوندورف", nameEn: "Ganondorf", voice: "Charon", role: "villain",
+  { id: "ganon", nameAr: "غانوندورف", nameEn: "Ganondorf", voice: "Charon", gender: "male", role: "villain",
     gradient: "from-red-700 to-orange-900", emoji: "💀",
     promptAr: "أنت غانوندورف ملك الظلام والشر المطلق. صوتك عميق مهيب مخيف، تتكلم بطمأنينة مريبة وتهديد ضمني كأن كل كلمة تحمل لعنة أبدية.",
     extraTones: [
@@ -207,7 +211,7 @@ export const CHARACTERS: Character[] = [
       { id: "ganon_taunt", labelAr: "استهزاء بلينك", category: "negative",
         prefix: "بنبرة غانوندورف الساخرة وهو يتفحص لينك الضعيف أمامه، استعلاء ملكي مرعب، قل: " },
     ]},
-  { id: "kohga", nameAr: "كوهغا", nameEn: "Kohga", voice: "Algenib", role: "villain",
+  { id: "kohga", nameAr: "كوهغا", nameEn: "Kohga", voice: "Algenib", gender: "male", role: "villain",
     gradient: "from-gray-600 to-slate-800", emoji: "🎭",
     promptAr: "أنت سيد كوهغا زعيم عصابة ياغا. صوتك درامي مسرحي مبالغ يمزج بين التهديد والكوميديا السوداء، تتفاخر بغطرسة.",
     extraTones: [
@@ -216,14 +220,14 @@ export const CHARACTERS: Character[] = [
       { id: "kohga_panic", labelAr: "ذعر مضحك", category: "intense",
         prefix: "بصوت كوهغا حين تنقلب خطته فجأة، صراخ مذعور مبالغ به طفولي، قل: " },
     ]},
-  { id: "phantom_ganon", nameAr: "شبح غانون", nameEn: "Phantom Ganon", voice: "Umbriel", role: "villain",
+  { id: "phantom_ganon", nameAr: "شبح غانون", nameEn: "Phantom Ganon", voice: "Umbriel", gender: "male", role: "villain",
     gradient: "from-purple-900 to-black", emoji: "👤",
     promptAr: "أنت شبح غانون، نسخة مظلمة لا روح فيها. صوتك أجوف مرعب يأتي من العدم، يقطر شراً خالصاً.",
     extraTones: [
       { id: "phantom_hollow", labelAr: "صدى أجوف", category: "intense",
         prefix: "بصوت أجوف مرعب كأنه ينبعث من قاع بئر مظلم، بلا روح بلا تعاطف، قل ببطء مخيف: " },
     ]},
-  { id: "yiga_soldier", nameAr: "جندي ياغا", nameEn: "Yiga", voice: "Algieba", role: "villain",
+  { id: "yiga_soldier", nameAr: "جندي ياغا", nameEn: "Yiga", voice: "Algieba", gender: "male", role: "villain",
     gradient: "from-red-500 to-rose-700", emoji: "🥷",
     promptAr: "أنت جندي من عصابة ياغا. صوتك ماكر متعجرف مليء بالاستهزاء، تظن نفسك أذكى من ضحيتك.",
     extraTones: [
@@ -232,7 +236,7 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── حكماء أربعة ─────────────────────────────────────────
-  { id: "sidon", nameAr: "سيدون", nameEn: "Sidon", voice: "Fenrir", role: "hero",
+  { id: "sidon", nameAr: "سيدون", nameEn: "Sidon", voice: "Fenrir", gender: "male", role: "hero",
     gradient: "from-blue-400 to-teal-500", emoji: "🐟",
     promptAr: "أنت الأمير سيدون حكيم الماء وأمير الزورا. صوتك بطولي ودود قوي مشرق، دائماً تنشر الأمل وتشجع.",
     extraTones: [
@@ -241,7 +245,7 @@ export const CHARACTERS: Character[] = [
       { id: "sidon_royal", labelAr: "أمير الزورا", category: "intense",
         prefix: "بنبرة الأمير سيدون الرسمية حين يتحدث باسم شعب الزورا، وقار شاب ممزوج بقوة، قل: " },
     ]},
-  { id: "yunobo", nameAr: "يونوبو", nameEn: "Yunobo", voice: "Gacrux", role: "hero",
+  { id: "yunobo", nameAr: "يونوبو", nameEn: "Yunobo", voice: "Gacrux", gender: "male", role: "hero",
     gradient: "from-orange-500 to-red-600", emoji: "🔥",
     promptAr: "أنت يونوبو حكيم النار وبطل الغورون. صوتك كبير حيوي دافئ مع طيبة ساذجة، قلبك طيب كالذهب.",
     extraTones: [
@@ -250,7 +254,7 @@ export const CHARACTERS: Character[] = [
       { id: "yunobo_roll", labelAr: "هجمة كرة النار", category: "intense",
         prefix: "بهتاف غورون قبل أن يتحوّل إلى كرة نارية مندفعة، طاقة منفجرة جذلى، قل: " },
     ]},
-  { id: "tulin", nameAr: "تولين", nameEn: "Tulin", voice: "Achird", role: "child",
+  { id: "tulin", nameAr: "تولين", nameEn: "Tulin", voice: "Achird", gender: "male", role: "child",
     gradient: "from-sky-400 to-blue-500", emoji: "🦅",
     promptAr: "أنت تولين حكيم الريح وشاب الريكو الشجاع. صوتك طفولي حيوي متحمس بطاقة مفرطة وشجاعة بريئة.",
     extraTones: [
@@ -259,7 +263,7 @@ export const CHARACTERS: Character[] = [
       { id: "tulin_wind", labelAr: "رفقة الرياح", category: "positive",
         prefix: "بحماس صبي يطير على جناح الرياح للمرة الأولى، صوت فرحان مذهول، قل: " },
     ]},
-  { id: "riju", nameAr: "ريجو", nameEn: "Riju", voice: "Pulcherrima", role: "warrior",
+  { id: "riju", nameAr: "ريجو", nameEn: "Riju", voice: "Pulcherrima", gender: "female", role: "warrior",
     gradient: "from-yellow-400 to-amber-600", emoji: "⚡",
     promptAr: "أنتِ ريجو زعيمة الغيرودو وحكيمة الرعد. صوتك قوي حازم مليء بالشجاعة، تحملين ثقل قومك بثقة قائدة.",
     extraTones: [
@@ -270,14 +274,14 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── الدعم ──────────────────────────────────────────────
-  { id: "impa", nameAr: "إمبا", nameEn: "Impa", voice: "Sulafat", role: "elder",
+  { id: "impa", nameAr: "إمبا", nameEn: "Impa", voice: "Sulafat", gender: "female", role: "elder",
     gradient: "from-red-400 to-pink-600", emoji: "⚔️",
     promptAr: "أنتِ إمبا الحكيمة حارسة الأسرار. صوتك قوي رزين حازم دون تردد، تتكلمين بجدية من رأت الكثير.",
     extraTones: [
       { id: "impa_sheikah", labelAr: "أسرار الشيكا", category: "subtle",
         prefix: "بصوت إمبا حارسة أسرار قبيلة الشيكا منذ قرون، حكمة هامسة موزونة، قولي ببطء: " },
     ]},
-  { id: "purah", nameAr: "بورا", nameEn: "Purah", voice: "Leda", role: "scholar",
+  { id: "purah", nameAr: "بورا", nameEn: "Purah", voice: "Leda", gender: "female", role: "scholar",
     gradient: "from-teal-400 to-cyan-600", emoji: "🔬",
     promptAr: "أنتِ بورا العالِمة العبقرية. صوتك حيوي متحمس لا يهدأ، تتكلمين بسرعة وفضول دائم وكل اكتشاف يثير حماسك.",
     extraTones: [
@@ -378,7 +382,7 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── راوي وعموم ─────────────────────────────────────────
-  { id: "narrator", nameAr: "الراوي", nameEn: "Narrator", voice: "Rasalgethi", role: "narrator",
+  { id: "narrator", nameAr: "الراوي", nameEn: "Narrator", voice: "Rasalgethi", gender: "male", role: "narrator",
     gradient: "from-slate-500 to-gray-600", emoji: "📖",
     promptAr: "أنت الراوي الملحمي لعالم هايرول. صوتك رزين واضح مهيب، تحكي القصة بوقار وعمق وغموض.",
     extraTones: [
