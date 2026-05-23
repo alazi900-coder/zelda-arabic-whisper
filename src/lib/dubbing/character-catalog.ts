@@ -141,7 +141,7 @@ export const CHARACTERS: Character[] = [
     ]},
 
   // ── ملوك وأميرات ────────────────────────────────────────
-  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", gender: "female", role: "royalty", gender: "female",
+  { id: "zelda", nameAr: "زيلدا", nameEn: "Zelda", voice: "Kore", gender: "female", role: "royalty",
     gradient: "from-blue-500 to-purple-600", emoji: "🔮",
     promptAr: "أنتِ الأميرة زيلدا، أنثى شابة صاحبة الحكمة وراعية هايرول. صوتك أنثوي ملكي دافئ حازم يظهر فيه قوة هادئة لا تتزعزع.",
     extraTones: [
