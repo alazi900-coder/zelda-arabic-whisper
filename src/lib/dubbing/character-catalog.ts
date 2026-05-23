@@ -26,7 +26,7 @@ export interface Character {
   /** اسم صوت Gemini TTS الرسمي (من قائمة الـ30) */
   voice: string;
   /** ذكر أم أنثى — يُحقن في prompt لتفادي خطأ النوع */
-  gender: "male" | "female";
+  gender?: "male" | "female";
   gradient: string;
   emoji: string;
   role: CharacterRole;
