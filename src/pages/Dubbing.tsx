@@ -237,27 +237,37 @@ export default function Dubbing() {
     } finally { setMixing(false); }
   };
 
-  // ── Sound Lab analyze ─────────────────────────────────────
+  // ── Sound Lab analyze ─ via edge function (ElevenLabs Scribe + AI) ─
   const onAnalyze = async () => {
     if (!labFile) return;
     setLabBusy(true);
     try {
-      const ai = getAI();
-      const b64: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res((r.result as string).split(",")[1]);
-        r.onerror = rej;
-        r.readAsDataURL(labFile);
+      const buf = await labFile.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+      }
+      const b64 = btoa(bin);
+      const { data, error } = await supabase.functions.invoke("analyze-audio", {
+        body: { audioBase64: b64, mimeType: labFile.type || "audio/wav" },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resp = await (ai.models as any).generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ parts: [
-          { text: "حلّل هذا الصوت. أخبرني: نبرة الصوت، الطاقة الدرامية، الإيقاع، والأسلوب الأنسب لتقليده لأداء دبلجة شخصية من عالم Zelda. قدّم توصيات عملية محددة لإعدادات الأداء." },
-          { inlineData: { mimeType: labFile.type || "audio/wav", data: b64 } },
-        ]}],
-      });
-      setLabResult(resp?.candidates?.[0]?.content?.parts?.[0]?.text || "لا يوجد تحليل");
+      if (error) throw new Error(error.message || "فشل التحليل");
+      if (!data?.analysis) throw new Error(data?.error || "تحليل فارغ");
+      const a = data.analysis;
+      const summary = [
+        `النص: ${a.transcript || "—"}`,
+        `اللغة: ${a.sourceLanguage || "—"}`,
+        `العاطفة: ${a.emotion || "—"} (${a.intensity ?? "—"}/10)`,
+        `النبرة: ${a.tone || "—"}`,
+        `الجنس/العمر: ${a.gender || "—"} / ${a.ageGroup || "—"}`,
+        `طبقة الصوت/السرعة: ${a.pitch || "—"} / ${a.speed || "—"}`,
+        `الصوت المقترح من Zelda: ${a.suggestedZeldaVoice || "—"}`,
+        `\nالترجمة العربية:\n${a.arabicTranslation || "—"}`,
+        `\nتوجيه المخرج:\n${a.dubbingDirection || "—"}`,
+      ].join("\n");
+      setLabResult(summary);
     } catch (e) {
       toast({ title: "❌ خطأ", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally { setLabBusy(false); }
