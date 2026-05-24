@@ -296,15 +296,11 @@ export default function Dubbing() {
           <div className="w-20" />
         </div>
 
-        {/* ── API Key ───────────────────────────────────────── */}
-        <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 px-4 py-3 flex gap-3 items-center">
+        {/* ── Engine badge ──────────────────────────────────── */}
+        <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 px-4 py-2.5 flex gap-3 items-center justify-center">
           <Star className="w-4 h-4 text-amber-500 shrink-0" />
-          <input
-            type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-            placeholder="مفتاح Google Gemini API (AIza...)"
-            className="flex-1 text-sm bg-transparent border-none outline-none text-amber-100 placeholder:text-amber-700"
-          />
-          <div className={`w-2 h-2 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
+          <span className="text-xs text-amber-300">المحرك الصوتي: <b className="text-amber-400">{ENGINE_LABEL}</b> · بدون مفتاح من المستخدم</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-400" />
         </div>
 
         {/* ── Tabs ──────────────────────────────────────────── */}
