@@ -31,18 +31,33 @@ interface ScriptLine { id: string; charId: string; toneId: string; text: string;
 const ENGINE_LABEL = "ElevenLabs · multilingual v2";
 
 // ── WAV builder ──────────────────────────────────────────────
-function b64ToWavUrl(b64: string, rate = 24000): string {
-  const bin = atob(b64);
-  const pcm = bin.length;
-  const buf = new ArrayBuffer(44 + pcm);
-  const v = new DataView(buf);
-  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, "RIFF"); v.setUint32(4, 36 + pcm, true); ws(8, "WAVE");
-  ws(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-  ws(36, "data"); v.setUint32(40, pcm, true);
-  for (let i = 0; i < pcm; i++) v.setUint8(44 + i, bin.charCodeAt(i));
-  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+// ── ElevenLabs TTS call via edge function ────────────────────
+async function callElevenTTS(text: string, voiceId: string, settings: ReturnType<typeof intensityToSettings>, speed: number): Promise<string> {
+  const resp = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-dubbing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        text,
+        voiceId,
+        stability: settings.stability,
+        similarity: settings.similarity_boost,
+        style: settings.style,
+        speed,
+      }),
+    }
+  );
+  if (!resp.ok) {
+    let msg = `فشل التوليد: ${resp.status}`;
+    try { const j = await resp.json(); msg = j?.error || msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  const blob = await resp.blob();
+  return URL.createObjectURL(blob);
 }
 
 const ROOMS = [
