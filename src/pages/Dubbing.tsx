@@ -15,33 +15,49 @@ import {
   Upload, X, Sparkles, Star, Film, FileAudio, Package,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { GoogleGenAI } from "@google/genai";
+import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
 import {
   CHARACTERS, ROLE_LABELS, findCharacter, getTonesForCharacter,
   type Character, type Tone, type CharacterRole,
 } from "@/lib/dubbing/character-catalog";
+import { resolveElevenVoiceId, intensityToSettings } from "@/lib/dubbing/elevenlabs-voices";
 import { mixScene, buildSrt, type SceneClip } from "@/lib/dubbing/scene-mixer";
 
 // ── Types ────────────────────────────────────────────────────
 interface Take { id: string; charId: string; charName: string; text: string; url: string; toneId: string; toneLabel: string; }
 interface ScriptLine { id: string; charId: string; toneId: string; text: string; url?: string; busy?: boolean; gapMs?: number; }
 
-const MODEL = "gemini-3.1-flash-tts-preview";
+const ENGINE_LABEL = "ElevenLabs · multilingual v2";
 
 // ── WAV builder ──────────────────────────────────────────────
-function b64ToWavUrl(b64: string, rate = 24000): string {
-  const bin = atob(b64);
-  const pcm = bin.length;
-  const buf = new ArrayBuffer(44 + pcm);
-  const v = new DataView(buf);
-  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, "RIFF"); v.setUint32(4, 36 + pcm, true); ws(8, "WAVE");
-  ws(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-  ws(36, "data"); v.setUint32(40, pcm, true);
-  for (let i = 0; i < pcm; i++) v.setUint8(44 + i, bin.charCodeAt(i));
-  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+// ── ElevenLabs TTS call via edge function ────────────────────
+async function callElevenTTS(text: string, voiceId: string, settings: ReturnType<typeof intensityToSettings>, speed: number): Promise<string> {
+  const resp = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-dubbing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        text,
+        voiceId,
+        stability: settings.stability,
+        similarity: settings.similarity_boost,
+        style: settings.style,
+        speed,
+      }),
+    }
+  );
+  if (!resp.ok) {
+    let msg = `فشل التوليد: ${resp.status}`;
+    try { const j = await resp.json(); msg = j?.error || msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  const blob = await resp.blob();
+  return URL.createObjectURL(blob);
 }
 
 const ROOMS = [
@@ -53,7 +69,7 @@ const ROOMS = [
 
 // ── Component ────────────────────────────────────────────────
 export default function Dubbing() {
-  const [apiKey, setApiKey]   = useState(() => localStorage.getItem("gemini_api_key") || "");
+  // ElevenLabs يعمل على الخادم — لا حاجة لمفتاح من المستخدم
   const [charId, setCharId]   = useState("zelda");
   const [toneId, setToneId]   = useState("neutral");
   const [roleFilter, setRoleFilter] = useState<CharacterRole | "all">("all");
@@ -110,41 +126,21 @@ export default function Dubbing() {
     return Array.from(set);
   }, []);
 
-  const getAI = useCallback(() => {
-    if (!apiKey.trim()) throw new Error("أدخل مفتاح Google Gemini API أولاً");
-    localStorage.setItem("gemini_api_key", apiKey);
-    return new GoogleGenAI({ apiKey });
-  }, [apiKey]);
-
-  // ── core TTS call (يدعم نبرة وسرعة وكثافة) ───────────────
+  // ── core TTS call (يدعم نبرة وسرعة وكثافة) عبر ElevenLabs ───
   const tts = useCallback(async (cId: string, t: string, tId: string, controls?: { speedPct?: number; intensityPct?: number }): Promise<string> => {
-    const ai   = getAI();
     const char = findCharacter(cId) ?? CHARACTERS[0];
     const tones = getTonesForCharacter(char);
     const tone  = tones.find(x => x.id === tId) ?? tones[0];
     const inten = controls?.intensityPct ?? 70;
     const sp    = controls?.speedPct ?? 100;
-    const lvl  = inten > 80 ? "بأداء درامي مبالغ فيه مع تضخيم المشاعر. " : inten > 50 ? "بأداء معبّر طبيعي مع مشاعر واضحة. " : "بأداء هادئ متحفظ. ";
-    const speedHint = sp >= 115 ? "تحدّث بسرعة أعلى قليلاً. "
-                    : sp <= 85  ? "تحدّث ببطء أكبر مع توقّفات أطول بين الجمل. " : "";
-    // Gemini TTS يستجيب أفضل لتوجيهات إنجليزية في البداية ثم النص العربي
-    const genderEn = char.gender === "female" ? "female" : char.gender === "male" ? "male" : "";
-    const englishCue = `Read the following Arabic dialogue aloud as a single ${genderEn} character voice with strong emotion and clear acting. Stay fully in character. Do NOT switch gender or accent mid-sentence. Style: ${tone.labelAr}.\n\n`;
-    const prompt = `${englishCue}${char.promptAr}\n${lvl}${speedHint}${tone.prefix}${t}`;
-    const voice = tone.voiceOverride ?? char.voice;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await (ai.models as any).generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-    });
-    const b64 = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!b64) throw new Error("لم يُرجع الذكاء الاصطناعي بيانات صوتية");
-    return b64ToWavUrl(b64);
-  }, [getAI]);
+    // ElevenLabs ينطق النص حرفياً، لذا نضيف مقدمة عربية موجزة للنبرة فقط
+    const promptText = `${tone.prefix}${t}`.trim();
+    const voiceId = resolveElevenVoiceId(cId);
+    const settings = intensityToSettings(inten);
+    // سرعة ElevenLabs بين 0.7 و 1.2
+    const speed = Math.max(0.7, Math.min(1.2, sp / 100));
+    return callElevenTTS(promptText, voiceId, settings, speed);
+  }, []);
 
   // ── Studio generate ───────────────────────────────────────
   const onGenerate = async () => {
@@ -241,27 +237,37 @@ export default function Dubbing() {
     } finally { setMixing(false); }
   };
 
-  // ── Sound Lab analyze ─────────────────────────────────────
+  // ── Sound Lab analyze ─ via edge function (ElevenLabs Scribe + AI) ─
   const onAnalyze = async () => {
     if (!labFile) return;
     setLabBusy(true);
     try {
-      const ai = getAI();
-      const b64: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res((r.result as string).split(",")[1]);
-        r.onerror = rej;
-        r.readAsDataURL(labFile);
+      const buf = await labFile.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+      }
+      const b64 = btoa(bin);
+      const { data, error } = await supabase.functions.invoke("analyze-audio", {
+        body: { audioBase64: b64, mimeType: labFile.type || "audio/wav" },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resp = await (ai.models as any).generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ parts: [
-          { text: "حلّل هذا الصوت. أخبرني: نبرة الصوت، الطاقة الدرامية، الإيقاع، والأسلوب الأنسب لتقليده لأداء دبلجة شخصية من عالم Zelda. قدّم توصيات عملية محددة لإعدادات الأداء." },
-          { inlineData: { mimeType: labFile.type || "audio/wav", data: b64 } },
-        ]}],
-      });
-      setLabResult(resp?.candidates?.[0]?.content?.parts?.[0]?.text || "لا يوجد تحليل");
+      if (error) throw new Error(error.message || "فشل التحليل");
+      if (!data?.analysis) throw new Error(data?.error || "تحليل فارغ");
+      const a = data.analysis;
+      const summary = [
+        `النص: ${a.transcript || "—"}`,
+        `اللغة: ${a.sourceLanguage || "—"}`,
+        `العاطفة: ${a.emotion || "—"} (${a.intensity ?? "—"}/10)`,
+        `النبرة: ${a.tone || "—"}`,
+        `الجنس/العمر: ${a.gender || "—"} / ${a.ageGroup || "—"}`,
+        `طبقة الصوت/السرعة: ${a.pitch || "—"} / ${a.speed || "—"}`,
+        `الصوت المقترح من Zelda: ${a.suggestedZeldaVoice || "—"}`,
+        `\nالترجمة العربية:\n${a.arabicTranslation || "—"}`,
+        `\nتوجيه المخرج:\n${a.dubbingDirection || "—"}`,
+      ].join("\n");
+      setLabResult(summary);
     } catch (e) {
       toast({ title: "❌ خطأ", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally { setLabBusy(false); }
@@ -290,15 +296,11 @@ export default function Dubbing() {
           <div className="w-20" />
         </div>
 
-        {/* ── API Key ───────────────────────────────────────── */}
-        <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 px-4 py-3 flex gap-3 items-center">
+        {/* ── Engine badge ──────────────────────────────────── */}
+        <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 px-4 py-2.5 flex gap-3 items-center justify-center">
           <Star className="w-4 h-4 text-amber-500 shrink-0" />
-          <input
-            type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-            placeholder="مفتاح Google Gemini API (AIza...)"
-            className="flex-1 text-sm bg-transparent border-none outline-none text-amber-100 placeholder:text-amber-700"
-          />
-          <div className={`w-2 h-2 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
+          <span className="text-xs text-amber-300">المحرك الصوتي: <b className="text-amber-400">{ENGINE_LABEL}</b> · بدون مفتاح من المستخدم</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-400" />
         </div>
 
         {/* ── Tabs ──────────────────────────────────────────── */}
@@ -602,7 +604,7 @@ export default function Dubbing() {
                 <input type="file" accept="audio/*" className="hidden"
                   onChange={e => { setLabFile(e.target.files?.[0] || null); setLabResult(""); }} />
               </label>
-              <Button onClick={onAnalyze} disabled={!labFile || labBusy || !apiKey.trim()}
+              <Button onClick={onAnalyze} disabled={!labFile || labBusy}
                 className="w-full bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-500 hover:to-cyan-600 text-white font-bold">
                 {labBusy ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />جارٍ التحليل...</> : <><FlaskConical className="w-4 h-4 ml-2" />تحليل بـ Gemini</>}
               </Button>
@@ -678,10 +680,7 @@ export default function Dubbing() {
         </Tabs>
 
         <p className="text-[10px] text-center text-amber-800 pb-2">
-          {MODEL} · احصل على مفتاحك المجاني من{" "}
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-amber-700 hover:text-amber-500">
-            aistudio.google.com
-          </a>
+          {ENGINE_LABEL} · جميع الميزات تعمل عبر ElevenLabs بدون إعدادات إضافية
         </p>
       </div>
     </div>
