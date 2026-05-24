@@ -179,12 +179,10 @@ export default function AudioDub() {
 
   const onAnalyze = useCallback(async () => {
     if (!origBase64) return;
-    if (!apiKey.trim()) { toast({ title: "أدخل مفتاح Gemini أولاً", variant: "destructive" }); return; }
-    localStorage.setItem("gemini_api_key", apiKey);
     setStage("analyzing"); setProgress(40); setError(null);
     try {
       const { data, error: invokeErr } = await supabase.functions.invoke("analyze-audio", {
-        body: { audioBase64: origBase64, mimeType: origMime, apiKey },
+        body: { audioBase64: origBase64, mimeType: origMime },
       });
       if (invokeErr) throw new Error(invokeErr.message || "فشل التحليل");
       if (!data?.analysis) throw new Error(data?.error || "تحليل فارغ");
@@ -198,7 +196,7 @@ export default function AudioDub() {
       setError(msg); setStage("idle"); setProgress(0);
       toast({ title: "فشل التحليل", description: msg, variant: "destructive" });
     }
-  }, [origBase64, origMime, apiKey, toast]);
+  }, [origBase64, origMime, toast]);
 
   const onGenerateDub = useCallback(async () => {
     if (!editedText.trim() || !analysis) return;
@@ -206,6 +204,8 @@ export default function AudioDub() {
     if (dubUrl) URL.revokeObjectURL(dubUrl);
     setDubUrl(null); setDubBlob(null);
     try {
+      const { resolveElevenVoiceId } = await import("@/lib/dubbing/elevenlabs-voices");
+      const voiceId = resolveElevenVoiceId(finalVoice);
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-dubbing`,
         {
@@ -214,17 +214,13 @@ export default function AudioDub() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({
-            text: editedText,
-            voice: finalVoice,
-            style: analysis.dubbingDirection || analysis.tone,
-            apiKey,
-          }),
+          body: JSON.stringify({ text: editedText, voiceId }),
         },
       );
       if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(errText || `فشل التوليد: ${resp.status}`);
+        let msg = `فشل التوليد: ${resp.status}`;
+        try { const j = await resp.json(); msg = j?.error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
       }
       const blob = await resp.blob();
       setDubBlob(blob);
@@ -236,7 +232,7 @@ export default function AudioDub() {
       setError(msg); setStage("ready"); setProgress(0);
       toast({ title: "فشل التوليد", description: msg, variant: "destructive" });
     }
-  }, [editedText, analysis, finalVoice, apiKey, dubUrl, toast]);
+  }, [editedText, analysis, finalVoice, dubUrl, toast]);
 
   const onGenerateDemo = useCallback(() => {
     const text = manualText.trim();
@@ -345,46 +341,22 @@ export default function AudioDub() {
           </p>
         </header>
 
-        {/* API Key */}
-        <Card className="p-4 mb-4 border-border/60 bg-card/80 backdrop-blur">
-          <Label htmlFor="key" className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-secondary" />
-            مفتاح Google Gemini API (يُحفظ محلياً في متصفّحك فقط)
-          </Label>
-          <div className="flex items-center gap-2">
-            <Input id="key" type="password" placeholder="AIza..."
-              value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1 font-mono text-xs" />
-            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
-          </div>
+        {/* Engine badge */}
+        <Card className="p-3 mb-4 border-emerald-500/30 bg-emerald-500/5 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="text-xs text-emerald-300">المحرك: <b>ElevenLabs multilingual v2</b> — لا حاجة لمفتاح من المستخدم</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-400 ml-auto" />
         </Card>
 
-        {/* Upload */}
         {/* Mode toggle */}
         <Card className="p-3 mb-4 border-border/60 bg-card/80 backdrop-blur flex items-center gap-2">
           <Button size="sm" variant={!demoMode ? "default" : "outline"} onClick={() => setDemoMode(false)} className="flex-1">
-            <Sparkles className="w-3.5 h-3.5 ml-1" /> وضع AI (Gemini)
+            <Sparkles className="w-3.5 h-3.5 ml-1" /> دبلجة بالذكاء (ElevenLabs)
           </Button>
           <Button size="sm" variant={demoMode ? "default" : "outline"} onClick={() => setDemoMode(true)} className="flex-1">
-            <Mic className="w-3.5 h-3.5 ml-1" /> وضع تجريبي (بدون مفتاح)
+            <Mic className="w-3.5 h-3.5 ml-1" /> وضع تجريبي (نص يدوي)
           </Button>
         </Card>
-
-        {/* API Key (AI mode only) */}
-        {!demoMode && (
-          <Card className="p-4 mb-4 border-border/60 bg-card/80 backdrop-blur">
-            <Label htmlFor="key" className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-secondary" />
-              مفتاح Google Gemini API (يُحفظ محلياً في متصفّحك فقط)
-            </Label>
-            <div className="flex items-center gap-2">
-              <Input id="key" type="password" placeholder="AIza..."
-                value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                className="flex-1 font-mono text-xs" />
-              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${apiKey ? "bg-emerald-400" : "bg-red-500/60"}`} />
-            </div>
-          </Card>
-        )}
 
         {/* Demo mode panel */}
         {demoMode && (
@@ -478,7 +450,7 @@ export default function AudioDub() {
 
         {/* Analyze button */}
         {origBase64 && !analysis && !busy && (
-          <Button onClick={onAnalyze} disabled={!apiKey.trim()} size="lg"
+          <Button onClick={onAnalyze} size="lg"
             className="w-full mb-4 bg-gradient-to-r from-secondary to-primary text-background font-bold">
             <Wand2 className="w-5 h-5 ml-2" />
             تحليل الصوت بالذكاء الاصطناعي
