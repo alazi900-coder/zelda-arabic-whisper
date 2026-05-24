@@ -107,7 +107,7 @@ function previewTTS(text: string) {
 export default function AudioDub() {
   const { toast } = useToast();
   const [demoMode, setDemoMode] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
+  // ElevenLabs server-side — no client key needed
   const [file, setFile] = useState<File | null>(null);
   const [origUrl, setOrigUrl] = useState<string | null>(null);
   const [origMime, setOrigMime] = useState<string>("audio/wav");
