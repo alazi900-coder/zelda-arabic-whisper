@@ -1,4 +1,5 @@
-// Arabic dubbing TTS via Lovable AI Gateway (Gemini TTS)
+// Arabic dubbing TTS via ElevenLabs (multilingual v2)
+// Uses ELEVENLABS_API_KEY secret — no client-side key required.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
@@ -6,56 +7,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Gemini prebuilt voices suitable for Zelda-style characters
-// https://ai.google.dev/gemini-api/docs/speech-generation
-const VOICE_MAP: Record<string, string> = {
-  link: "Puck",          // young hero, energetic
-  zelda: "Kore",         // royal, soft, warm
-  ganon: "Charon",       // dark, deep
-  impa: "Sulafat",       // wise elder female
-  purah: "Leda",         // cheerful scientist
-  king: "Orus",          // regal authoritative
-  sidon: "Fenrir",       // friendly heroic
-  npc_male: "Algenib",   // generic male
-  npc_female: "Aoede",   // generic female
-  narrator: "Iapetus",   // narrator
-};
-
-// Build a 44-byte WAV header for 16-bit PCM mono
-function wavHeader(pcmBytes: number, sampleRate = 24000): Uint8Array {
-  const header = new ArrayBuffer(44);
-  const view = new DataView(header);
-  const writeStr = (off: number, s: string) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
-  };
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + pcmBytes, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);            // PCM
-  view.setUint16(22, 1, true);            // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // byte rate
-  view.setUint16(32, 2, true);            // block align
-  view.setUint16(34, 16, true);           // bits per sample
-  writeStr(36, "data");
-  view.setUint32(40, pcmBytes, true);
-  return new Uint8Array(header);
-}
-
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
+const DEFAULT_VOICE = "CwhRBWXzGAHq8TQ4Fs17"; // Roger (narrator fallback)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { text, voice = "link", style = "", apiKey } = await req.json();
+    const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+    if (!ELEVENLABS_API_KEY) {
+      return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY غير مهيّأ في الخادم" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const text: string = body?.text;
+    const voiceId: string = body?.voiceId || DEFAULT_VOICE;
+    const stability: number = typeof body?.stability === "number" ? body.stability : 0.4;
+    const similarity: number = typeof body?.similarity === "number" ? body.similarity : 0.85;
+    const style: number = typeof body?.style === "number" ? body.style : 0.45;
+    const speed: number = typeof body?.speed === "number" ? body.speed : 1.0;
+
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "النص مطلوب" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -66,71 +38,47 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!apiKey || typeof apiKey !== "string") {
-      return new Response(JSON.stringify({ error: "مفتاح Gemini API مطلوب" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
-    const voiceName = VOICE_MAP[voice] ?? "Puck";
-    const stylePrefix = style ? `${style}: ` : "";
-
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+    const endpoint = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
     const resp = await fetch(endpoint, {
       method: "POST",
       headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: stylePrefix + text }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-          },
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability,
+          similarity_boost: similarity,
+          style,
+          use_speaker_boost: true,
+          speed,
         },
       }),
     });
 
     if (!resp.ok) {
       const errText = await resp.text();
-      console.error("TTS gateway error", resp.status, errText);
-      if (resp.status === 429) {
-        return new Response(JSON.stringify({ error: "تم تجاوز الحد، أعد المحاولة بعد قليل" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (resp.status === 402) {
-        return new Response(JSON.stringify({ error: "نفذت أرصدة Lovable AI، أضف رصيداً من إعدادات الورشة" }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: `TTS فشل: ${resp.status}`, detail: errText.slice(0, 500) }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.error("ElevenLabs TTS error", resp.status, errText);
+      const status = resp.status === 429 ? 429 : resp.status === 401 ? 401 : 500;
+      const msg = resp.status === 429
+        ? "تم تجاوز حد الطلبات، أعد المحاولة بعد قليل"
+        : resp.status === 401
+          ? "مفتاح ElevenLabs غير صالح"
+          : `فشل التوليد: ${resp.status}`;
+      return new Response(JSON.stringify({ error: msg, detail: errText.slice(0, 500) }), {
+        status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await resp.json();
-    const part = data?.candidates?.[0]?.content?.parts?.find((p: any) => p?.inlineData?.data);
-    const b64 = part?.inlineData?.data;
-    if (!b64) {
-      console.error("No audio in response", JSON.stringify(data).slice(0, 500));
-      return new Response(JSON.stringify({ error: "لم يُولَّد صوت" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const pcm = b64ToBytes(b64);
-    const header = wavHeader(pcm.length, 24000);
-    const wav = new Uint8Array(header.length + pcm.length);
-    wav.set(header, 0);
-    wav.set(pcm, header.length);
-
-    return new Response(wav, {
-      headers: { ...corsHeaders, "Content-Type": "audio/wav" },
+    const audio = await resp.arrayBuffer();
+    return new Response(audio, {
+      headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
     });
   } catch (e) {
-    console.error("dubbing error", e);
+    console.error("tts-dubbing fatal", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "خطأ غير معروف" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
