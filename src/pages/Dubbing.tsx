@@ -680,10 +680,7 @@ export default function Dubbing() {
         </Tabs>
 
         <p className="text-[10px] text-center text-amber-800 pb-2">
-          {MODEL} · احصل على مفتاحك المجاني من{" "}
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-amber-700 hover:text-amber-500">
-            aistudio.google.com
-          </a>
+          {ENGINE_LABEL} · جميع الميزات تعمل عبر ElevenLabs بدون إعدادات إضافية
         </p>
       </div>
     </div>
