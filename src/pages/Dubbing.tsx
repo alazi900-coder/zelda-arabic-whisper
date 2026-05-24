@@ -69,7 +69,7 @@ const ROOMS = [
 
 // ── Component ────────────────────────────────────────────────
 export default function Dubbing() {
-  const [apiKey, setApiKey]   = useState(() => localStorage.getItem("gemini_api_key") || "");
+  // ElevenLabs يعمل على الخادم — لا حاجة لمفتاح من المستخدم
   const [charId, setCharId]   = useState("zelda");
   const [toneId, setToneId]   = useState("neutral");
   const [roleFilter, setRoleFilter] = useState<CharacterRole | "all">("all");
@@ -604,7 +604,7 @@ export default function Dubbing() {
                 <input type="file" accept="audio/*" className="hidden"
                   onChange={e => { setLabFile(e.target.files?.[0] || null); setLabResult(""); }} />
               </label>
-              <Button onClick={onAnalyze} disabled={!labFile || labBusy || !apiKey.trim()}
+              <Button onClick={onAnalyze} disabled={!labFile || labBusy}
                 className="w-full bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-500 hover:to-cyan-600 text-white font-bold">
                 {labBusy ? <><Loader2 className="w-4 h-4 ml-2 animate-spin" />جارٍ التحليل...</> : <><FlaskConical className="w-4 h-4 ml-2" />تحليل بـ Gemini</>}
               </Button>
