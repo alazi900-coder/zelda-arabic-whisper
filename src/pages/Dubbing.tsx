@@ -126,41 +126,21 @@ export default function Dubbing() {
     return Array.from(set);
   }, []);
 
-  const getAI = useCallback(() => {
-    if (!apiKey.trim()) throw new Error("أدخل مفتاح Google Gemini API أولاً");
-    localStorage.setItem("gemini_api_key", apiKey);
-    return new GoogleGenAI({ apiKey });
-  }, [apiKey]);
-
-  // ── core TTS call (يدعم نبرة وسرعة وكثافة) ───────────────
+  // ── core TTS call (يدعم نبرة وسرعة وكثافة) عبر ElevenLabs ───
   const tts = useCallback(async (cId: string, t: string, tId: string, controls?: { speedPct?: number; intensityPct?: number }): Promise<string> => {
-    const ai   = getAI();
     const char = findCharacter(cId) ?? CHARACTERS[0];
     const tones = getTonesForCharacter(char);
     const tone  = tones.find(x => x.id === tId) ?? tones[0];
     const inten = controls?.intensityPct ?? 70;
     const sp    = controls?.speedPct ?? 100;
-    const lvl  = inten > 80 ? "بأداء درامي مبالغ فيه مع تضخيم المشاعر. " : inten > 50 ? "بأداء معبّر طبيعي مع مشاعر واضحة. " : "بأداء هادئ متحفظ. ";
-    const speedHint = sp >= 115 ? "تحدّث بسرعة أعلى قليلاً. "
-                    : sp <= 85  ? "تحدّث ببطء أكبر مع توقّفات أطول بين الجمل. " : "";
-    // Gemini TTS يستجيب أفضل لتوجيهات إنجليزية في البداية ثم النص العربي
-    const genderEn = char.gender === "female" ? "female" : char.gender === "male" ? "male" : "";
-    const englishCue = `Read the following Arabic dialogue aloud as a single ${genderEn} character voice with strong emotion and clear acting. Stay fully in character. Do NOT switch gender or accent mid-sentence. Style: ${tone.labelAr}.\n\n`;
-    const prompt = `${englishCue}${char.promptAr}\n${lvl}${speedHint}${tone.prefix}${t}`;
-    const voice = tone.voiceOverride ?? char.voice;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await (ai.models as any).generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-    });
-    const b64 = res?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!b64) throw new Error("لم يُرجع الذكاء الاصطناعي بيانات صوتية");
-    return b64ToWavUrl(b64);
-  }, [getAI]);
+    // ElevenLabs ينطق النص حرفياً، لذا نضيف مقدمة عربية موجزة للنبرة فقط
+    const promptText = `${tone.prefix}${t}`.trim();
+    const voiceId = resolveElevenVoiceId(cId);
+    const settings = intensityToSettings(inten);
+    // سرعة ElevenLabs بين 0.7 و 1.2
+    const speed = Math.max(0.7, Math.min(1.2, sp / 100));
+    return callElevenTTS(promptText, voiceId, settings, speed);
+  }, []);
 
   // ── Studio generate ───────────────────────────────────────
   const onGenerate = async () => {
