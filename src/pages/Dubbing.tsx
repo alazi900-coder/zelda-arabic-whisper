@@ -15,19 +15,20 @@ import {
   Upload, X, Sparkles, Star, Film, FileAudio, Package,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { GoogleGenAI } from "@google/genai";
+import { supabase } from "@/integrations/supabase/client";
 import JSZip from "jszip";
 import {
   CHARACTERS, ROLE_LABELS, findCharacter, getTonesForCharacter,
   type Character, type Tone, type CharacterRole,
 } from "@/lib/dubbing/character-catalog";
+import { resolveElevenVoiceId, intensityToSettings } from "@/lib/dubbing/elevenlabs-voices";
 import { mixScene, buildSrt, type SceneClip } from "@/lib/dubbing/scene-mixer";
 
 // ── Types ────────────────────────────────────────────────────
 interface Take { id: string; charId: string; charName: string; text: string; url: string; toneId: string; toneLabel: string; }
 interface ScriptLine { id: string; charId: string; toneId: string; text: string; url?: string; busy?: boolean; gapMs?: number; }
 
-const MODEL = "gemini-3.1-flash-tts-preview";
+const ENGINE_LABEL = "ElevenLabs · multilingual v2";
 
 // ── WAV builder ──────────────────────────────────────────────
 function b64ToWavUrl(b64: string, rate = 24000): string {
